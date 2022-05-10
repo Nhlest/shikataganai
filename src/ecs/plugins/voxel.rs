@@ -1,5 +1,3 @@
-use bevy::core::Pod;
-use bevy::core::Zeroable;
 use bevy::core_pipeline::Opaque3d;
 use bevy::ecs::system::lifetimeless::{Read, SQuery, SRes};
 use bevy::ecs::system::SystemParamItem;
@@ -24,6 +22,7 @@ use bevy::render::texture::BevyDefault;
 use bevy::render::view::{ViewUniform, ViewUniformOffset, ViewUniforms};
 use bevy::render::RenderStage;
 use bevy::render::{RenderApp, RenderWorld};
+use bytemuck_derive::*;
 use wgpu::{
   BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindingResource, BufferUsages, DepthStencilState,
   Face,
