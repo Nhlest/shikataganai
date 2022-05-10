@@ -1,0 +1,39 @@
+[package]
+name = "shikataganai"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rand = "*"
+wgpu = "*"
+image = "*"
+imgui = "*"
+winit = "*"
+imgui-sys = "*"
+imgui-wgpu = "*"
+imgui-winit-support = { version = "*", features = [ "winit-26" ] }
+bytemuck = "*"
+num-traits = "*"
+#bevy_mod_picking = { git = "https://github.com/aevyrie/bevy_mod_picking", branch = "main" }
+#bevy_mod_raycast = { git = "https://github.com/aevyrie/bevy_mod_raycast", branch = "main" }
+#bevy = { git = "https://github.com/bevyengine/bevy", branch = "main", default-features = false, features = ["bevy_winit", "bevy_gltf", "png", "jpeg"] } #, features = [ "trace_tracy", "trace" ] }
+#bevy-inspector-egui = "*"
+#itertools = "*"
+#lazy_static = "*"
+#strum = "*"
+#strum_macros = "*"
+
+[dependencies.bevy]
+git = "https://github.com/bevyengine/bevy"
+branch = "main"
+default-features = false
+features = ["bevy_winit", "png", "jpeg", "bevy_render", "bevy_core_pipeline", "bevy_sprite", "bevy_pbr"]
+
+[profile.dev]
+opt-level = 1
+overflow-checks = false
+
+# Enable high optimizations for dependencies (incl. Bevy), but not for our code:
+[profile.dev.package."*"]
+opt-level = 3
+overflow-checks = false
