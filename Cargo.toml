@@ -15,6 +15,7 @@ imgui-winit-support = { version = "*", features = [ "winit-26" ] }
 bytemuck = "*"
 bytemuck_derive = "*"
 num-traits = "*"
+parry3d = "*"
 #bevy_mod_picking = { git = "https://github.com/aevyrie/bevy_mod_picking", branch = "main" }
 #bevy_mod_raycast = { git = "https://github.com/aevyrie/bevy_mod_raycast", branch = "main" }
 #bevy = { git = "https://github.com/bevyengine/bevy", branch = "main", default-features = false, features = ["bevy_winit", "bevy_gltf", "png", "jpeg"] } #, features = [ "trace_tracy", "trace" ] }
@@ -28,7 +29,7 @@ num-traits = "*"
 git = "https://github.com/bevyengine/bevy"
 branch = "main"
 default-features = false
-features = ["bevy_winit", "png", "jpeg", "bevy_render", "bevy_core_pipeline"]
+features = ["bevy_winit", "png", "jpeg", "bevy_render", "bevy_core_pipeline"] #, "trace", "trace_tracy"]
 
 [profile.dev]
 opt-level = 1

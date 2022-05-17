@@ -3,13 +3,13 @@ use bevy::ecs::system::lifetimeless::{Read, SQuery, SRes};
 use bevy::ecs::system::SystemParamItem;
 use bevy::prelude::*;
 use bevy::reflect::TypeUuid;
+use bevy::render::{RenderApp, RenderWorld};
 use bevy::render::mesh::PrimitiveTopology;
 use bevy::render::render_asset::RenderAssets;
 use bevy::render::render_phase::{
   AddRenderCommand, DrawFunctions, EntityRenderCommand, PhaseItem, RenderCommand, RenderCommandResult, RenderPhase,
   SetItemPipeline, TrackedRenderPass,
 };
-use bevy::render::render_resource::std140::AsStd140;
 use bevy::render::render_resource::{
   BindGroup, BindGroupLayout, BindGroupLayoutEntry, BindingType, BlendState, BufferBindingType, BufferSize, BufferVec,
   ColorTargetState, ColorWrites, CompareFunction, FragmentState, FrontFace, MultisampleState, PipelineCache,
@@ -17,11 +17,11 @@ use bevy::render::render_resource::{
   SpecializedRenderPipelines, TextureFormat, TextureSampleType, TextureViewDimension, VertexBufferLayout, VertexFormat,
   VertexState, VertexStepMode,
 };
+use bevy::render::render_resource::std140::AsStd140;
 use bevy::render::renderer::{RenderDevice, RenderQueue};
+use bevy::render::RenderStage;
 use bevy::render::texture::BevyDefault;
 use bevy::render::view::{ViewUniform, ViewUniformOffset, ViewUniforms};
-use bevy::render::RenderStage;
-use bevy::render::{RenderApp, RenderWorld};
 use bytemuck_derive::*;
 use wgpu::{
   BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindingResource, BufferUsages, DepthStencilState,
@@ -32,24 +32,20 @@ use crate::ecs::components::chunk::{BlockId, Chunk};
 
 pub struct VoxelRendererPlugin;
 
-#[derive(Component)]
-pub struct Location {
-  pub x: f32,
-  pub y: f32,
-  pub z: f32,
-  pub size_x: f32,
-}
-
-fn extract_spites(mut render_world: ResMut<RenderWorld>, chunks: Query<(&Chunk, &Location)>) {
+fn extract_chunks(mut render_world: ResMut<RenderWorld>, chunks: Query<&Chunk>) {
   let mut extracted_blocks = render_world.get_resource_mut::<ExtractedBlocks>().unwrap();
   extracted_blocks.blocks.clear();
-  for (chunk, location) in chunks.iter() {
+  for chunk in chunks.iter() {
     let ((x1, _, _), (x2, _, _)) = chunk.grid.bounds;
-    let size_x = location.size_x / (x2 - x1) as f32;
+    let size_x = 16.0 / (x2 - x1 + 1) as f32;
     chunk.grid.foreach(|(x, y, z), s| {
-      extracted_blocks.blocks.push(ExtractedBlock::new(
-        x, y, z, location.x, location.y, location.z, s.block, s.color, size_x,
-      ))
+      if s.block == BlockId::Air {
+
+      } else {
+        extracted_blocks.blocks.push(ExtractedBlock::new(
+          x, y, z, s.block, s.color, size_x,
+        ))
+      }
     });
   }
 }
@@ -235,17 +231,15 @@ fn queue_chunks(
 
   let pipeline = pipelines.specialize(&mut pipeline_cache, &chunk_pipeline, ());
 
-  // if buf.vertex.len() == 0 {
   buf.vertex.clear();
   for i in &extracted_blocks.blocks {
     buf.vertex.push(SingleBlock {
       position: [i.x, i.y, i.z],
-      tiles: [1, 1, 1, 1, 0, 2],
+      tiles: i.i.into_array_of_faces(),
       size: i.s,
     });
   }
   buf.vertex.write_buffer(&render_device, &render_queue);
-  // }
 
   for mut view in views.iter_mut() {
     view.add(Opaque3d {
@@ -328,147 +322,147 @@ pub struct VertexBuffer {
 
 const VERTEX: [Vertex; 36] = [
   Vertex {
-    pos: [-0.5, -0.5, -0.5],
+    pos: [0.0, 0.0, 0.0],
     uv: [0.0, 1.0],
   },
   Vertex {
-    pos: [0.5, -0.5, -0.5],
+    pos: [1.0, 0.0, 0.0],
     uv: [1.0, 1.0],
   },
   Vertex {
-    pos: [-0.5, 0.5, -0.5],
+    pos: [0.0, 1.0, 0.0],
     uv: [0.0, 0.0],
   },
   Vertex {
-    pos: [0.5, -0.5, -0.5],
+    pos: [1.0, 0.0, 0.0],
     uv: [1.0, 1.0],
   },
   Vertex {
-    pos: [0.5, 0.5, -0.5],
+    pos: [1.0, 1.0, 0.0],
     uv: [1.0, 0.0],
   },
   Vertex {
-    pos: [-0.5, 0.5, -0.5],
+    pos: [0.0, 1.0, 0.0],
     uv: [0.0, 0.0],
   },
   Vertex {
-    pos: [0.5, -0.5, -0.5],
+    pos: [1.0, 0.0, 0.0],
     uv: [0.0, 1.0],
   },
   Vertex {
-    pos: [0.5, -0.5, 0.5],
+    pos: [1.0, 0.0, 1.0],
     uv: [1.0, 1.0],
   },
   Vertex {
-    pos: [0.5, 0.5, -0.5],
+    pos: [1.0, 1.0, 0.0],
     uv: [0.0, 0.0],
   },
   Vertex {
-    pos: [0.5, -0.5, 0.5],
+    pos: [1.0, 0.0, 1.0],
     uv: [1.0, 1.0],
   },
   Vertex {
-    pos: [0.5, 0.5, 0.5],
+    pos: [1.0, 1.0, 1.0],
     uv: [1.0, 0.0],
   },
   Vertex {
-    pos: [0.5, 0.5, -0.5],
+    pos: [1.0, 1.0, 0.0],
     uv: [0.0, 0.0],
   },
   Vertex {
-    pos: [0.5, -0.5, 0.5],
+    pos: [1.0, 0.0, 1.0],
     uv: [0.0, 1.0],
   },
   Vertex {
-    pos: [-0.5, -0.5, 0.5],
+    pos: [0.0, 0.0, 1.0],
     uv: [1.0, 1.0],
   },
   Vertex {
-    pos: [0.5, 0.5, 0.5],
+    pos: [1.0, 1.0, 1.0],
     uv: [0.0, 0.0],
   },
   Vertex {
-    pos: [-0.5, -0.5, 0.5],
+    pos: [0.0, 0.0, 1.0],
     uv: [1.0, 1.0],
   },
   Vertex {
-    pos: [-0.5, 0.5, 0.5],
+    pos: [0.0, 1.0, 1.0],
     uv: [1.0, 0.0],
   },
   Vertex {
-    pos: [0.5, 0.5, 0.5],
+    pos: [1.0, 1.0, 1.0],
     uv: [0.0, 0.0],
   },
   Vertex {
-    pos: [-0.5, -0.5, 0.5],
+    pos: [0.0, 0.0, 1.0],
     uv: [0.0, 1.0],
   },
   Vertex {
-    pos: [-0.5, -0.5, -0.5],
+    pos: [0.0, 0.0, 0.0],
     uv: [1.0, 1.0],
   },
   Vertex {
-    pos: [-0.5, 0.5, 0.5],
+    pos: [0.0, 1.0, 1.0],
     uv: [0.0, 0.0],
   },
   Vertex {
-    pos: [-0.5, -0.5, -0.5],
+    pos: [0.0, 0.0, 0.0],
     uv: [1.0, 1.0],
   },
   Vertex {
-    pos: [-0.5, 0.5, -0.5],
+    pos: [0.0, 1.0, 0.0],
     uv: [1.0, 0.0],
   },
   Vertex {
-    pos: [-0.5, 0.5, 0.5],
+    pos: [0.0, 1.0, 1.0],
     uv: [0.0, 0.0],
   },
   Vertex {
-    pos: [-0.5, 0.5, -0.5],
+    pos: [0.0, 0.0, 1.0],
     uv: [0.0, 1.0],
   },
   Vertex {
-    pos: [0.5, 0.5, -0.5],
+    pos: [1.0, 0.0, 1.0],
     uv: [1.0, 1.0],
   },
   Vertex {
-    pos: [-0.5, 0.5, 0.5],
+    pos: [0.0, 0.0, 0.0],
     uv: [0.0, 0.0],
   },
   Vertex {
-    pos: [0.5, 0.5, -0.5],
+    pos: [1.0, 0.0, 1.0],
     uv: [1.0, 1.0],
   },
   Vertex {
-    pos: [0.5, 0.5, 0.5],
+    pos: [1.0, 0.0, 0.0],
     uv: [1.0, 0.0],
   },
   Vertex {
-    pos: [-0.5, 0.5, 0.5],
+    pos: [0.0, 0.0, 0.0],
     uv: [0.0, 0.0],
   },
   Vertex {
-    pos: [-0.5, -0.5, 0.5],
+    pos: [0.0, 1.0, 0.0],
     uv: [0.0, 1.0],
   },
   Vertex {
-    pos: [0.5, -0.5, 0.5],
+    pos: [1.0, 1.0, 0.0],
     uv: [1.0, 1.0],
   },
   Vertex {
-    pos: [-0.5, -0.5, -0.5],
+    pos: [0.0, 1.0, 1.0],
     uv: [0.0, 0.0],
   },
   Vertex {
-    pos: [0.5, -0.5, 0.5],
+    pos: [1.0, 1.0, 0.0],
     uv: [1.0, 1.0],
   },
   Vertex {
-    pos: [0.5, -0.5, -0.5],
+    pos: [1.0, 1.0, 1.0],
     uv: [1.0, 0.0],
   },
   Vertex {
-    pos: [-0.5, -0.5, -0.5],
+    pos: [0.0, 1.0, 1.0],
     uv: [0.0, 0.0],
   },
 ];
@@ -501,6 +495,9 @@ impl<P: PhaseItem> RenderCommand<P> for DrawChunk {
     pass: &mut TrackedRenderPass<'w>,
   ) -> RenderCommandResult {
     let instances = param.0.blocks.len();
+    if instances == 0 {
+      return RenderCommandResult::Success;
+    }
     pass.set_vertex_buffer(0, param.1.into_inner().vertex.buffer().unwrap().slice(..));
     pass.set_vertex_buffer(1, param.2.into_inner().vertex.buffer().unwrap().slice(..));
     pass.draw(0..36, 0..instances as u32);
@@ -508,14 +505,13 @@ impl<P: PhaseItem> RenderCommand<P> for DrawChunk {
   }
 }
 
-#[repr(C)]
 struct ExtractedBlock {
   x: f32,
   y: f32,
   z: f32,
   s: f32,
   rgba: u32,
-  i: u32,
+  i: BlockId,
 }
 
 impl ExtractedBlock {
@@ -523,19 +519,16 @@ impl ExtractedBlock {
     x: i32,
     y: i32,
     z: i32,
-    location_x: f32,
-    location_y: f32,
-    location_z: f32,
     block: BlockId,
     color: Color,
     size_x: f32,
   ) -> Self {
     ExtractedBlock {
-      x: x as f32 * size_x + location_x,
-      y: y as f32 * size_x + location_y,
-      z: z as f32 * size_x + location_z,
+      x: x as f32 * size_x,
+      y: y as f32 * size_x,
+      z: z as f32 * size_x,
       s: size_x,
-      i: block as u32,
+      i: block,
       rgba: color.as_rgba_u32(),
     }
   }
@@ -561,7 +554,7 @@ impl Plugin for VoxelRendererPlugin {
       .init_resource::<SpecializedRenderPipelines<VoxelPipeline>>()
       .init_resource::<TextureHandle>()
       .init_resource::<TextureBindGroup>()
-      .add_system_to_stage(RenderStage::Extract, extract_spites)
+      .add_system_to_stage(RenderStage::Extract, extract_chunks)
       .add_system_to_stage(RenderStage::Queue, queue_chunks)
       .add_render_command::<Opaque3d, DrawChunkFull>();
   }

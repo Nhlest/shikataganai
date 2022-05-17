@@ -3,3 +3,4 @@ pub mod camera;
 pub mod imgui;
 pub mod preamble;
 pub mod voxel;
+pub mod game;
