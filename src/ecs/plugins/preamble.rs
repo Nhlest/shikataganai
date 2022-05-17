@@ -1,9 +1,6 @@
 use bevy::app::AppExit;
 use bevy::prelude::*;
-use bevy::render::settings::WgpuSettings;
 use bevy::winit::WinitWindows;
-
-use crate::ecs::components::chunk::Chunk;
 
 // let there: be = light;
 pub struct Preamble;

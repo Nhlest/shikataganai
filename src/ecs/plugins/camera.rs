@@ -1,19 +1,16 @@
+use crate::ecs::components::chunk::{BlockId, Chunk};
+use crate::ecs::resources::chunk_map::ChunkMap;
+use crate::{Isometry3, Vector3};
 use bevy::input::mouse::MouseMotion;
 use bevy::prelude::*;
 use bevy::render::camera::CameraProjection;
-use bevy::render::primitives::{Aabb, Frustum};
-use bevy::render::view::VisibleEntities;
+use bevy::render::primitives::Frustum;
 use num_traits::float::FloatConst;
-use num_traits::{Float, Signed};
-use parry3d::math::Real;
-use parry3d::na::{Point, Point3};
+use parry3d::na::Point3;
 use parry3d::query;
-use parry3d::query::{Contact, TOI, TOIStatus, Unsupported};
 use parry3d::query::TOIStatus::{Converged, Penetrating};
+use parry3d::query::TOI;
 use parry3d::shape::{Capsule, Cuboid};
-use crate::ecs::components::chunk::{Block, BlockId, Chunk};
-use crate::ecs::resources::chunk_map::{ChunkMap, ChunkMeta};
-use crate::{Isometry3, Vector3};
 
 pub struct CameraPlugin;
 
@@ -44,12 +41,8 @@ impl Plugin for CameraPlugin {
         aspect_ratio: 1.0,
       };
       let view_projection = perspective_projection.get_projection_matrix();
-      let frustum = Frustum::from_view_projection(
-        &view_projection,
-        &Vec3::ZERO,
-        &Vec3::Z,
-        perspective_projection.far(),
-      );
+      let frustum =
+        Frustum::from_view_projection(&view_projection, &Vec3::ZERO, &Vec3::Z, perspective_projection.far());
       PerspectiveCameraBundle {
         camera: Camera {
           near: perspective_projection.near,
@@ -58,7 +51,7 @@ impl Plugin for CameraPlugin {
         },
         perspective_projection,
         frustum,
-        .. default()
+        ..default()
       }
     };
     app
@@ -75,12 +68,10 @@ impl Plugin for CameraPlugin {
   }
 }
 
-fn gravity_system(
-  mut player: Query<&mut FPSCamera>,
-) {
-  let (mut fps_camera) = player.single_mut();
+fn gravity_system(mut player: Query<&mut FPSCamera>) {
+  let mut fps_camera = player.single_mut();
   fps_camera.momentum += Vec3::new(0.0, -0.01, 0.0);
-  fps_camera.momentum.y.clamp(-0.1, 999.0);
+  fps_camera.momentum.y = fps_camera.momentum.y.clamp(-0.5, 999.0);
 }
 
 fn movement_input_system(
@@ -88,14 +79,14 @@ fn movement_input_system(
   mut mouse_events: EventReader<MouseMotion>,
   key_events: Res<Input<KeyCode>>,
   mut windows: ResMut<Windows>,
-  mut jumping: Local<bool>
+  mut jumping: Local<bool>,
 ) {
   let window = windows.get_primary_mut().unwrap();
   if !window.cursor_locked() {
     return;
   }
 
-  let (mut camera, mut transform) = player.single_mut();
+  let (mut camera, transform) = player.single_mut();
   for MouseMotion { delta } in mouse_events.iter() {
     camera.phi += delta.x * 0.01;
     camera.theta = (camera.theta + delta.y * 0.01).clamp(0.05, f32::PI() - 0.05);
@@ -105,7 +96,6 @@ fn movement_input_system(
   if key_events.pressed(KeyCode::W) {
     let mut fwd = transform.forward();
     fwd.y = 0.0;
-    fwd.normalize();
     let fwd = fwd.normalize();
     movement += fwd;
   }
@@ -140,12 +130,11 @@ fn movement_input_system(
 
 fn collision_movement_system(
   mut player: Query<(&mut FPSCamera, &mut Transform)>,
-  chunks: Query<(&Chunk)>,
+  chunks: Query<&Chunk>,
   chunk_map: Res<ChunkMap>,
-  time: Res<Time>
 ) {
-  let (mut fps_camera, mut transform) = player.single_mut();
-  let mut fps_camera : Mut<FPSCamera> = fps_camera;
+  let (fps_camera, mut transform) = player.single_mut();
+  let mut fps_camera: Mut<FPSCamera> = fps_camera;
 
   let mut aabbs = vec![];
   let cuboid = Cuboid::new(Vector3::new(0.5, 0.5, 0.5));
@@ -158,56 +147,47 @@ fn collision_movement_system(
         let c = fps_camera.pos + Vec3::new(ix as f32, iy as f32, iz as f32);
         if let Some((e, c)) = chunk_map.get_path_to_block(c) {
           if chunks.get(e).unwrap().grid[c].block != BlockId::Air {
-            aabbs.push(Isometry3::translation(c.0 as f32 + 0.5, c.1 as f32 + 0.5, c.2 as f32 + 0.5));
+            aabbs.push(Isometry3::translation(
+              c.0 as f32 + 0.5,
+              c.1 as f32 + 0.5,
+              c.2 as f32 + 0.5,
+            ));
           }
         }
       }
     }
   }
 
-  for i in 0..3 {
-    let player_pos = Isometry3::translation(fps_camera.pos.x, fps_camera.pos.y-1.5, fps_camera.pos.z);
+  for _ in 0..3 {
+    let player_pos = Isometry3::translation(fps_camera.pos.x, fps_camera.pos.y - 1.5, fps_camera.pos.z);
     let player_vel = Vector3::new(fps_camera.momentum.x, fps_camera.momentum.y, fps_camera.momentum.z);
     let mut tois = vec![];
 
     for i in aabbs.iter() {
-      match query::time_of_impact(
-        &player_pos,
-        &player_vel,
-        &playeroid,
-        &i,
-        &zero_vel,
-        &cuboid,
-        1.0
-      ) {
-        Ok(f) => {
-          match f {
-            None => {}
-            Some(TOI { toi, witness1, witness2, normal1, normal2, status }) => {
-              if status == Converged {
-                tois.push((toi, normal2));
-              }
-              if status == Penetrating {
-                match query::contact(
-                  &player_pos,
-                  &playeroid,
-                  &i,
-                  &cuboid,
-                  0.0
-                ) {
-                  Ok(Some(Contact { point1, point2, normal1, normal2, dist })) => {
-                    let other = Vec3::new(normal2.x, normal2.y, normal2.z);
-                    let dot = fps_camera.momentum.dot(other);
-                    if dot < 0.0 {
-                      fps_camera.momentum = fps_camera.momentum - dot * other;
-                    }
+      match query::time_of_impact(&player_pos, &player_vel, &playeroid, &i, &zero_vel, &cuboid, 1.0) {
+        Ok(f) => match f {
+          None => {}
+          Some(TOI {
+            toi, normal2, status, ..
+          }) => {
+            if status == Converged {
+              tois.push((toi, normal2));
+            }
+            if status == Penetrating {
+              match query::contact(&player_pos, &playeroid, &i, &cuboid, 0.0) {
+                Ok(Some(contact)) => {
+                  let normal2 = contact.normal2;
+                  let other = Vec3::new(normal2.x, normal2.y, normal2.z);
+                  let dot = fps_camera.momentum.dot(other);
+                  if dot < 0.0 {
+                    fps_camera.momentum = fps_camera.momentum - dot * other;
                   }
-                  _ => {}
                 }
+                _ => {}
               }
             }
           }
-        }
+        },
         Err(e) => {
           println!("{}", e);
           std::process::exit(-1);
@@ -225,7 +205,6 @@ fn collision_movement_system(
       }
     }
   }
-
 
   fps_camera.pos = fps_camera.pos + fps_camera.momentum;
   let y = fps_camera.momentum.y;

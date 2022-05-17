@@ -1,5 +1,5 @@
-use bevy::prelude::*;
 use crate::ecs::resources::chunk_map::{ChunkMap, ChunkMapSize};
+use bevy::prelude::*;
 
 pub struct GamePlugin;
 

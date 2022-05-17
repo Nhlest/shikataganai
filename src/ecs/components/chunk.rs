@@ -7,7 +7,7 @@ pub enum BlockId {
   Air,
   Dirt,
   Grass,
-  Cobble
+  Cobble,
 }
 
 impl BlockId {

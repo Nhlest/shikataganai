@@ -3,13 +3,13 @@ use bevy::ecs::system::lifetimeless::{Read, SQuery, SRes};
 use bevy::ecs::system::SystemParamItem;
 use bevy::prelude::*;
 use bevy::reflect::TypeUuid;
-use bevy::render::{RenderApp, RenderWorld};
 use bevy::render::mesh::PrimitiveTopology;
 use bevy::render::render_asset::RenderAssets;
 use bevy::render::render_phase::{
   AddRenderCommand, DrawFunctions, EntityRenderCommand, PhaseItem, RenderCommand, RenderCommandResult, RenderPhase,
   SetItemPipeline, TrackedRenderPass,
 };
+use bevy::render::render_resource::std140::AsStd140;
 use bevy::render::render_resource::{
   BindGroup, BindGroupLayout, BindGroupLayoutEntry, BindingType, BlendState, BufferBindingType, BufferSize, BufferVec,
   ColorTargetState, ColorWrites, CompareFunction, FragmentState, FrontFace, MultisampleState, PipelineCache,
@@ -17,11 +17,11 @@ use bevy::render::render_resource::{
   SpecializedRenderPipelines, TextureFormat, TextureSampleType, TextureViewDimension, VertexBufferLayout, VertexFormat,
   VertexState, VertexStepMode,
 };
-use bevy::render::render_resource::std140::AsStd140;
 use bevy::render::renderer::{RenderDevice, RenderQueue};
-use bevy::render::RenderStage;
 use bevy::render::texture::BevyDefault;
 use bevy::render::view::{ViewUniform, ViewUniformOffset, ViewUniforms};
+use bevy::render::RenderStage;
+use bevy::render::{RenderApp, RenderWorld};
 use bytemuck_derive::*;
 use wgpu::{
   BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindingResource, BufferUsages, DepthStencilState,
@@ -40,11 +40,10 @@ fn extract_chunks(mut render_world: ResMut<RenderWorld>, chunks: Query<&Chunk>) 
     let size_x = 16.0 / (x2 - x1 + 1) as f32;
     chunk.grid.foreach(|(x, y, z), s| {
       if s.block == BlockId::Air {
-
       } else {
-        extracted_blocks.blocks.push(ExtractedBlock::new(
-          x, y, z, s.block, s.color, size_x,
-        ))
+        extracted_blocks
+          .blocks
+          .push(ExtractedBlock::new(x, y, z, s.block, s.color, size_x))
       }
     });
   }
@@ -515,14 +514,7 @@ struct ExtractedBlock {
 }
 
 impl ExtractedBlock {
-  fn new(
-    x: i32,
-    y: i32,
-    z: i32,
-    block: BlockId,
-    color: Color,
-    size_x: f32,
-  ) -> Self {
+  fn new(x: i32, y: i32, z: i32, block: BlockId, color: Color, size_x: f32) -> Self {
     ExtractedBlock {
       x: x as f32 * size_x,
       y: y as f32 * size_x,

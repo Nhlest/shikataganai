@@ -53,10 +53,7 @@ impl<T> Array2d<T> {
       bounds: ((x0, y0), (x1, y1)),
     }
   }
-  pub fn new_init<F: FnMut((i32, i32)) -> T>(
-    ((x0, y0), (x1, y1)): ((i32, i32), (i32, i32)),
-    mut f: F,
-  ) -> Array2d<T> {
+  pub fn new_init<F: FnMut((i32, i32)) -> T>(((x0, y0), (x1, y1)): ((i32, i32), (i32, i32)), mut f: F) -> Array2d<T> {
     let mut array = Self::new_zeroed(((x0, y0), (x1, y1)));
     for iy in y0..=y1 {
       for ix in x0..=x1 {

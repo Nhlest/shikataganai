@@ -1,12 +1,8 @@
 #![feature(negative_impls)]
 
-use bevy::DefaultPlugins;
-use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
-use bevy::math::Vec3;
 use bevy::prelude::{App, NonSend};
-use parry3d::na::{Isometry3, Point3, Vector3};
-use parry3d::query;
-use parry3d::shape::{Capsule, Cuboid};
+use bevy::DefaultPlugins;
+use parry3d::na::{Isometry3, Vector3};
 
 use crate::ecs::plugins::camera::CameraPlugin;
 use crate::ecs::plugins::game::GamePlugin;
