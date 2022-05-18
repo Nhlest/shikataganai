@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::util::array::Array;
 
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub enum BlockId {
   Air,
   Dirt,

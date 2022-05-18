@@ -5,9 +5,40 @@ struct View {
 [[group(0), binding(0)]]
 var<uniform> view: View;
 
+struct Light {
+  x: i32;
+  y: i32;
+  z: i32;
+  map: array<u32>;
+};
+
+[[group(2), binding(0)]]
+var<storage> light: Light;
+
+struct Selection {
+  cube: vec3<i32>;
+  face: vec3<i32>;
+};
+
+[[group(3), binding(0)]]
+var<uniform> selection: Selection;
+
+fn readU8(x: i32, y: i32, z: i32) -> u32 {
+    var offset : u32 = u32(light.x * light.y * z + light.x * y + x);
+	var ipos : u32 = offset / 4u;
+	var val_u32 : u32 = light.map[ipos];
+	var shift : u32 = 8u * (offset % 4u);
+	var val_u8 : u32 = (val_u32 >> shift) & 0xFFu;
+
+	return val_u8;
+}
+
 struct VertexOutput {
     [[builtin(position)]] position: vec4<f32>;
     [[location(0)]]uv: vec2<f32>;
+    [[location(1)]]brightness: f32;
+    [[location(2)]]cube_selected: i32;
+    [[location(3)]]face_selected: i32;
 };
 
 [[stage(vertex)]]
@@ -16,7 +47,7 @@ fn vertex(
   [[location(0)]] position: vec3<f32>,
   [[location(1)]] tiles: vec3<u32>,
   [[location(2)]] size: f32,
-  [[location(3)]] coord: vec3<f32>,
+  [[location(3)]] coord: vec4<f32>,
   [[location(4)]] uv: vec2<f32>
 ) -> VertexOutput {
     var atlas_size : u32 = u32(8);
@@ -33,8 +64,41 @@ fn vertex(
     var tile_y : u32 = tile_id / atlas_size;
 
     var o: VertexOutput;
-    o.position = view.view_proj * (vec4<f32>(coord*size, 1.0) + vec4<f32>(position, 0.0));
+    o.position = view.view_proj * (vec4<f32>(coord.xyz*size, 1.0) + vec4<f32>(position, 0.0));
     o.uv = (uv + vec2<f32>(f32(tile_x), f32(tile_y))) / f32(atlas_size);
+
+    var side = coord.w;
+    var position = vec3<i32>(i32(position.x), i32(position.y), i32(position.z));
+
+    if (position.x == selection.cube.x && position.y == selection.cube.y && position.z == selection.cube.z) {
+      o.cube_selected = 1;
+    } else {
+      o.cube_selected = 0;
+    }
+
+    if (side == 0.0) {
+      position.z = position.z - 1;
+    } else if (side == 1.0) {
+      position.x = position.x + 1;
+    } else if (side == 2.0) {
+      position.z = position.z + 1;
+    } else if (side == 3.0) {
+      position.x = position.x - 1;
+    } else if (side == 4.0) {
+      position.y = position.y - 1;
+    } else if (side == 5.0) {
+      position.y = position.y + 1;
+    }
+
+    if (position.y == selection.face.y && position.y == selection.face.y && position.z == selection.face.z) {
+      o.face_selected = 1;
+    } else {
+      o.face_selected = 0;
+    }
+
+    var light_level : u32 = readU8(position.x, position.y, position.z);
+    o.brightness = f32(light_level * 16u + 1u) / 256.0;
+
     //o.uv = V[id].uv;
     //var color = color;
     //let r = color % u32(256); color = color / u32(256);
@@ -53,5 +117,11 @@ var block_sampler: sampler;
 [[stage(fragment)]]
 fn fragment(in: VertexOutput) -> [[location(0)]] vec4<f32> {
     var color = textureSample(block_texture, block_sampler, in.uv);
+    color = vec4<f32>(color.rgb * in.brightness, color.a);
+    if (in.face_selected == 1 && in.cube_selected == 1) {
+      color.r = color.r + 0.2;
+    } else if (in.cube_selected == 1) {
+      color.g = color.g + 0.2;
+    }
     return color;
 }

@@ -1,5 +1,7 @@
 #![feature(negative_impls)]
 
+#[allow(unused_imports)]
+use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::prelude::{App, NonSend};
 use bevy::DefaultPlugins;
 use parry3d::na::{Isometry3, Vector3};

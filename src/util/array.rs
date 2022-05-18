@@ -139,7 +139,20 @@ impl<T> Drop for Array<T> {
   }
 }
 
+impl<T: Default> Array<T> {
+  pub fn zero_out(&mut self) {
+    self.map_in_place(|_, _| T::default())
+  }
+}
+
 impl<T> Array<T> {
+  pub unsafe fn data(&self) -> *const T {
+    self.data
+  }
+  pub fn size(&self) -> usize {
+    let ((x1, y1, z1), (x2, y2, z2)) = self.bounds;
+    ((x2 - x1 + 1) * (y2 - y1 + 1) * (z2 - z1 + 1)) as usize
+  }
   pub fn new_zeroed(((x0, y0, z0), (x1, y1, z1)): ((i32, i32, i32), (i32, i32, i32))) -> Array<T> {
     let size = ((x1 - x0 + 1) * (y1 - y0 + 1) * (z1 - z0 + 1)) as usize;
     let ptr = unsafe { std::alloc::alloc_zeroed(Layout::array::<T>(size).unwrap()) } as *mut T;
@@ -161,6 +174,11 @@ impl<T> Array<T> {
       }
     }
     array
+  }
+  pub fn as_slice(&self) -> &[u8] {
+    let ((x1, y1, z1), (x2, y2, z2)) = self.bounds;
+    let size = (x2 - x1 + 1) * (y2 - y1 + 1) * (z2 - z1 + 1) * std::mem::size_of::<T>() as i32;
+    unsafe { std::slice::from_raw_parts(self.data as *const u8, size as usize) }
   }
   pub fn in_bounds(&self, (x, y, z): (i32, i32, i32)) -> bool {
     let ((x0, y0, z0), (x1, y1, z1)) = self.bounds;

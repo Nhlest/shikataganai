@@ -10,7 +10,7 @@ use parry3d::na::Point3;
 use parry3d::query;
 use parry3d::query::TOIStatus::{Converged, Penetrating};
 use parry3d::query::TOI;
-use parry3d::shape::{Capsule, Cuboid};
+use parry3d::shape::{Ball, Capsule, Cuboid};
 
 pub struct CameraPlugin;
 
@@ -45,9 +45,9 @@ impl Plugin for CameraPlugin {
         Frustum::from_view_projection(&view_projection, &Vec3::ZERO, &Vec3::Z, perspective_projection.far());
       PerspectiveCameraBundle {
         camera: Camera {
-          near: perspective_projection.near,
-          far: perspective_projection.far,
-          ..Default::default()
+          projection_matrix: perspective_projection.get_projection_matrix(),
+          target: Default::default(),
+          depth_calculation: Default::default(),
         },
         perspective_projection,
         frustum,
@@ -61,16 +61,18 @@ impl Plugin for CameraPlugin {
       .insert(Player)
       .insert(fps_camera);
     app
+      .init_resource::<Option<Selection>>()
       .add_system(movement_input_system)
       .add_system(gravity_system.after(movement_input_system))
       .add_system(collision_movement_system.after(gravity_system))
+      .add_system(block_pick.after(collision_movement_system))
       .add_system(cursor_grab_system);
   }
 }
 
-fn gravity_system(mut player: Query<&mut FPSCamera>) {
+fn gravity_system(mut player: Query<&mut FPSCamera>, time: Res<Time>) {
   let mut fps_camera = player.single_mut();
-  fps_camera.momentum += Vec3::new(0.0, -0.01, 0.0);
+  fps_camera.momentum += Vec3::new(0.0, -1.0 * time.delta().as_secs_f32(), 0.0);
   fps_camera.momentum.y = fps_camera.momentum.y.clamp(-0.5, 999.0);
 }
 
@@ -132,6 +134,7 @@ fn collision_movement_system(
   mut player: Query<(&mut FPSCamera, &mut Transform)>,
   chunks: Query<&Chunk>,
   chunk_map: Res<ChunkMap>,
+  time: Res<Time>,
 ) {
   let (fps_camera, mut transform) = player.single_mut();
   let mut fps_camera: Mut<FPSCamera> = fps_camera;
@@ -140,17 +143,18 @@ fn collision_movement_system(
   let cuboid = Cuboid::new(Vector3::new(0.5, 0.5, 0.5));
   let zero_vel = Vector3::new(0.0, 0.0, 0.0);
   let playeroid = Capsule::new(Point3::new(0.0, 0.3, 0.0), Point3::new(0.0, 1.5, 0.0), 0.3);
+  // let playeroid = Cuboid::new(Vector3::new(0.3, 0.9, 0.3));
 
   for ix in -2..=2 {
     for iy in -2..=2 {
       for iz in -2..=2 {
         let c = fps_camera.pos + Vec3::new(ix as f32, iy as f32, iz as f32);
         if let Some((e, c)) = chunk_map.get_path_to_block(c) {
-          if chunks.get(e).unwrap().grid[c].block != BlockId::Air {
+          if chunks.get(e).unwrap().grid[c.into()].block != BlockId::Air {
             aabbs.push(Isometry3::translation(
-              c.0 as f32 + 0.5,
-              c.1 as f32 + 0.5,
-              c.2 as f32 + 0.5,
+              c.x as f32 + 0.5,
+              c.y as f32 + 0.5,
+              c.z as f32 + 0.5,
             ));
           }
         }
@@ -199,17 +203,17 @@ fn collision_movement_system(
     match min {
       None => {}
       Some((toi, normal)) => {
-        fps_camera.pos = fps_camera.pos + fps_camera.momentum * *toi;
+        fps_camera.pos = fps_camera.pos + fps_camera.momentum * *toi * time.delta().as_secs_f32() * 100.0;
         let other = Vec3::new(normal.x, normal.y, normal.z);
         fps_camera.momentum = fps_camera.momentum - fps_camera.momentum.dot(other) * other;
       }
     }
   }
 
-  fps_camera.pos = fps_camera.pos + fps_camera.momentum;
+  fps_camera.pos = fps_camera.pos + fps_camera.momentum * time.delta().as_secs_f32() * 100.0;
   let y = fps_camera.momentum.y;
   fps_camera.momentum.y = 0.0;
-  fps_camera.momentum *= 0.7;
+  fps_camera.momentum *= 0.7; //TODO: time.delta
   fps_camera.momentum.y = y;
 
   transform.translation = fps_camera.pos;
@@ -232,5 +236,82 @@ fn cursor_grab_system(mut windows: ResMut<Windows>, btn: Res<Input<MouseButton>>
   if key.just_pressed(KeyCode::Escape) {
     window.set_cursor_lock_mode(false);
     window.set_cursor_visibility(true);
+  }
+}
+
+#[derive(Clone, Debug)]
+pub struct Selection {
+  pub cube: [i32; 3],
+  pub face: [i32; 3],
+}
+
+fn block_pick(
+  camera: Query<&Transform, With<Camera>>,
+  mut selection: ResMut<Option<Selection>>,
+  chunks: Query<&Chunk>,
+  chunk_map: Res<ChunkMap>,
+) {
+  *selection = None;
+  let camera_transform = camera.single();
+  let camera_origin = camera_transform.translation;
+  let forward = camera_transform.forward();
+  let bullet = Ball::new(0.001);
+  let cube = Cuboid::new(Vector3::new(0.5, 0.5, 0.5));
+  let camera_origin_isometry = Isometry3::translation(camera_origin.x, camera_origin.y, camera_origin.z);
+  let bullet_velocity = Vector3::new(forward.x, forward.y, forward.z);
+  let zero = Vector3::new(0.0, 0.0, 0.0);
+
+  let mut aabbs = vec![];
+  for ix in -5..=5 {
+    for iy in -5..=5 {
+      for iz in -5..=5 {
+        let c = camera_origin + Vec3::new(ix as f32, iy as f32, iz as f32);
+        if let Some((e, c)) = chunk_map.get_path_to_block(c) {
+          if chunks.get(e).unwrap().grid[c.into()].block != BlockId::Air {
+            aabbs.push(Isometry3::translation(
+              c.x as f32 + 0.5,
+              c.y as f32 + 0.5,
+              c.z as f32 + 0.5,
+            ));
+          }
+        }
+      }
+    }
+  }
+
+  let mut tois = vec![];
+  for aabb in aabbs.iter() {
+    match query::time_of_impact(
+      &camera_origin_isometry,
+      &bullet_velocity,
+      &bullet,
+      aabb,
+      &zero,
+      &cube,
+      5.0,
+    ) {
+      Ok(Some(TOI { toi, normal2, .. })) => tois.push((toi, normal2, aabb)),
+      _ => {}
+    }
+  }
+  match tois
+    .into_iter()
+    .min_by(|(toi1, _, _), (toi2, _, _)| toi1.total_cmp(toi2))
+  {
+    None => {}
+    Some((_, normal, aabb)) => {
+      *selection = Some(Selection {
+        cube: [
+          aabb.translation.x.floor() as i32,
+          aabb.translation.y.floor() as i32,
+          aabb.translation.z.floor() as i32,
+        ],
+        face: [
+          (aabb.translation.x.floor() + normal.x.round()) as i32,
+          (aabb.translation.y.floor() + normal.y.round()) as i32,
+          (aabb.translation.z.floor() + normal.z.round()) as i32,
+        ],
+      });
+    }
   }
 }

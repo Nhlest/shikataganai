@@ -16,6 +16,7 @@ impl Plugin for Preamble {
         scale_factor_override: Some(1.0),
         ..default()
       })
+      .insert_resource(Msaa { samples: 1 })
       .add_system_to_stage(CoreStage::Last, exit);
   }
 }

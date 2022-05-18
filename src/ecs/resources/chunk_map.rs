@@ -1,4 +1,5 @@
 use crate::ecs::components::chunk::{BlockId, Chunk};
+use crate::ecs::components::Location;
 use crate::util::array::Array2d;
 use bevy::prelude::*;
 
@@ -58,21 +59,24 @@ impl FromWorld for ChunkMap {
 }
 
 impl ChunkMap {
-  pub fn get_path_to_block(&self, coord: Vec3) -> Option<(Entity, (i32, i32, i32))> {
-    let chunk_coord_f = coord / 16.0;
-    let chunk_coord_i = (chunk_coord_f.x.floor() as i32, chunk_coord_f.z.floor() as i32);
+  pub fn get_path_to_block(&self, coord: Vec3) -> Option<(Entity, Location)> {
+    self.get_path_to_block_location(Location::from(coord))
+  }
+
+  pub fn get_path_to_block_location(&self, coord: Location) -> Option<(Entity, Location)> {
+    let chunk_coord_i = (coord.x / 16, coord.z / 16);
     if !self.map.in_bounds(chunk_coord_i) {
       return None;
     }
     let chunk = &self.map[chunk_coord_i];
-    let block_coord = (coord.x.floor() as i32, coord.y.floor() as i32, coord.z.floor() as i32);
+    let block_coord = Location::new(coord.x, coord.y, coord.z);
     let ((x0, y0, z0), (x1, y1, z1)) = chunk.bounds;
-    if x0 <= block_coord.0
-      && x1 >= block_coord.0
-      && y0 <= block_coord.1
-      && y1 >= block_coord.1
-      && z0 <= block_coord.2
-      && z1 >= block_coord.2
+    if x0 <= block_coord.x
+      && x1 >= block_coord.x
+      && y0 <= block_coord.y
+      && y1 >= block_coord.y
+      && z0 <= block_coord.z
+      && z1 >= block_coord.z
     {
       Some((chunk.entity, block_coord))
     } else {
