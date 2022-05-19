@@ -1,4 +1,5 @@
-use crate::ecs::components::chunk::{BlockId, Chunk};
+use crate::ecs::components::block::BlockId;
+use crate::ecs::components::chunk::Chunk;
 use crate::ecs::components::light::LightSource;
 use crate::ecs::components::Location;
 use crate::ecs::resources::chunk_map::ChunkMap;
@@ -42,6 +43,12 @@ fn flood_fill(
 }
 
 pub struct Relight(pub bool);
+
+impl Relight {
+  pub fn relight(&mut self) {
+    self.0 = true;
+  }
+}
 
 pub fn light_system(
   // There be it

@@ -1,3 +1,4 @@
+use crate::ecs::components::block::BlockId;
 use bevy::core_pipeline::Opaque3d;
 use bevy::ecs::system::lifetimeless::{Read, SQuery, SRes};
 use bevy::ecs::system::SystemParamItem;
@@ -30,7 +31,7 @@ use wgpu::{
   Face,
 };
 
-use crate::ecs::components::chunk::{BlockId, Chunk};
+use crate::ecs::components::chunk::Chunk;
 use crate::ecs::plugins::camera::Selection;
 use crate::ecs::resources::light::{LightMap, SizedLightMap};
 use crate::ecs::systems::light::Relight;
@@ -38,6 +39,12 @@ use crate::ecs::systems::light::Relight;
 pub struct VoxelRendererPlugin;
 
 pub struct Remesh(pub bool);
+
+impl Remesh {
+  pub fn remesh(&mut self) {
+    self.0 = true;
+  }
+}
 
 fn extract_chunks(
   mut render_world: ResMut<RenderWorld>,
@@ -94,22 +101,6 @@ fn extract_lights(mut render_world: ResMut<RenderWorld>, light: Res<LightMap>) {
     ptr: ptr,
     size: size + 8,
   });
-  // let light_map = render_world.resource::<LightMap>();
-
-  // let mut extracted_blocks = render_world.get_resource_mut::<ExtractedBlocks>().unwrap();
-  // extracted_blocks.blocks.clear();
-  // for chunk in chunks.iter() {
-  //   let ((x1, _, _), (x2, _, _)) = chunk.grid.bounds;
-  //   let size_x = 16.0 / (x2 - x1 + 1) as f32;
-  //   chunk.grid.foreach(|(x, y, z), s| {
-  //     if s.block == BlockId::Air {
-  //     } else {
-  //       extracted_blocks
-  //         .blocks
-  //         .push(ExtractedBlock::new(x, y, z, s.block, s.color, size_x))
-  //     }
-  //   });
-  // }
 }
 
 pub struct VoxelPipeline {
@@ -374,7 +365,7 @@ fn queue_chunks(
   for i in &extracted_blocks.blocks {
     buf.vertex.push(SingleBlock {
       position: [i.x, i.y, i.z],
-      tiles: i.i.into_array_of_faces(),
+      tiles: i.i.into_array_of_faces().map(|x| x as u16),
       size: i.s,
     });
   }

@@ -1,3 +1,4 @@
+use crate::ecs::plugins::camera::Selection;
 use bevy::app::AppExit;
 use bevy::prelude::*;
 use bevy::winit::WinitWindows;
@@ -17,6 +18,7 @@ impl Plugin for Preamble {
         ..default()
       })
       .insert_resource(Msaa { samples: 1 })
+      .init_resource::<Option<Selection>>()
       .add_system_to_stage(CoreStage::Last, exit);
   }
 }

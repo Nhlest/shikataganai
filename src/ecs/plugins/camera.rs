@@ -1,4 +1,5 @@
-use crate::ecs::components::chunk::{BlockId, Chunk};
+use crate::ecs::components::block::BlockId;
+use crate::ecs::components::chunk::Chunk;
 use crate::ecs::resources::chunk_map::ChunkMap;
 use crate::{Isometry3, Vector3};
 use bevy::input::mouse::MouseMotion;
@@ -29,8 +30,8 @@ impl Plugin for CameraPlugin {
   fn build(&self, app: &mut App) {
     let fps_camera = FPSCamera {
       phi: 0.0,
-      theta: 0.0,
-      pos: Vec3::new(5.0, 170.0, 5.0),
+      theta: f32::FRAC_PI_2(),
+      pos: Vec3::new(5.0, 20.0, 5.0),
       momentum: Default::default(),
     };
     let camera = {
@@ -61,7 +62,6 @@ impl Plugin for CameraPlugin {
       .insert(Player)
       .insert(fps_camera);
     app
-      .init_resource::<Option<Selection>>()
       .add_system(movement_input_system)
       .add_system(gravity_system.after(movement_input_system))
       .add_system(collision_movement_system.after(gravity_system))
@@ -72,7 +72,7 @@ impl Plugin for CameraPlugin {
 
 fn gravity_system(mut player: Query<&mut FPSCamera>, time: Res<Time>) {
   let mut fps_camera = player.single_mut();
-  fps_camera.momentum += Vec3::new(0.0, -1.0 * time.delta().as_secs_f32(), 0.0);
+  fps_camera.momentum += Vec3::new(0.0, -0.8 * time.delta().as_secs_f32(), 0.0);
   fps_camera.momentum.y = fps_camera.momentum.y.clamp(-0.5, 999.0);
 }
 
@@ -121,13 +121,10 @@ fn movement_input_system(
   }
   if key_events.pressed(KeyCode::Space) && !*jumping {
     *jumping = true;
-    movement.y = 10.0;
+    movement.y = 7.0;
   }
 
   camera.momentum += movement * 0.02;
-  // if camera.momentum.length() > 5.5 {
-  //   camera.momentum = camera.momentum.normalize() * 1.5;
-  // }
 }
 
 fn collision_movement_system(
@@ -143,7 +140,6 @@ fn collision_movement_system(
   let cuboid = Cuboid::new(Vector3::new(0.5, 0.5, 0.5));
   let zero_vel = Vector3::new(0.0, 0.0, 0.0);
   let playeroid = Capsule::new(Point3::new(0.0, 0.3, 0.0), Point3::new(0.0, 1.5, 0.0), 0.3);
-  // let playeroid = Cuboid::new(Vector3::new(0.3, 0.9, 0.3));
 
   for ix in -2..=2 {
     for iy in -2..=2 {

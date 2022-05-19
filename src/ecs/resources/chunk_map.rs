@@ -1,4 +1,5 @@
-use crate::ecs::components::chunk::{BlockId, Chunk};
+use crate::ecs::components::block::BlockId;
+use crate::ecs::components::chunk::Chunk;
 use crate::ecs::components::Location;
 use crate::util::array::Array2d;
 use bevy::prelude::*;
@@ -34,15 +35,15 @@ impl FromWorld for ChunkMap {
       let entity = world
         .spawn()
         .insert(Chunk::new(bounds, {
-          |(x, y, z)| {
-            if y + z + x > 150 {
-              BlockId::Air
+          |(_, y, _)| {
+            if y < 10 {
+              BlockId::Cobble
+            } else if y < 14 {
+              BlockId::Dirt
+            } else if y == 14 {
+              BlockId::Grass
             } else {
-              if y % 2 == 0 {
-                BlockId::Cobble
-              } else {
-                BlockId::Grass
-              }
+              BlockId::Air
             }
           }
         }))

@@ -9,15 +9,20 @@ use bevy::render::renderer::{RenderContext, RenderDevice, RenderQueue};
 use bevy::render::view::ExtractedWindows;
 use bevy::render::RenderApp;
 use bevy::winit::WinitWindows;
-use imgui::{Context, FontId, FontSource, Ui};
-use imgui_wgpu::{Renderer, RendererConfig};
+use image::GenericImageView;
+use imgui::{Context, FontId, FontSource, TextureId, Ui};
+use imgui_wgpu::Texture as ImguiTexture;
+use imgui_wgpu::{Renderer, RendererConfig, TextureConfig};
 use imgui_winit_support::WinitPlatform;
 use wgpu::TextureFormat::Bgra8UnormSrgb;
+use wgpu::{TextureDimension, TextureUsages};
 use winit::dpi::PhysicalPosition;
 use winit::event::*;
 
 pub static mut IMGUI_CTX: Option<Context> = None;
 pub static mut IMGUI_UI: Option<Ui> = None;
+
+pub struct GUITextureAtlas(pub TextureId);
 
 pub struct ImguiPlugin;
 
@@ -180,42 +185,42 @@ impl Plugin for ImguiPlugin {
       ..Default::default()
     };
 
-    let renderer = Renderer::new(&mut imgui, device, queue, renderer_config);
+    let mut renderer = Renderer::new(&mut imgui, device, queue, renderer_config);
 
-    // let diffuse_image = ImageReader::open("assets/texture.png").unwrap().decode().unwrap();
-    // let diffuse_rgba = diffuse_image.as_rgba8().unwrap();
-    // let dimensions = diffuse_image.dimensions();
-    // let texture_size = wgpu::Extent3d {
-    //   width: dimensions.0,
-    //   height: dimensions.1,
-    //   depth_or_array_layers: 1,
-    // };
-    //
-    // let mut texture = ImguiTexture::new(
-    //   &device,
-    //   &renderer,
-    //   TextureConfig {
-    //     size: texture_size,
-    //     label: Some("Imgui Texture"),
-    //     format: Some(wgpu::TextureFormat::Rgba8UnormSrgb),
-    //     usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
-    //     mip_level_count: 1,
-    //     sample_count: 1,
-    //     dimension: TextureDimension::D2,
-    //     sampler_desc: wgpu::SamplerDescriptor {
-    //       address_mode_u: wgpu::AddressMode::ClampToEdge,
-    //       address_mode_v: wgpu::AddressMode::ClampToEdge,
-    //       address_mode_w: wgpu::AddressMode::ClampToEdge,
-    //       mag_filter: wgpu::FilterMode::Nearest,
-    //       min_filter: wgpu::FilterMode::Nearest,
-    //       mipmap_filter: wgpu::FilterMode::Nearest,
-    //       ..Default::default()
-    //     },
-    //   },
-    // );
-    //
-    // texture.write(queue, diffuse_rgba.as_ref(), texture_size.width, texture_size.height);
-    // app.insert_resource(GUITextureAtlas(renderer.textures.insert(texture)));
+    let diffuse_image = image::io::Reader::open("assets/gui.png").unwrap().decode().unwrap();
+    let diffuse_rgba = diffuse_image.as_rgba8().unwrap();
+    let dimensions = diffuse_image.dimensions();
+    let texture_size = wgpu::Extent3d {
+      width: dimensions.0,
+      height: dimensions.1,
+      depth_or_array_layers: 1,
+    };
+
+    let texture = ImguiTexture::new(
+      &device,
+      &renderer,
+      TextureConfig {
+        size: texture_size,
+        label: Some("Imgui Texture"),
+        format: Some(wgpu::TextureFormat::Rgba8UnormSrgb),
+        usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: TextureDimension::D2,
+        sampler_desc: wgpu::SamplerDescriptor {
+          address_mode_u: wgpu::AddressMode::ClampToEdge,
+          address_mode_v: wgpu::AddressMode::ClampToEdge,
+          address_mode_w: wgpu::AddressMode::ClampToEdge,
+          mag_filter: wgpu::FilterMode::Nearest,
+          min_filter: wgpu::FilterMode::Nearest,
+          mipmap_filter: wgpu::FilterMode::Nearest,
+          ..Default::default()
+        },
+      },
+    );
+
+    texture.write(queue, diffuse_rgba.as_ref(), texture_size.width, texture_size.height);
+    app.insert_resource(GUITextureAtlas(renderer.textures.insert(texture)));
 
     app.insert_non_send_resource(SmallFont(smol_font));
     app.insert_non_send_resource(BigFont(big_font));

@@ -1,8 +1,9 @@
+#![feature(const_fn_floating_point_arithmetic)]
 #![feature(negative_impls)]
 
 #[allow(unused_imports)]
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
-use bevy::prelude::{App, NonSend};
+use bevy::prelude::App;
 use bevy::DefaultPlugins;
 use parry3d::na::{Isometry3, Vector3};
 
@@ -16,11 +17,6 @@ mod ecs;
 mod util;
 
 fn main() {
-  fn gui(imgui: NonSend<ImguiState>) {
-    let mut ui = imgui.get_current_frame();
-    imgui::Window::new("Pepega").build(&mut ui, || {}).unwrap();
-  }
-
   App::new()
     .add_plugin(Preamble)
     .add_plugins(DefaultPlugins)
@@ -30,6 +26,5 @@ fn main() {
     // .add_plugin(FrameTimeDiagnosticsPlugin::default())
     .add_plugin(ImguiPlugin)
     .add_plugin(VoxelRendererPlugin)
-    .add_system(gui)
     .run();
 }

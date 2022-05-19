@@ -8,7 +8,6 @@ var<uniform> view: View;
 struct Light {
   x: i32;
   y: i32;
-  z: i32;
   map: array<u32>;
 };
 
@@ -99,13 +98,6 @@ fn vertex(
     var light_level : u32 = readU8(position.x, position.y, position.z);
     o.brightness = f32(light_level * 16u + 1u) / 256.0;
 
-    //o.uv = V[id].uv;
-    //var color = color;
-    //let r = color % u32(256); color = color / u32(256);
-    //let g = color % u32(256); color = color / u32(256);
-    //let b = color % u32(256); color = color / u32(256);
-    //let a = color % u32(256); color = color / u32(256);
-    //o.color = vec4<f32>(f32(r) / 256.0, f32(g) / 256.0, f32(b) / 256.0, f32(a) / 256.0);
     return o;
 }
 

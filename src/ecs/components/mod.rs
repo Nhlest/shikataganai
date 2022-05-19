@@ -1,3 +1,4 @@
+pub mod block;
 pub mod chunk;
 pub mod light;
 
@@ -29,5 +30,11 @@ impl From<Vec3> for Location {
       y: v.y.floor() as i32,
       z: v.z.floor() as i32,
     }
+  }
+}
+
+impl From<&[i32; 3]> for Location {
+  fn from([x, y, z]: &[i32; 3]) -> Self {
+    Location { x: *x, y: *y, z: *z }
   }
 }

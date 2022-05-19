@@ -30,7 +30,7 @@ parry3d = "*"
 git = "https://github.com/bevyengine/bevy"
 branch = "main"
 default-features = false
-features = ["bevy_winit", "png", "jpeg", "bevy_render", "bevy_core_pipeline"] #, "trace", "trace_tracy"]
+features = ["bevy_winit", "png", "jpeg", "bevy_render", "bevy_core_pipeline", "trace", "trace_tracy"]
 
 [profile.dev]
 opt-level = 1
