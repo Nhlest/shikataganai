@@ -26,11 +26,15 @@ parry3d = "*"
 #strum = "*"
 #strum_macros = "*"
 
+[features]
+default = ["trace"]
+trace = ["bevy/trace", "bevy/trace_tracy"]
+
 [dependencies.bevy]
 git = "https://github.com/bevyengine/bevy"
 branch = "main"
 default-features = false
-features = ["bevy_winit", "png", "jpeg", "bevy_render", "bevy_core_pipeline", "trace", "trace_tracy"]
+features = ["bevy_winit", "png", "jpeg", "bevy_render", "bevy_core_pipeline"]
 
 [profile.dev]
 opt-level = 1
