@@ -9,6 +9,7 @@ use bevy::render::render_graph::{Node, NodeRunError, RenderGraph, RenderGraphCon
 use bevy::render::renderer::{RenderContext, RenderDevice, RenderQueue};
 use bevy::render::view::ExtractedWindows;
 use bevy::render::RenderApp;
+use bevy::window::{WindowResized, WindowScaleFactorChanged};
 use bevy::winit::WinitWindows;
 use image::GenericImageView;
 use imgui::{Context, FontId, FontSource, TextureId, Ui};
@@ -17,7 +18,7 @@ use imgui_wgpu::{Renderer, RendererConfig, TextureConfig};
 use imgui_winit_support::WinitPlatform;
 use wgpu::TextureFormat::Bgra8UnormSrgb;
 use wgpu::{TextureDimension, TextureUsages};
-use winit::dpi::PhysicalPosition;
+use winit::dpi::{LogicalSize, PhysicalPosition, PhysicalSize};
 use winit::event::*;
 
 pub static mut IMGUI_CTX: Option<Context> = None;
@@ -51,6 +52,8 @@ fn start_frame(
   mut ev_cursor: EventReader<CursorMoved>,
   mut ev_mouse_button_input: EventReader<MouseButtonInput>,
   mut ev_mouse_wheel: EventReader<MouseWheel>,
+  mut ev_resized: EventReader<WindowResized>,
+  mut ev_scale: EventReader<WindowScaleFactorChanged>,
   // mut ev_received_character: EventReader<ReceivedCharacter>,
   // mut ev_window_focused: EventReader<WindowFocused>,
   // mut ev_window_created: EventReader<WindowCreated>,
@@ -67,6 +70,29 @@ fn start_frame(
     let w_id = windows.get_primary().unwrap().id();
     let height = windows.get_primary().unwrap().height();
     let window = winit_windows.get_window(w_id).unwrap();
+    let mut size = window.inner_size();
+
+    for i in ev_scale.iter() {
+      let event: Event<()> = Event::WindowEvent {
+        window_id: window.id(),
+        event: WindowEvent::ScaleFactorChanged {
+          scale_factor: i.scale_factor,
+          new_inner_size: &mut size,
+        },
+      };
+      platform.handle_event(ctx.io_mut(), window, &event);
+    }
+
+    for i in ev_resized.iter() {
+      let event: Event<()> = Event::WindowEvent {
+        window_id: window.id(),
+        event: WindowEvent::Resized(PhysicalSize::from_logical(
+          LogicalSize::new(i.width, i.height),
+          window.scale_factor(),
+        )),
+      };
+      platform.handle_event(ctx.io_mut(), window, &event);
+    }
 
     for i in ev_cursor.iter() {
       let CursorMoved { position, .. } = i;
@@ -147,14 +173,14 @@ impl Plugin for ImguiPlugin {
     let mut platform = WinitPlatform::init(&mut imgui);
     platform.attach_window(imgui.io_mut(), window, imgui_winit_support::HiDpiMode::Default);
 
-    let event: Event<()> = Event::WindowEvent {
-      window_id: window.id(),
-      event: WindowEvent::ScaleFactorChanged {
-        scale_factor: 1.0,
-        new_inner_size: &mut window.inner_size(),
-      },
-    };
-    platform.handle_event(imgui.io_mut(), window, &event);
+    // let event: Event<()> = Event::WindowEvent {
+    //   window_id: window.id(),
+    //   event: WindowEvent::ScaleFactorChanged {
+    //     scale_factor: 1.0,
+    //     new_inner_size: &mut window.inner_size(),
+    //   },
+    // };
+    // platform.handle_event(imgui.io_mut(), window, &event);
 
     imgui.set_ini_filename(None);
 

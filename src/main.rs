@@ -2,7 +2,6 @@
 #![feature(negative_impls)]
 
 #[allow(unused_imports)]
-use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::prelude::App;
 use bevy::DefaultPlugins;
 use bevy_embedded_assets::EmbeddedAssetPlugin;
@@ -12,6 +11,7 @@ use crate::ecs::plugins::camera::CameraPlugin;
 use crate::ecs::plugins::game::GamePlugin;
 use crate::ecs::plugins::imgui::{ImguiPlugin, ImguiState};
 use crate::ecs::plugins::preamble::Preamble;
+use crate::ecs::plugins::settings::SettingsPlugin;
 use crate::ecs::plugins::voxel::VoxelRendererPlugin;
 
 mod ecs;
@@ -19,6 +19,7 @@ mod util;
 
 fn main() {
   App::new()
+    .add_plugin(SettingsPlugin)
     .add_plugin(Preamble)
     .add_plugins_with(DefaultPlugins, |group| {
       group.add_before::<bevy::asset::AssetPlugin, _>(EmbeddedAssetPlugin)

@@ -1,5 +1,6 @@
 use crate::ecs::components::block::BlockId;
 use crate::ecs::components::chunk::Chunk;
+use crate::ecs::plugins::settings::MouseSensitivity;
 use crate::ecs::resources::chunk_map::ChunkMap;
 use crate::{Isometry3, Vector3};
 use bevy::input::mouse::MouseMotion;
@@ -82,6 +83,7 @@ fn movement_input_system(
   key_events: Res<Input<KeyCode>>,
   mut windows: ResMut<Windows>,
   mut jumping: Local<bool>,
+  mouse_sensitivity: Res<MouseSensitivity>,
 ) {
   let window = windows.get_primary_mut().unwrap();
   if !window.cursor_locked() {
@@ -90,8 +92,8 @@ fn movement_input_system(
 
   let (mut camera, transform) = player.single_mut();
   for MouseMotion { delta } in mouse_events.iter() {
-    camera.phi += delta.x * 0.01;
-    camera.theta = (camera.theta + delta.y * 0.01).clamp(0.05, f32::PI() - 0.05);
+    camera.phi += delta.x * mouse_sensitivity.0 * 0.01;
+    camera.theta = (camera.theta + delta.y * mouse_sensitivity.0 * 0.01).clamp(0.05, f32::PI() - 0.05);
   }
 
   let mut movement = Vec3::default();
@@ -182,6 +184,7 @@ fn collision_movement_system(
                   if dot < 0.0 {
                     fps_camera.momentum = fps_camera.momentum - dot * other;
                   }
+                  continue;
                 }
                 _ => {}
               }
@@ -221,17 +224,19 @@ fn collision_movement_system(
   transform.look_at(looking_at, Vec3::new(0.0, 1.0, 0.0));
 }
 
-fn cursor_grab_system(mut windows: ResMut<Windows>, btn: Res<Input<MouseButton>>, key: Res<Input<KeyCode>>) {
-  let window = windows.get_primary_mut().unwrap();
+pub struct MainMenuOpened(pub bool);
 
-  if btn.just_pressed(MouseButton::Left) {
-    window.set_cursor_lock_mode(true);
-    window.set_cursor_visibility(false);
-  }
+fn cursor_grab_system(
+  mut windows: ResMut<Windows>,
+  key: Res<Input<KeyCode>>,
+  mut main_menu_opened: ResMut<MainMenuOpened>,
+) {
+  let window = windows.get_primary_mut().unwrap();
 
   if key.just_pressed(KeyCode::Escape) {
     window.set_cursor_lock_mode(false);
     window.set_cursor_visibility(true);
+    main_menu_opened.0 = true;
   }
 }
 

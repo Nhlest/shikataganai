@@ -1,20 +1,28 @@
 use crate::ecs::plugins::camera::Selection;
+use crate::ecs::plugins::settings::{FullScreen, MouseSensitivity, Resolution, Settings, VSync};
 use bevy::app::AppExit;
 use bevy::prelude::*;
 use bevy::winit::WinitWindows;
+use std::fs::OpenOptions;
+use std::io::Write;
 
 // let there: be = light;
 pub struct Preamble;
 
 impl Plugin for Preamble {
   fn build(&self, app: &mut App) {
+    let resolution = app.world.resource::<Resolution>();
+    let vsync = app.world.resource::<VSync>();
+    let fullscreen = app.world.resource::<FullScreen>();
     app
       .insert_resource(WindowDescriptor {
-        width: 1920.0,
-        height: 1080.0,
-        resizable: false,
+        width: resolution.width,
+        height: resolution.height,
+        resizable: true,
         title: "仕方がない、ね？".to_string(),
-        scale_factor_override: Some(1.0),
+        present_mode: vsync.as_present_mode(),
+        mode: fullscreen.as_mode(),
+        // scale_factor_override: Some(1.0),
         ..default()
       })
       .insert_resource(Msaa { samples: 1 })
@@ -23,11 +31,33 @@ impl Plugin for Preamble {
   }
 }
 
-fn exit(mut events: EventReader<AppExit>, w: NonSend<WinitWindows>) {
-  if w.windows.is_empty() {
-    std::process::exit(0)
-  }
-  if let Some(_) = events.iter().next() {
+fn exit(
+  mut events: EventReader<AppExit>,
+  w: NonSend<WinitWindows>,
+  sensitivity: Res<MouseSensitivity>,
+  resolution: Res<Resolution>,
+  vsync: Res<VSync>,
+  fullscreen: Res<FullScreen>,
+) {
+  if events.iter().next().is_some() || w.windows.is_empty() {
+    let mut file = OpenOptions::new()
+      .write(true)
+      .create(true)
+      .truncate(true)
+      .open("shikataganai.toml")
+      .unwrap();
+
+    let toml = toml::to_string(&Settings {
+      sensitivity: sensitivity.0,
+      height: resolution.height,
+      width: resolution.width,
+      vsync: vsync.0,
+      fullscreen: fullscreen.0,
+    })
+    .unwrap();
+
+    file.write(toml.as_bytes()).unwrap();
+
     std::process::exit(0)
   }
 }

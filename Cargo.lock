@@ -2576,6 +2576,8 @@ dependencies = [
  "num-traits",
  "parry3d",
  "rand",
+ "serde",
+ "toml",
  "wgpu",
  "winit 0.26.1",
 ]
