@@ -1,3 +1,4 @@
+use std::io::Cursor;
 use std::sync::{Arc, Mutex};
 
 use bevy::core_pipeline::node::MAIN_PASS_DRIVER;
@@ -187,7 +188,11 @@ impl Plugin for ImguiPlugin {
 
     let mut renderer = Renderer::new(&mut imgui, device, queue, renderer_config);
 
-    let diffuse_image = image::io::Reader::open("assets/gui.png").unwrap().decode().unwrap();
+    let diffuse_image = image::io::Reader::new(Cursor::new(include_bytes!("../../../assets/gui.png")))
+      .with_guessed_format()
+      .unwrap()
+      .decode()
+      .unwrap();
     let diffuse_rgba = diffuse_image.as_rgba8().unwrap();
     let dimensions = diffuse_image.dimensions();
     let texture_size = wgpu::Extent3d {

@@ -10,9 +10,9 @@ use bevy::render::render_phase::{
   AddRenderCommand, DrawFunctions, EntityRenderCommand, PhaseItem, RenderCommand, RenderCommandResult, RenderPhase,
   SetItemPipeline, TrackedRenderPass,
 };
-use bevy::render::render_resource::std140::AsStd140;
+use bevy::render::render_resource::ShaderType;
 use bevy::render::render_resource::{
-  BindGroup, BindGroupLayout, BindGroupLayoutEntry, BindingType, BlendState, BufferBindingType, BufferSize, BufferVec,
+  BindGroup, BindGroupLayout, BindGroupLayoutEntry, BindingType, BlendState, BufferBindingType, BufferVec,
   ColorTargetState, ColorWrites, CompareFunction, FragmentState, FrontFace, MultisampleState, PipelineCache,
   PolygonMode, PrimitiveState, RenderPipelineDescriptor, SamplerBindingType, ShaderStages, SpecializedRenderPipeline,
   SpecializedRenderPipelines, TextureFormat, TextureSampleType, TextureViewDimension, VertexBufferLayout, VertexFormat,
@@ -118,9 +118,16 @@ pub struct SingleBlock {
   pub size: f32,
 }
 
-#[derive(Default)]
 pub struct ChunkBuffer {
   vertex: BufferVec<SingleBlock>,
+}
+
+impl Default for ChunkBuffer {
+  fn default() -> Self {
+    Self {
+      vertex: BufferVec::new(BufferUsages::VERTEX),
+    }
+  }
 }
 
 pub const VOXEL_SHADER_HANDLE: HandleUntyped = HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 2763343953151597899);
@@ -201,7 +208,7 @@ impl FromWorld for VoxelPipeline {
           ty: BindingType::Buffer {
             ty: BufferBindingType::Uniform,
             has_dynamic_offset: true,
-            min_binding_size: BufferSize::new(ViewUniform::std140_size_static() as u64),
+            min_binding_size: Some(ViewUniform::min_size()),
           },
           count: None,
         }],

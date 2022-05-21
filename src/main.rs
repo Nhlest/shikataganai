@@ -5,6 +5,7 @@
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::prelude::App;
 use bevy::DefaultPlugins;
+use bevy_embedded_assets::EmbeddedAssetPlugin;
 use parry3d::na::{Isometry3, Vector3};
 
 use crate::ecs::plugins::camera::CameraPlugin;
@@ -19,7 +20,9 @@ mod util;
 fn main() {
   App::new()
     .add_plugin(Preamble)
-    .add_plugins(DefaultPlugins)
+    .add_plugins_with(DefaultPlugins, |group| {
+      group.add_before::<bevy::asset::AssetPlugin, _>(EmbeddedAssetPlugin)
+    })
     .add_plugin(CameraPlugin)
     .add_plugin(GamePlugin)
     // .add_plugin(LogDiagnosticsPlugin::default())

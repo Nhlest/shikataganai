@@ -30,6 +30,10 @@ parry3d = "*"
 default = ["trace"]
 trace = ["bevy/trace", "bevy/trace_tracy"]
 
+[dependencies.bevy_embedded_assets]
+git = "https://github.com/Nhlest/bevy_embedded_assets"
+branch = "main"
+
 [dependencies.bevy]
 git = "https://github.com/bevyengine/bevy"
 branch = "main"
