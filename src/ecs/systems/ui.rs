@@ -84,7 +84,7 @@ pub fn main_menu(
   mut settings_menu_opened: Local<bool>,
   mut app_exit: EventWriter<AppExit>,
   big_font: NonSend<BigFont>,
-  mut mouse_sensetivity: ResMut<MouseSensitivity>,
+  mut mouse_sensitivity: ResMut<MouseSensitivity>,
   mut resolution: ResMut<Resolution>,
   mut vsync: ResMut<VSync>,
   mut fullscreen: ResMut<FullScreen>,
@@ -151,7 +151,7 @@ pub fn main_menu(
       let [x1, _] = ui.window_content_region_min();
       let [x2, _] = ui.window_content_region_max();
 
-      imgui::Slider::new("Sensitivity", 0.0, 2.0).build(ui, &mut mouse_sensetivity.as_mut().0);
+      imgui::Slider::new("Sensitivity", 0.0, 2.0).build(ui, &mut mouse_sensitivity.as_mut().0);
       let selected = format!("{}x{}", resolution.width as i32, resolution.height as i32);
       let tok = imgui::ComboBox::new("Resolution")
         .preview_mode(ComboBoxPreviewMode::Full)
@@ -160,7 +160,7 @@ pub fn main_menu(
       match tok {
         None => {}
         Some(_) => {
-          for (x, y) in [
+          for (x, y) in [ //TODO: Get available resolutions instead of constant ones.
             (320, 180),
             (640, 360),
             (853, 480),
