@@ -1,4 +1,4 @@
-use crate::ecs::plugins::camera::MainMenuOpened;
+use crate::ecs::systems::input::MainMenuOpened;
 use crate::ecs::plugins::imgui::{BigFont, GUITextureAtlas};
 use crate::ecs::plugins::settings::{FullScreen, MouseSensitivity, Resolution, VSync};
 use crate::ecs::resources::player::{HotBarItems, SelectedHotBar};
@@ -7,6 +7,8 @@ use crate::ImguiState;
 use bevy::app::AppExit;
 use bevy::prelude::*;
 use imgui::{ComboBoxPreviewMode, Condition, StyleVar};
+
+use super::input::DebugMenuOpened;
 
 pub fn hot_bar(
   imgui: NonSendMut<ImguiState>,
@@ -198,6 +200,33 @@ pub fn main_menu(
       if ui.button("Close") {
         *settings_menu_opened = false;
       }
+    })
+    .unwrap();
+}
+pub fn debug_console(
+  imgui: NonSendMut<ImguiState>,
+  mut window: ResMut<Windows>,
+  debug_console_opened: ResMut<DebugMenuOpened>,
+  big_font: NonSend<BigFont>,
+) {
+  if !debug_console_opened.0 { return; }
+  let active_window = window.get_primary_mut().unwrap();
+  let ui = imgui.get_current_frame();
+  let mut demo_bool = true;
+  
+  ui.show_demo_window(&mut demo_bool);
+  imgui::Window::new("Debug Console")
+    .position(
+      [
+        active_window.width() as f32 / 2.0 ,
+        active_window.height() as f32 / 2.0,
+      ],
+      Condition::Once,
+    )
+    .size([500.0, 300.0], Condition::Once)
+    .build(ui, || {
+      let _f = ui.push_font(big_font.0);
+       
     })
     .unwrap();
 }

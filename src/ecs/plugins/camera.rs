@@ -78,8 +78,7 @@ impl Plugin for CameraPlugin {
     app
       .add_system(movement_input_system)
       .add_system_to_stage(CoreStage::PreUpdate, collision_movement_system)
-      .add_system_to_stage(CoreStage::Update, block_pick)
-      .add_system(cursor_grab_system);
+      .add_system_to_stage(CoreStage::Update, block_pick);
   }
 }
 
@@ -197,6 +196,7 @@ fn collision_movement_system(
                     c.x as f32 + 0.5,
                     c.y as f32 + 0.5,
                     c.z as f32 + 0.5,
+
                   ))
                   .insert(GlobalTransform::default());
               }
@@ -224,22 +224,6 @@ fn collision_movement_system(
   let mut camera_t = transforms.get_mut(entity_camera).unwrap();
   let t = camera_t.translation;
   camera_t.look_at(looking_at + t, Vec3::new(0.0, 1.0, 0.0));
-}
-
-pub struct MainMenuOpened(pub bool);
-
-fn cursor_grab_system(
-  mut windows: ResMut<Windows>,
-  key: Res<Input<KeyCode>>,
-  mut main_menu_opened: ResMut<MainMenuOpened>,
-) {
-  let window = windows.get_primary_mut().unwrap();
-
-  if key.just_pressed(KeyCode::Escape) {
-    window.set_cursor_lock_mode(false);
-    window.set_cursor_visibility(true);
-    main_menu_opened.0 = true;
-  }
 }
 
 #[derive(Clone, Debug)]
