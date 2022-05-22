@@ -15,7 +15,7 @@ imgui-winit-support = { version = "*", features = [ "winit-26" ] }
 bytemuck = "*"
 bytemuck_derive = "*"
 num-traits = "*"
-parry3d = "*"
+#parry3d = "*"
 serde = "*"
 toml = "*"
 #block-mesh = "*"
@@ -35,6 +35,10 @@ trace = ["bevy/trace", "bevy/trace_tracy"]
 [dependencies.bevy_embedded_assets]
 git = "https://github.com/Nhlest/bevy_embedded_assets"
 branch = "main"
+
+[dependencies.bevy_rapier3d]
+git = "https://github.com/Nhlest/bevy_rapier"
+branch = "master"
 
 [dependencies.bevy]
 git = "https://github.com/bevyengine/bevy"

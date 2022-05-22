@@ -2,17 +2,13 @@ use crate::ecs::components::block::BlockId;
 use crate::ecs::components::chunk::Chunk;
 use crate::ecs::plugins::settings::MouseSensitivity;
 use crate::ecs::resources::chunk_map::ChunkMap;
-use crate::{Isometry3, Vector3};
 use bevy::input::mouse::MouseMotion;
 use bevy::prelude::*;
 use bevy::render::camera::CameraProjection;
 use bevy::render::primitives::Frustum;
+use bevy_rapier3d::parry::query::Ray;
 use num_traits::float::FloatConst;
-use parry3d::na::Point3;
-use parry3d::query;
-use parry3d::query::TOIStatus::{Converged, Penetrating};
-use parry3d::query::TOI;
-use parry3d::shape::{Ball, Capsule, Cuboid};
+use bevy_rapier3d::prelude::*;
 
 pub struct CameraPlugin;
 
@@ -23,8 +19,8 @@ pub struct Player;
 pub struct FPSCamera {
   phi: f32,
   theta: f32,
-  pos: Vec3,
-  momentum: Vec3,
+  phi_a: f32,
+  theta_a: f32
 }
 
 impl Plugin for CameraPlugin {
@@ -32,8 +28,8 @@ impl Plugin for CameraPlugin {
     let fps_camera = FPSCamera {
       phi: 0.0,
       theta: f32::FRAC_PI_2(),
-      pos: Vec3::new(5.0, 20.0, 5.0),
-      momentum: Default::default(),
+      phi_a: 0.0,
+      theta_a: 0.0
     };
     let camera = {
       let perspective_projection = PerspectiveProjection {
@@ -56,45 +52,62 @@ impl Plugin for CameraPlugin {
         ..default()
       }
     };
-    app
-      .world
-      .spawn()
-      .insert_bundle(camera)
+    app.world.spawn()
+      .insert(RigidBody::Dynamic)
+      .insert(Transform::from_xyz(10.0, 20.0, 10.0))
+      .insert(GlobalTransform::default())
+      .insert(LockedAxes::ROTATION_LOCKED)
       .insert(Player)
-      .insert(fps_camera);
+      .insert(Velocity::default())
+      .with_children(|c| {
+         c.spawn()
+           .insert(GlobalTransform::default())
+           .insert(Transform::from_xyz(0.0, -0.5, 0.0))
+           .insert(Collider::capsule_y(0.9, 0.3))
+           .insert(SolverGroups::new(0b10, 0b10))
+           .insert(CollisionGroups::new(0b10, 0b10));
+        c.spawn()
+          .insert(fps_camera)
+          .insert_bundle(camera);
+      });
     app
       .add_system(movement_input_system)
-      .add_system(gravity_system.after(movement_input_system))
-      .add_system(collision_movement_system.after(gravity_system))
-      .add_system(block_pick.after(collision_movement_system))
+      .add_system_to_stage(CoreStage::PreUpdate,collision_movement_system)
+      .add_system_to_stage(CoreStage::Update,block_pick)
       .add_system(cursor_grab_system);
   }
 }
 
-fn gravity_system(mut player: Query<&mut FPSCamera>, time: Res<Time>) {
-  let mut fps_camera = player.single_mut();
-  fps_camera.momentum += Vec3::new(0.0, -0.8 * time.delta().as_secs_f32(), 0.0);
-  fps_camera.momentum.y = fps_camera.momentum.y.clamp(-0.5, 999.0);
-}
-
 fn movement_input_system(
-  mut player: Query<(&mut FPSCamera, &mut Transform)>,
+  mut player: Query<&mut FPSCamera>,
+  mut camera: Query<&mut Velocity, With<Player>>,
+  camera_transform: Query<&Transform, With<Camera>>,
   mut mouse_events: EventReader<MouseMotion>,
   key_events: Res<Input<KeyCode>>,
   mut windows: ResMut<Windows>,
-  mut jumping: Local<bool>,
+  mut stationary_frames: Local<i32>,
   mouse_sensitivity: Res<MouseSensitivity>,
+  time: Res<Time>
 ) {
   let window = windows.get_primary_mut().unwrap();
   if !window.cursor_locked() {
     return;
   }
 
-  let (mut camera, transform) = player.single_mut();
+  let mut fps_camera = player.single_mut();
+  let mut camera_velocity = camera.single_mut();
+  let transform = camera_transform.single();
+
   for MouseMotion { delta } in mouse_events.iter() {
-    camera.phi += delta.x * mouse_sensitivity.0 * 0.01;
-    camera.theta = (camera.theta + delta.y * mouse_sensitivity.0 * 0.01).clamp(0.05, f32::PI() - 0.05);
+    fps_camera.phi_a += delta.x * mouse_sensitivity.0 * 0.04;
+    fps_camera.theta_a = fps_camera.theta_a + delta.y * mouse_sensitivity.0 * 0.04;
   }
+
+  fps_camera.phi += fps_camera.phi_a * time.delta().as_secs_f32();
+  fps_camera.theta = (fps_camera.theta + fps_camera.theta_a * time.delta().as_secs_f32()).clamp(0.05, f32::PI() - 0.05);
+
+  fps_camera.phi_a *= 0.90;
+  fps_camera.theta_a *= 0.90;
 
   let mut movement = Vec3::default();
   if key_events.pressed(KeyCode::W) {
@@ -118,110 +131,76 @@ fn movement_input_system(
 
   movement = movement.normalize_or_zero();
 
-  if camera.momentum.y == 0.0 {
-    *jumping = false;
-  }
-  if key_events.pressed(KeyCode::Space) && !*jumping {
-    *jumping = true;
-    movement.y = 7.0;
+  if camera_velocity.linvel.y.abs() < 0.001 {
+    *stationary_frames = *stationary_frames + 1;
+  } else {
+    *stationary_frames = 0; // TODO: potential for a double jump here;
   }
 
-  camera.momentum += movement * 0.02;
+  if key_events.pressed(KeyCode::Space) && *stationary_frames > 2 {
+    *stationary_frames = 0;
+    movement.y = 30.0;
+  }
+
+  camera_velocity.linvel += movement * 0.15;
 }
 
+#[derive(Component)]
+pub struct Cube;
+
 fn collision_movement_system(
-  mut player: Query<(&mut FPSCamera, &mut Transform)>,
+  camera: Query<(Entity, &FPSCamera)>,
+  player: Query<Entity, With<Player>>,
+  mut velocity: Query<&mut Velocity>,
+  mut transforms: Query<&mut Transform>,
+  mut commands: Commands,
+  query: Query<(Entity, &Collider), With<Cube>>,
   chunks: Query<&Chunk>,
   chunk_map: Res<ChunkMap>,
-  time: Res<Time>,
 ) {
-  let (fps_camera, mut transform) = player.single_mut();
-  let mut fps_camera: Mut<FPSCamera> = fps_camera;
+  let (entity_camera, fps_camera) = camera.single();
+  let entity_player = player.single();
+  let transform = transforms.get(entity_player).unwrap();
 
-  let mut aabbs = vec![];
-  let cuboid = Cuboid::new(Vector3::new(0.5, 0.5, 0.5));
-  let zero_vel = Vector3::new(0.0, 0.0, 0.0);
-  let playeroid = Capsule::new(Point3::new(0.0, 0.3, 0.0), Point3::new(0.0, 1.5, 0.0), 0.3);
+  for (e, _) in query.iter() {
+    commands.entity(e).despawn();
+  }
 
-  for ix in -2..=2 {
-    for iy in -2..=2 {
-      for iz in -2..=2 {
-        let c = fps_camera.pos + Vec3::new(ix as f32, iy as f32, iz as f32);
+  for ix in -5..=5 {
+    for iy in -5..=5 {
+      for iz in -5..=5 {
+        let c = transform.translation + Vec3::new(ix as f32, iy as f32, iz as f32);
         if let Some((e, c)) = chunk_map.get_path_to_block(c) {
           if chunks.get(e).unwrap().grid[c.into()].block != BlockId::Air {
-            aabbs.push(Isometry3::translation(
-              c.x as f32 + 0.5,
-              c.y as f32 + 0.5,
-              c.z as f32 + 0.5,
-            ));
+            let e = commands.spawn().id();
+            commands.entity(e)
+              .insert(RigidBody::Fixed)
+              .insert(Collider::cuboid(0.5, 0.5, 0.5))
+              .insert(Cube)
+              .insert(SolverGroups::new(0b11, 0b11))
+              .insert(Transform::from_xyz(c.x as f32 + 0.5, c.y as f32 + 0.5, c.z as f32 + 0.5))
+              .insert(GlobalTransform::default());
           }
         }
       }
     }
   }
 
-  for _ in 0..3 {
-    let player_pos = Isometry3::translation(fps_camera.pos.x, fps_camera.pos.y - 1.5, fps_camera.pos.z);
-    let player_vel = Vector3::new(fps_camera.momentum.x, fps_camera.momentum.y, fps_camera.momentum.z);
-    let mut tois = vec![];
+  let mut velocity = velocity.get_mut(entity_player).unwrap();
+  let y = velocity.linvel.y;
+  velocity.linvel.y = 0.0;
+  velocity.linvel *= 0.98;
+  velocity.linvel.y = y;
 
-    for i in aabbs.iter() {
-      match query::time_of_impact(&player_pos, &player_vel, &playeroid, &i, &zero_vel, &cuboid, 1.0) {
-        Ok(f) => match f {
-          None => {}
-          Some(TOI {
-            toi, normal2, status, ..
-          }) => {
-            if status == Converged {
-              tois.push((toi, normal2));
-            }
-            if status == Penetrating {
-              match query::contact(&player_pos, &playeroid, &i, &cuboid, 0.0) {
-                Ok(Some(contact)) => {
-                  let normal2 = contact.normal2;
-                  let other = Vec3::new(normal2.x, normal2.y, normal2.z);
-                  let dot = fps_camera.momentum.dot(other);
-                  if dot < 0.0 {
-                    fps_camera.momentum = fps_camera.momentum - dot * other;
-                  }
-                  continue;
-                }
-                _ => {}
-              }
-            }
-          }
-        },
-        Err(e) => {
-          println!("{}", e);
-          std::process::exit(-1);
-        }
-      }
-    }
-
-    let min = tois.iter().min_by(|(x1, _), (x2, _)| x1.total_cmp(x2));
-    match min {
-      None => {}
-      Some((toi, normal)) => {
-        fps_camera.pos = fps_camera.pos + fps_camera.momentum * *toi * time.delta().as_secs_f32() * 100.0;
-        let other = Vec3::new(normal.x, normal.y, normal.z);
-        fps_camera.momentum = fps_camera.momentum - fps_camera.momentum.dot(other) * other;
-      }
-    }
-  }
-
-  fps_camera.pos = fps_camera.pos + fps_camera.momentum * time.delta().as_secs_f32() * 100.0;
-  let y = fps_camera.momentum.y;
-  fps_camera.momentum.y = 0.0;
-  fps_camera.momentum *= 0.7; //TODO: time.delta
-  fps_camera.momentum.y = y;
-
-  transform.translation = fps_camera.pos;
   let looking_at = Vec3::new(
     10.0 * fps_camera.phi.cos() * fps_camera.theta.sin(),
     10.0 * fps_camera.theta.cos(),
     10.0 * fps_camera.phi.sin() * fps_camera.theta.sin(),
-  ) + fps_camera.pos;
-  transform.look_at(looking_at, Vec3::new(0.0, 1.0, 0.0));
+  );
+
+  let mut camera_t = transforms.get_mut(entity_camera).unwrap();
+  let t = camera_t.translation;
+  camera_t.look_at(looking_at + t, Vec3::new(0.0, 1.0, 0.0));
 }
 
 pub struct MainMenuOpened(pub bool);
@@ -247,72 +226,27 @@ pub struct Selection {
 }
 
 fn block_pick(
-  camera: Query<&Transform, With<Camera>>,
+  camera: Query<&GlobalTransform, With<Camera>>,
+  transforms: Query<&Transform>,
   mut selection: ResMut<Option<Selection>>,
-  chunks: Query<&Chunk>,
-  chunk_map: Res<ChunkMap>,
+  rapier_context: Res<RapierContext>
 ) {
   *selection = None;
-  let camera_transform = camera.single();
-  let camera_origin = camera_transform.translation;
-  let forward = camera_transform.forward();
-  let bullet = Ball::new(0.001);
-  let cube = Cuboid::new(Vector3::new(0.5, 0.5, 0.5));
-  let camera_origin_isometry = Isometry3::translation(camera_origin.x, camera_origin.y, camera_origin.z);
-  let bullet_velocity = Vector3::new(forward.x, forward.y, forward.z);
-  let zero = Vector3::new(0.0, 0.0, 0.0);
+  let transform = camera.single();
+  let origin = transform.translation;
+  let direction = transform.forward();
 
-  let mut aabbs = vec![];
-  for ix in -5..=5 {
-    for iy in -5..=5 {
-      for iz in -5..=5 {
-        let c = camera_origin + Vec3::new(ix as f32, iy as f32, iz as f32);
-        if let Some((e, c)) = chunk_map.get_path_to_block(c) {
-          if chunks.get(e).unwrap().grid[c.into()].block != BlockId::Air {
-            aabbs.push(Isometry3::translation(
-              c.x as f32 + 0.5,
-              c.y as f32 + 0.5,
-              c.z as f32 + 0.5,
-            ));
-          }
-        }
-      }
-    }
-  }
-
-  let mut tois = vec![];
-  for aabb in aabbs.iter() {
-    match query::time_of_impact(
-      &camera_origin_isometry,
-      &bullet_velocity,
-      &bullet,
-      aabb,
-      &zero,
-      &cube,
-      5.0,
-    ) {
-      Ok(Some(TOI { toi, normal2, .. })) => tois.push((toi, normal2, aabb)),
-      _ => {}
-    }
-  }
-  match tois
-    .into_iter()
-    .min_by(|(toi1, _, _), (toi2, _, _)| toi1.total_cmp(toi2))
-  {
-    None => {}
-    Some((_, normal, aabb)) => {
-      *selection = Some(Selection {
-        cube: [
-          aabb.translation.x.floor() as i32,
-          aabb.translation.y.floor() as i32,
-          aabb.translation.z.floor() as i32,
-        ],
-        face: [
-          (aabb.translation.x.floor() + normal.x.round()) as i32,
-          (aabb.translation.y.floor() + normal.y.round()) as i32,
-          (aabb.translation.z.floor() + normal.z.round()) as i32,
-        ],
-      });
-    }
+  if let Some((entity, intersection)) = rapier_context.query_pipeline.cast_ray_and_get_normal(
+    &rapier_context.colliders, &Ray::new(origin.into(), direction.into()), 5.0, false, InteractionGroups::new(0b01, 0b01), None
+  ) {
+    let c = rapier_context.colliders.get(entity).unwrap();
+    let e = Entity::from_bits(c.user_data as u64);
+    let transform = transforms.get(e).unwrap();
+    let cube = transform.translation - Vec3::new(0.5, 0.5, 0.5);
+    let normal: Vec3 = Vec3::from(intersection.normal) + cube;
+    *selection = Some(Selection {
+      cube: [cube.x.round() as i32, cube.y.floor() as i32, cube.z.floor() as i32],
+      face: [normal.x.floor() as i32, normal.y.floor() as i32, normal.z.floor() as i32]
+    });
   }
 }

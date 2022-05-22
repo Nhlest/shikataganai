@@ -5,7 +5,7 @@
 use bevy::prelude::App;
 use bevy::DefaultPlugins;
 use bevy_embedded_assets::EmbeddedAssetPlugin;
-use parry3d::na::{Isometry3, Vector3};
+use bevy_rapier3d::prelude::{NoUserData, RapierPhysicsPlugin};
 
 use crate::ecs::plugins::camera::CameraPlugin;
 use crate::ecs::plugins::game::GamePlugin;
@@ -26,6 +26,8 @@ fn main() {
     })
     .add_plugin(CameraPlugin)
     .add_plugin(GamePlugin)
+    .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
+    // .add_plugin(RapierDebugRenderPlugin::default())
     // .add_plugin(LogDiagnosticsPlugin::default())
     // .add_plugin(FrameTimeDiagnosticsPlugin::default())
     .add_plugin(ImguiPlugin)
