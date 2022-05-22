@@ -2,8 +2,8 @@
 #![feature(negative_impls)]
 #![feature(vec_into_raw_parts)]
 
-use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 #[allow(unused_imports)]
+use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::prelude::App;
 use bevy::DefaultPlugins;
 use bevy_embedded_assets::EmbeddedAssetPlugin;
@@ -30,8 +30,8 @@ fn main() {
     .add_plugin(GamePlugin)
     .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
     // .add_plugin(RapierDebugRenderPlugin::default())
-    .add_plugin(LogDiagnosticsPlugin::default())
-    .add_plugin(FrameTimeDiagnosticsPlugin::default())
+    // .add_plugin(LogDiagnosticsPlugin::default())
+    // .add_plugin(FrameTimeDiagnosticsPlugin::default())
     .add_plugin(ImguiPlugin)
     .add_plugin(VoxelRendererPlugin)
     .run();
