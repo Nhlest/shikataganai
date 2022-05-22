@@ -111,8 +111,8 @@ fn movement_input_system(
   fps_camera.phi += fps_camera.phi_a * time.delta().as_secs_f32();
   fps_camera.theta = (fps_camera.theta + fps_camera.theta_a * time.delta().as_secs_f32()).clamp(0.05, f32::PI() - 0.05);
 
-  fps_camera.phi_a *= 0.90;
-  fps_camera.theta_a *= 0.90;
+  fps_camera.phi_a *= 0.70;
+  fps_camera.theta_a *= 0.70;
 
   let mut movement = Vec3::default();
   if key_events.pressed(KeyCode::W) {
@@ -144,10 +144,13 @@ fn movement_input_system(
 
   if key_events.pressed(KeyCode::Space) && *stationary_frames > 2 {
     *stationary_frames = 0;
-    movement.y = 50.0;
+    camera_velocity.linvel.y = 7.0;
   }
 
-  camera_velocity.linvel += movement * 0.15;
+  let y = camera_velocity.linvel.y;
+  camera_velocity.linvel.y = 0.0;
+  camera_velocity.linvel = movement * 5.0;
+  camera_velocity.linvel.y = y;
 }
 
 #[derive(Component)]
@@ -156,7 +159,6 @@ pub struct Cube;
 fn collision_movement_system(
   camera: Query<(Entity, &FPSCamera)>,
   player: Query<Entity, With<Player>>,
-  mut velocity: Query<&mut Velocity>,
   mut queries: ParamSet<(Query<&mut Transform>, Query<&mut Transform, With<Cube>>)>,
   mut commands: Commands,
   chunks: Query<&Chunk>,
@@ -169,9 +171,6 @@ fn collision_movement_system(
     q.get(entity_player).unwrap().translation
   };
 
-  // for (e, _) in query.iter() {
-  //   commands.entity(e).despawn();
-  // }
   let mut query = queries.p1();
   let mut iter = query.iter_mut();
 
@@ -215,12 +214,6 @@ fn collision_movement_system(
   }
   drop(query);
   let mut transforms = queries.p0();
-
-  let mut velocity = velocity.get_mut(entity_player).unwrap();
-  let y = velocity.linvel.y;
-  velocity.linvel.y = 0.0;
-  velocity.linvel *= 0.98;
-  velocity.linvel.y = y;
 
   let looking_at = Vec3::new(
     10.0 * fps_camera.phi.cos() * fps_camera.theta.sin(),

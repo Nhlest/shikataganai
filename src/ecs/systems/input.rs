@@ -122,23 +122,7 @@ pub fn action_input(
         HotBarItem::Delete => {}
         HotBarItem::Empty => {}
       }
-    } // None => {}
-      // Some(Selection { cube, face }) => {
-      //   if mouse.just_pressed(MouseButton::Left) {
-      //     if let Some((e, c)) = chunk_map.get_path_to_block_location(Location::new(cube[0], cube[1], cube[2])) {
-      //       chunks.get_mut(e).unwrap().grid[c.into()].block = BlockId::Air;
-      //       relight.0 = true;
-      //       remesh.0 = true;
-      //     }
-      //   }
-      //   if mouse.just_pressed(MouseButton::Right) {
-      //     if let Some((e, c)) = chunk_map.get_path_to_block_location(Location::new(face[0], face[1], face[2])) {
-      //       chunks.get_mut(e).unwrap().grid[c.into()].block = BlockId::Dirt;
-      //       relight.0 = true;
-      //       remesh.0 = true;
-      //     }
-      //   }
-      // }
+    }
   }
 }
 

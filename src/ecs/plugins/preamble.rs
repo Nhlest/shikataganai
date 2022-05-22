@@ -22,7 +22,6 @@ impl Plugin for Preamble {
         title: "仕方がない、ね？".to_string(),
         present_mode: vsync.as_present_mode(),
         mode: fullscreen.as_mode(),
-        // scale_factor_override: Some(1.0),
         ..default()
       })
       .insert_resource(Msaa { samples: 1 })

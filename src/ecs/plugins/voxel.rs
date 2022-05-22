@@ -510,22 +510,6 @@ impl EntityRenderCommand for DrawChunk {
     pass.draw(0..*verticies as u32 * 6, 0..1 as u32);
     RenderCommandResult::Success
   }
-
-  // fn render<'w>(
-  //   _view: Entity,
-  //   _item: &P,
-  //   param: SystemParamItem<'w, '_, Self::Param>,
-  //   pass: &mut TrackedRenderPass<'w>,
-  // ) -> RenderCommandResult {
-  //   let instances = param.0.blocks.len();
-  //   if instances == 0 {
-  //     return RenderCommandResult::Success;
-  //   }
-  //   pass.set_vertex_buffer(0, param.1.into_inner().vertex.buffer().unwrap().slice(..));
-  //   pass.set_vertex_buffer(1, param.2.into_inner().vertex.buffer().unwrap().slice(..));
-  //   pass.draw(0..36, 0..instances as u32);
-  //   RenderCommandResult::Success
-  // }
 }
 
 #[derive(Default)]
