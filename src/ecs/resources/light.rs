@@ -3,6 +3,14 @@ use crate::util::array::Array;
 use bevy::prelude::*;
 use std::alloc::Layout;
 
+pub struct Relight(pub bool);
+
+impl Relight {
+  pub fn relight(&mut self) {
+    self.0 = true;
+  }
+}
+
 #[derive(Clone)]
 pub struct LightMap {
   pub map: Array<u8>,

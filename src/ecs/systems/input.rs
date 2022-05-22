@@ -4,8 +4,8 @@ use crate::ecs::components::Location;
 use crate::ecs::plugins::camera::Selection;
 use crate::ecs::plugins::voxel::Remesh;
 use crate::ecs::resources::chunk_map::ChunkMap;
+use crate::ecs::resources::light::Relight;
 use crate::ecs::resources::player::{HotBarItem, HotBarItems, SelectedHotBar};
-use crate::ecs::systems::light::Relight;
 use bevy::input::mouse::MouseWheel;
 use bevy::prelude::*;
 

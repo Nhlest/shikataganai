@@ -10,21 +10,22 @@ use bevy::render::render_phase::{
   AddRenderCommand, DrawFunctions, EntityRenderCommand, PhaseItem, RenderCommand, RenderCommandResult, RenderPhase,
   SetItemPipeline, TrackedRenderPass,
 };
-use bevy::render::render_resource::ShaderType;
 use bevy::render::render_resource::{
-  BindGroup, BindGroupLayout, BindGroupLayoutEntry, BindingType, BlendState, BufferBindingType, BufferVec,
-  ColorTargetState, ColorWrites, CompareFunction, FragmentState, FrontFace, MultisampleState, PipelineCache,
-  PolygonMode, PrimitiveState, RenderPipelineDescriptor, SamplerBindingType, ShaderStages, SpecializedRenderPipeline,
-  SpecializedRenderPipelines, TextureFormat, TextureSampleType, TextureViewDimension, VertexBufferLayout, VertexFormat,
-  VertexState, VertexStepMode,
+  BindGroup, BindGroupLayout, BindGroupLayoutEntry, BindingType, BlendState, BufferBindingType, ColorTargetState,
+  ColorWrites, CompareFunction, FragmentState, FrontFace, MultisampleState, PipelineCache, PolygonMode, PrimitiveState,
+  RenderPipelineDescriptor, SamplerBindingType, ShaderStages, SpecializedRenderPipeline, SpecializedRenderPipelines,
+  TextureFormat, TextureSampleType, TextureViewDimension, VertexBufferLayout, VertexFormat, VertexState,
+  VertexStepMode,
 };
-use bevy::render::renderer::{RenderDevice, RenderQueue};
+use bevy::render::render_resource::{Buffer, ShaderType};
+use bevy::render::renderer::RenderDevice;
 use bevy::render::texture::BevyDefault;
 use bevy::render::view::{ViewUniform, ViewUniformOffset, ViewUniforms};
 use bevy::render::RenderStage;
 use bevy::render::{RenderApp, RenderWorld};
 use bytemuck_derive::*;
 use std::alloc::Layout;
+use std::slice;
 use wgpu::util::BufferInitDescriptor;
 use wgpu::{
   BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindingResource, BufferUsages, DepthStencilState,
@@ -33,8 +34,8 @@ use wgpu::{
 
 use crate::ecs::components::chunk::Chunk;
 use crate::ecs::plugins::camera::Selection;
-use crate::ecs::resources::light::{LightMap, SizedLightMap};
-use crate::ecs::systems::light::Relight;
+use crate::ecs::resources::block::BlockSprite;
+use crate::ecs::resources::light::{LightMap, Relight, SizedLightMap};
 
 pub struct VoxelRendererPlugin;
 
@@ -60,27 +61,61 @@ fn extract_chunks(
   let mut extracted_blocks = render_world.get_resource_mut::<ExtractedBlocks>().unwrap();
   extracted_blocks.blocks.clear();
   for chunk in chunks.iter() {
-    let ((x1, _, _), (x2, _, _)) = chunk.grid.bounds;
-    let size_x = 16.0 / (x2 - x1 + 1) as f32;
     chunk.grid.foreach(|(x, y, z), s| {
       if s.block == BlockId::Air {
       } else {
-        let mut visible = false;
         for (ix, iy, iz) in [(-1, 0, 0), (1, 0, 0), (0, -1, 0), (0, 1, 0), (0, 0, -1), (0, 0, 1)] {
           if !chunk.grid.in_bounds((x + ix, y + iy, z + iz))
             || chunk.grid[(x + ix, y + iy, z + iz)].block == BlockId::Air
           {
-            visible = true;
-            break;
+            extracted_blocks
+              .blocks
+              .push(SingleSide::new((x, y, z), (ix, iy, iz), s.block.into_array_of_faces()));
           }
-        }
-        if visible {
-          extracted_blocks
-            .blocks
-            .push(ExtractedBlock::new(x, y, z, s.block, size_x))
         }
       }
     });
+  }
+}
+
+impl SingleSide {
+  fn new((x, y, z): (i32, i32, i32), (ix, iy, iz): (i32, i32, i32), block: [BlockSprite; 6]) -> Self {
+    let fx = x as f32;
+    let fy = y as f32;
+    let fz = z as f32;
+    let side = if ix != 0 {
+      if ix == 1 {
+        0
+      } else {
+        1
+      }
+    } else if iz != 0 {
+      if iz == 1 {
+        2
+      } else {
+        3
+      }
+    } else {
+      if iy == 1 {
+        4
+      } else {
+        5
+      }
+    };
+    let triangles = VERTEX[side];
+    SingleSide(triangles.map(
+      |Vertex {
+         pos: [vx, vy, vz],
+         uv: [uv0, uv1],
+       }| SingleVertex {
+        position: [vx + fx, vy + fy, vz + fz],
+        uv: [
+          uv0 / 8.0 + block[side].into_uv().0[0],
+          uv1 / 8.0 + block[side].into_uv().0[1],
+        ],
+        tile_side: [x, y, z, side as i32],
+      },
+    ))
   }
 }
 
@@ -112,23 +147,15 @@ pub struct VoxelPipeline {
 
 #[repr(C)]
 #[derive(Copy, Clone, Pod, Zeroable)]
-pub struct SingleBlock {
+pub struct SingleVertex {
   pub position: [f32; 3],
-  pub tiles: [u16; 6],
-  pub size: f32,
+  pub uv: [f32; 2],
+  pub tile_side: [i32; 4],
 }
 
-pub struct ChunkBuffer {
-  vertex: BufferVec<SingleBlock>,
-}
-
-impl Default for ChunkBuffer {
-  fn default() -> Self {
-    Self {
-      vertex: BufferVec::new(BufferUsages::VERTEX),
-    }
-  }
-}
+#[repr(C)]
+#[derive(Copy, Clone, Pod, Zeroable)]
+struct SingleSide([SingleVertex; 6]);
 
 pub const VOXEL_SHADER_HANDLE: HandleUntyped = HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 2763343953151597899);
 
@@ -137,23 +164,16 @@ impl SpecializedRenderPipeline for VoxelPipeline {
 
   fn specialize(&self, _key: Self::Key) -> RenderPipelineDescriptor {
     let shader_defs = Vec::new();
-    let instance_formats = vec![VertexFormat::Float32x3, VertexFormat::Uint32x3, VertexFormat::Float32];
-    let vertex_formats = vec![VertexFormat::Float32x4, VertexFormat::Float32x2];
+    let vertex_formats = vec![VertexFormat::Float32x3, VertexFormat::Float32x2, VertexFormat::Sint32x4];
 
-    let instance_layout = VertexBufferLayout::from_vertex_formats(VertexStepMode::Instance, instance_formats);
-
-    let mut vertex_layout = VertexBufferLayout::from_vertex_formats(VertexStepMode::Vertex, vertex_formats);
-
-    for i in vertex_layout.attributes.iter_mut() {
-      i.shader_location += 3;
-    }
+    let vertex_layout = VertexBufferLayout::from_vertex_formats(VertexStepMode::Vertex, vertex_formats);
 
     RenderPipelineDescriptor {
       vertex: VertexState {
         shader: VOXEL_SHADER_HANDLE.typed::<Shader>(),
         entry_point: "vertex".into(),
         shader_defs: shader_defs.clone(),
-        buffers: vec![instance_layout, vertex_layout],
+        buffers: vec![vertex_layout],
       },
       fragment: Some(FragmentState {
         shader: VOXEL_SHADER_HANDLE.typed::<Shader>(),
@@ -298,15 +318,14 @@ fn queue_lights(
 }
 
 fn queue_chunks(
+  mut commands: Commands,
   extracted_blocks: Res<ExtractedBlocks>,
   mut views: Query<&mut RenderPhase<Opaque3d>>,
   draw_functions: Res<DrawFunctions<Opaque3d>>,
   mut pipelines: ResMut<SpecializedRenderPipelines<VoxelPipeline>>,
   mut pipeline_cache: ResMut<PipelineCache>,
   chunk_pipeline: Res<VoxelPipeline>,
-  mut buf: ResMut<ChunkBuffer>,
   render_device: Res<RenderDevice>,
-  render_queue: Res<RenderQueue>,
   view_uniforms: Res<ViewUniforms>,
   mut voxel_bind_group: ResMut<VoxelViewBindGroup>,
   mut selection_bind_group: ResMut<SelectionBindGroup>,
@@ -368,22 +387,24 @@ fn queue_chunks(
 
   let pipeline = pipelines.specialize(&mut pipeline_cache, &chunk_pipeline, ());
 
-  buf.vertex.clear();
-  for i in &extracted_blocks.blocks {
-    buf.vertex.push(SingleBlock {
-      position: [i.x, i.y, i.z],
-      tiles: i.i.into_array_of_faces().map(|x| x as u16),
-      size: i.s,
-    });
-  }
-  buf.vertex.write_buffer(&render_device, &render_queue);
+  let ptr = extracted_blocks.blocks.as_ptr();
+  let s = extracted_blocks.blocks.len() * std::mem::size_of::<SingleSide>();
+  let buf = render_device.create_buffer_with_data(&BufferInitDescriptor {
+    label: None,
+    contents: unsafe { slice::from_raw_parts(ptr as *const u8, s) },
+    usage: BufferUsages::STORAGE | BufferUsages::VERTEX,
+  });
+  let e = commands
+    .spawn()
+    .insert(MeshBuffer(buf, extracted_blocks.blocks.len()))
+    .id();
 
   for mut view in views.iter_mut() {
     view.add(Opaque3d {
       distance: 0.0,
       draw_function: draw_chunk_function,
       pipeline,
-      entity: Entity::from_raw(0),
+      entity: e,
     });
   }
 }
@@ -472,24 +493,39 @@ impl<const I: usize> EntityRenderCommand for SetLightBindGroup<I> {
 
 struct DrawChunk;
 
-impl<P: PhaseItem> RenderCommand<P> for DrawChunk {
-  type Param = (SRes<ExtractedBlocks>, SRes<ChunkBuffer>, SRes<VertexBuffer>);
+#[derive(Component)]
+struct MeshBuffer(Buffer, usize);
+
+impl EntityRenderCommand for DrawChunk {
+  type Param = SQuery<Read<MeshBuffer>>;
 
   fn render<'w>(
     _view: Entity,
-    _item: &P,
+    item: Entity,
     param: SystemParamItem<'w, '_, Self::Param>,
     pass: &mut TrackedRenderPass<'w>,
   ) -> RenderCommandResult {
-    let instances = param.0.blocks.len();
-    if instances == 0 {
-      return RenderCommandResult::Success;
-    }
-    pass.set_vertex_buffer(0, param.1.into_inner().vertex.buffer().unwrap().slice(..));
-    pass.set_vertex_buffer(1, param.2.into_inner().vertex.buffer().unwrap().slice(..));
-    pass.draw(0..36, 0..instances as u32);
+    let MeshBuffer(buf, verticies) = param.get_inner(item).unwrap();
+    pass.set_vertex_buffer(0, buf.slice(..));
+    pass.draw(0..*verticies as u32 * 6, 0..1 as u32);
     RenderCommandResult::Success
   }
+
+  // fn render<'w>(
+  //   _view: Entity,
+  //   _item: &P,
+  //   param: SystemParamItem<'w, '_, Self::Param>,
+  //   pass: &mut TrackedRenderPass<'w>,
+  // ) -> RenderCommandResult {
+  //   let instances = param.0.blocks.len();
+  //   if instances == 0 {
+  //     return RenderCommandResult::Success;
+  //   }
+  //   pass.set_vertex_buffer(0, param.1.into_inner().vertex.buffer().unwrap().slice(..));
+  //   pass.set_vertex_buffer(1, param.2.into_inner().vertex.buffer().unwrap().slice(..));
+  //   pass.draw(0..36, 0..instances as u32);
+  //   RenderCommandResult::Success
+  // }
 }
 
 #[derive(Default)]
@@ -515,203 +551,172 @@ impl<P: PhaseItem, const I: usize> RenderCommand<P> for SetSelectionBindGroup<I>
 #[repr(C)]
 #[derive(Copy, Clone, Pod, Zeroable)]
 pub struct Vertex {
-  pos: [f32; 4],
+  pos: [f32; 3],
   uv: [f32; 2],
 }
 
-pub struct VertexBuffer {
-  vertex: BufferVec<Vertex>,
-}
-
-const VERTEX: [Vertex; 36] = [
-  Vertex {
-    pos: [0.0, 0.0, 0.0, 0.0],
-    uv: [0.0, 1.0],
-  },
-  Vertex {
-    pos: [1.0, 0.0, 0.0, 0.0],
-    uv: [1.0, 1.0],
-  },
-  Vertex {
-    pos: [0.0, 1.0, 0.0, 0.0],
-    uv: [0.0, 0.0],
-  },
-  Vertex {
-    pos: [1.0, 0.0, 0.0, 0.0],
-    uv: [1.0, 1.0],
-  },
-  Vertex {
-    pos: [1.0, 1.0, 0.0, 0.0],
-    uv: [1.0, 0.0],
-  },
-  Vertex {
-    pos: [0.0, 1.0, 0.0, 0.0],
-    uv: [0.0, 0.0],
-  },
-  Vertex {
-    pos: [1.0, 0.0, 0.0, 1.0],
-    uv: [0.0, 1.0],
-  },
-  Vertex {
-    pos: [1.0, 0.0, 1.0, 1.0],
-    uv: [1.0, 1.0],
-  },
-  Vertex {
-    pos: [1.0, 1.0, 0.0, 1.0],
-    uv: [0.0, 0.0],
-  },
-  Vertex {
-    pos: [1.0, 0.0, 1.0, 1.0],
-    uv: [1.0, 1.0],
-  },
-  Vertex {
-    pos: [1.0, 1.0, 1.0, 1.0],
-    uv: [1.0, 0.0],
-  },
-  Vertex {
-    pos: [1.0, 1.0, 0.0, 1.0],
-    uv: [0.0, 0.0],
-  },
-  Vertex {
-    pos: [1.0, 0.0, 1.0, 2.0],
-    uv: [0.0, 1.0],
-  },
-  Vertex {
-    pos: [0.0, 0.0, 1.0, 2.0],
-    uv: [1.0, 1.0],
-  },
-  Vertex {
-    pos: [1.0, 1.0, 1.0, 2.0],
-    uv: [0.0, 0.0],
-  },
-  Vertex {
-    pos: [0.0, 0.0, 1.0, 2.0],
-    uv: [1.0, 1.0],
-  },
-  Vertex {
-    pos: [0.0, 1.0, 1.0, 2.0],
-    uv: [1.0, 0.0],
-  },
-  Vertex {
-    pos: [1.0, 1.0, 1.0, 2.0],
-    uv: [0.0, 0.0],
-  },
-  Vertex {
-    pos: [0.0, 0.0, 1.0, 3.0],
-    uv: [0.0, 1.0],
-  },
-  Vertex {
-    pos: [0.0, 0.0, 0.0, 3.0],
-    uv: [1.0, 1.0],
-  },
-  Vertex {
-    pos: [0.0, 1.0, 1.0, 3.0],
-    uv: [0.0, 0.0],
-  },
-  Vertex {
-    pos: [0.0, 0.0, 0.0, 3.0],
-    uv: [1.0, 1.0],
-  },
-  Vertex {
-    pos: [0.0, 1.0, 0.0, 3.0],
-    uv: [1.0, 0.0],
-  },
-  Vertex {
-    pos: [0.0, 1.0, 1.0, 3.0],
-    uv: [0.0, 0.0],
-  },
-  Vertex {
-    pos: [0.0, 0.0, 1.0, 4.0],
-    uv: [0.0, 1.0],
-  },
-  Vertex {
-    pos: [1.0, 0.0, 1.0, 4.0],
-    uv: [1.0, 1.0],
-  },
-  Vertex {
-    pos: [0.0, 0.0, 0.0, 4.0],
-    uv: [0.0, 0.0],
-  },
-  Vertex {
-    pos: [1.0, 0.0, 1.0, 4.0],
-    uv: [1.0, 1.0],
-  },
-  Vertex {
-    pos: [1.0, 0.0, 0.0, 4.0],
-    uv: [1.0, 0.0],
-  },
-  Vertex {
-    pos: [0.0, 0.0, 0.0, 4.0],
-    uv: [0.0, 0.0],
-  },
-  Vertex {
-    pos: [0.0, 1.0, 0.0, 5.0],
-    uv: [0.0, 1.0],
-  },
-  Vertex {
-    pos: [1.0, 1.0, 0.0, 5.0],
-    uv: [1.0, 1.0],
-  },
-  Vertex {
-    pos: [0.0, 1.0, 1.0, 5.0],
-    uv: [0.0, 0.0],
-  },
-  Vertex {
-    pos: [1.0, 1.0, 0.0, 5.0],
-    uv: [1.0, 1.0],
-  },
-  Vertex {
-    pos: [1.0, 1.0, 1.0, 5.0],
-    uv: [1.0, 0.0],
-  },
-  Vertex {
-    pos: [0.0, 1.0, 1.0, 5.0],
-    uv: [0.0, 0.0],
-  },
+const VERTEX: [[Vertex; 6]; 6] = [
+  [
+    Vertex {
+      pos: [1.0, 0.0, 0.0],
+      uv: [0.0, 1.0],
+    },
+    Vertex {
+      pos: [1.0, 0.0, 1.0],
+      uv: [1.0, 1.0],
+    },
+    Vertex {
+      pos: [1.0, 1.0, 0.0],
+      uv: [0.0, 0.0],
+    },
+    Vertex {
+      pos: [1.0, 0.0, 1.0],
+      uv: [1.0, 1.0],
+    },
+    Vertex {
+      pos: [1.0, 1.0, 1.0],
+      uv: [1.0, 0.0],
+    },
+    Vertex {
+      pos: [1.0, 1.0, 0.0],
+      uv: [0.0, 0.0],
+    },
+  ],
+  [
+    Vertex {
+      pos: [0.0, 0.0, 1.0],
+      uv: [0.0, 1.0],
+    },
+    Vertex {
+      pos: [0.0, 0.0, 0.0],
+      uv: [1.0, 1.0],
+    },
+    Vertex {
+      pos: [0.0, 1.0, 1.0],
+      uv: [0.0, 0.0],
+    },
+    Vertex {
+      pos: [0.0, 0.0, 0.0],
+      uv: [1.0, 1.0],
+    },
+    Vertex {
+      pos: [0.0, 1.0, 0.0],
+      uv: [1.0, 0.0],
+    },
+    Vertex {
+      pos: [0.0, 1.0, 1.0],
+      uv: [0.0, 0.0],
+    },
+  ],
+  [
+    Vertex {
+      pos: [1.0, 0.0, 1.0],
+      uv: [0.0, 1.0],
+    },
+    Vertex {
+      pos: [0.0, 0.0, 1.0],
+      uv: [1.0, 1.0],
+    },
+    Vertex {
+      pos: [1.0, 1.0, 1.0],
+      uv: [0.0, 0.0],
+    },
+    Vertex {
+      pos: [0.0, 0.0, 1.0],
+      uv: [1.0, 1.0],
+    },
+    Vertex {
+      pos: [0.0, 1.0, 1.0],
+      uv: [1.0, 0.0],
+    },
+    Vertex {
+      pos: [1.0, 1.0, 1.0],
+      uv: [0.0, 0.0],
+    },
+  ],
+  [
+    Vertex {
+      pos: [0.0, 0.0, 0.0],
+      uv: [0.0, 1.0],
+    },
+    Vertex {
+      pos: [1.0, 0.0, 0.0],
+      uv: [1.0, 1.0],
+    },
+    Vertex {
+      pos: [0.0, 1.0, 0.0],
+      uv: [0.0, 0.0],
+    },
+    Vertex {
+      pos: [1.0, 0.0, 0.0],
+      uv: [1.0, 1.0],
+    },
+    Vertex {
+      pos: [1.0, 1.0, 0.0],
+      uv: [1.0, 0.0],
+    },
+    Vertex {
+      pos: [0.0, 1.0, 0.0],
+      uv: [0.0, 0.0],
+    },
+  ],
+  [
+    Vertex {
+      pos: [0.0, 1.0, 0.0],
+      uv: [0.0, 1.0],
+    },
+    Vertex {
+      pos: [1.0, 1.0, 0.0],
+      uv: [1.0, 1.0],
+    },
+    Vertex {
+      pos: [0.0, 1.0, 1.0],
+      uv: [0.0, 0.0],
+    },
+    Vertex {
+      pos: [1.0, 1.0, 0.0],
+      uv: [1.0, 1.0],
+    },
+    Vertex {
+      pos: [1.0, 1.0, 1.0],
+      uv: [1.0, 0.0],
+    },
+    Vertex {
+      pos: [0.0, 1.0, 1.0],
+      uv: [0.0, 0.0],
+    },
+  ],
+  [
+    Vertex {
+      pos: [0.0, 0.0, 1.0],
+      uv: [0.0, 1.0],
+    },
+    Vertex {
+      pos: [1.0, 0.0, 1.0],
+      uv: [1.0, 1.0],
+    },
+    Vertex {
+      pos: [0.0, 0.0, 0.0],
+      uv: [0.0, 0.0],
+    },
+    Vertex {
+      pos: [1.0, 0.0, 1.0],
+      uv: [1.0, 1.0],
+    },
+    Vertex {
+      pos: [1.0, 0.0, 0.0],
+      uv: [1.0, 0.0],
+    },
+    Vertex {
+      pos: [0.0, 0.0, 0.0],
+      uv: [0.0, 0.0],
+    },
+  ],
 ];
 
-impl FromWorld for VertexBuffer {
-  fn from_world(world: &mut World) -> Self {
-    let mut v: VertexBuffer = VertexBuffer {
-      vertex: BufferVec::new(BufferUsages::VERTEX),
-    };
-
-    let render_device = world.resource::<RenderDevice>();
-    let render_queue = world.resource::<RenderQueue>();
-
-    for i in VERTEX {
-      v.vertex.push(i);
-    }
-
-    v.vertex.write_buffer(&render_device, &render_queue);
-    v
-  }
-}
-
-#[derive(Debug)]
-struct ExtractedBlock {
-  x: f32,
-  y: f32,
-  z: f32,
-  s: f32,
-  i: BlockId,
-}
-
-impl ExtractedBlock {
-  fn new(x: i32, y: i32, z: i32, block: BlockId, size_x: f32) -> Self {
-    ExtractedBlock {
-      x: x as f32 * size_x,
-      y: y as f32 * size_x,
-      z: z as f32 * size_x,
-      s: size_x,
-      i: block,
-    }
-  }
-}
-
-#[derive(Default, Debug)]
+#[derive(Default)]
 pub struct ExtractedBlocks {
-  blocks: Vec<ExtractedBlock>,
+  blocks: Vec<SingleSide>,
 }
 
 impl Plugin for VoxelRendererPlugin {
@@ -723,8 +728,6 @@ impl Plugin for VoxelRendererPlugin {
     shaders.set_untracked(VOXEL_SHADER_HANDLE, voxel_shader);
     let render_app = app.get_sub_app_mut(RenderApp).unwrap();
     render_app
-      .init_resource::<VertexBuffer>()
-      .init_resource::<ChunkBuffer>()
       .init_resource::<ExtractedBlocks>()
       .init_resource::<VoxelPipeline>()
       .init_resource::<VoxelViewBindGroup>()

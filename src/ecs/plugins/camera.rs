@@ -7,8 +7,8 @@ use bevy::prelude::*;
 use bevy::render::camera::CameraProjection;
 use bevy::render::primitives::Frustum;
 use bevy_rapier3d::parry::query::Ray;
-use num_traits::float::FloatConst;
 use bevy_rapier3d::prelude::*;
+use num_traits::float::FloatConst;
 
 pub struct CameraPlugin;
 
@@ -20,7 +20,7 @@ pub struct FPSCamera {
   phi: f32,
   theta: f32,
   phi_a: f32,
-  theta_a: f32
+  theta_a: f32,
 }
 
 impl Plugin for CameraPlugin {
@@ -29,7 +29,7 @@ impl Plugin for CameraPlugin {
       phi: 0.0,
       theta: f32::FRAC_PI_2(),
       phi_a: 0.0,
-      theta_a: 0.0
+      theta_a: 0.0,
     };
     let camera = {
       let perspective_projection = PerspectiveProjection {
@@ -52,28 +52,33 @@ impl Plugin for CameraPlugin {
         ..default()
       }
     };
-    app.world.spawn()
+    app
+      .world
+      .spawn()
       .insert(RigidBody::Dynamic)
       .insert(Transform::from_xyz(10.0, 20.0, 10.0))
       .insert(GlobalTransform::default())
       .insert(LockedAxes::ROTATION_LOCKED)
       .insert(Player)
       .insert(Velocity::default())
+      .insert(GravityScale(2.0))
+      .insert(Friction {
+        coefficient: 0.0,
+        combine_rule: CoefficientCombineRule::Min,
+      })
       .with_children(|c| {
-         c.spawn()
-           .insert(GlobalTransform::default())
-           .insert(Transform::from_xyz(0.0, -0.5, 0.0))
-           .insert(Collider::capsule_y(0.9, 0.3))
-           .insert(SolverGroups::new(0b10, 0b10))
-           .insert(CollisionGroups::new(0b10, 0b10));
         c.spawn()
-          .insert(fps_camera)
-          .insert_bundle(camera);
+          .insert(GlobalTransform::default())
+          .insert(Transform::from_xyz(0.0, -0.5, 0.0))
+          .insert(Collider::capsule_y(0.6, 0.3))
+          .insert(SolverGroups::new(0b01, 0b10))
+          .insert(CollisionGroups::new(0b01, 0b10));
+        c.spawn().insert(fps_camera).insert_bundle(camera);
       });
     app
       .add_system(movement_input_system)
-      .add_system_to_stage(CoreStage::PreUpdate,collision_movement_system)
-      .add_system_to_stage(CoreStage::Update,block_pick)
+      .add_system_to_stage(CoreStage::PreUpdate, collision_movement_system)
+      .add_system_to_stage(CoreStage::Update, block_pick)
       .add_system(cursor_grab_system);
   }
 }
@@ -87,7 +92,7 @@ fn movement_input_system(
   mut windows: ResMut<Windows>,
   mut stationary_frames: Local<i32>,
   mouse_sensitivity: Res<MouseSensitivity>,
-  time: Res<Time>
+  time: Res<Time>,
 ) {
   let window = windows.get_primary_mut().unwrap();
   if !window.cursor_locked() {
@@ -139,7 +144,7 @@ fn movement_input_system(
 
   if key_events.pressed(KeyCode::Space) && *stationary_frames > 2 {
     *stationary_frames = 0;
-    movement.y = 30.0;
+    movement.y = 50.0;
   }
 
   camera_velocity.linvel += movement * 0.15;
@@ -152,39 +157,64 @@ fn collision_movement_system(
   camera: Query<(Entity, &FPSCamera)>,
   player: Query<Entity, With<Player>>,
   mut velocity: Query<&mut Velocity>,
-  mut transforms: Query<&mut Transform>,
+  mut queries: ParamSet<(Query<&mut Transform>, Query<&mut Transform, With<Cube>>)>,
   mut commands: Commands,
-  query: Query<(Entity, &Collider), With<Cube>>,
   chunks: Query<&Chunk>,
   chunk_map: Res<ChunkMap>,
 ) {
   let (entity_camera, fps_camera) = camera.single();
   let entity_player = player.single();
-  let transform = transforms.get(entity_player).unwrap();
+  let translation = {
+    let q = queries.p0();
+    q.get(entity_player).unwrap().translation
+  };
 
-  for (e, _) in query.iter() {
-    commands.entity(e).despawn();
-  }
+  // for (e, _) in query.iter() {
+  //   commands.entity(e).despawn();
+  // }
+  let mut query = queries.p1();
+  let mut iter = query.iter_mut();
 
-  for ix in -5..=5 {
-    for iy in -5..=5 {
-      for iz in -5..=5 {
-        let c = transform.translation + Vec3::new(ix as f32, iy as f32, iz as f32);
+  for ix in -3..=3 {
+    for iy in -3..=3 {
+      for iz in -3..=3 {
+        let c = translation + Vec3::new(ix as f32, iy as f32, iz as f32);
         if let Some((e, c)) = chunk_map.get_path_to_block(c) {
           if chunks.get(e).unwrap().grid[c.into()].block != BlockId::Air {
-            let e = commands.spawn().id();
-            commands.entity(e)
-              .insert(RigidBody::Fixed)
-              .insert(Collider::cuboid(0.5, 0.5, 0.5))
-              .insert(Cube)
-              .insert(SolverGroups::new(0b11, 0b11))
-              .insert(Transform::from_xyz(c.x as f32 + 0.5, c.y as f32 + 0.5, c.z as f32 + 0.5))
-              .insert(GlobalTransform::default());
+            match iter.next() {
+              None => {
+                commands
+                  .spawn()
+                  .insert(RigidBody::Fixed)
+                  .insert(Collider::cuboid(0.5, 0.5, 0.5))
+                  .insert(Cube)
+                  .insert(Friction {
+                    coefficient: 0.0,
+                    combine_rule: CoefficientCombineRule::Min,
+                  })
+                  .insert(SolverGroups::new(0b10, 0b01))
+                  .insert(CollisionGroups::new(0b10, 0b01))
+                  .insert(Transform::from_xyz(
+                    c.x as f32 + 0.5,
+                    c.y as f32 + 0.5,
+                    c.z as f32 + 0.5,
+                  ))
+                  .insert(GlobalTransform::default());
+              }
+              Some(mut transform) => {
+                transform.translation = Vec3::new(c.x as f32 + 0.5, c.y as f32 + 0.5, c.z as f32 + 0.5);
+              }
+            }
           }
         }
       }
     }
   }
+  for mut transform in iter {
+    transform.translation = Vec3::new(-9999.0, -9999.0, -9999.0);
+  }
+  drop(query);
+  let mut transforms = queries.p0();
 
   let mut velocity = velocity.get_mut(entity_player).unwrap();
   let y = velocity.linvel.y;
@@ -229,7 +259,7 @@ fn block_pick(
   camera: Query<&GlobalTransform, With<Camera>>,
   transforms: Query<&Transform>,
   mut selection: ResMut<Option<Selection>>,
-  rapier_context: Res<RapierContext>
+  rapier_context: Res<RapierContext>,
 ) {
   *selection = None;
   let transform = camera.single();
@@ -237,7 +267,12 @@ fn block_pick(
   let direction = transform.forward();
 
   if let Some((entity, intersection)) = rapier_context.query_pipeline.cast_ray_and_get_normal(
-    &rapier_context.colliders, &Ray::new(origin.into(), direction.into()), 5.0, false, InteractionGroups::new(0b01, 0b01), None
+    &rapier_context.colliders,
+    &Ray::new(origin.into(), direction.into()),
+    5.0,
+    false,
+    InteractionGroups::new(0b01, 0b10),
+    None,
   ) {
     let c = rapier_context.colliders.get(entity).unwrap();
     let e = Entity::from_bits(c.user_data as u64);
@@ -246,7 +281,11 @@ fn block_pick(
     let normal: Vec3 = Vec3::from(intersection.normal) + cube;
     *selection = Some(Selection {
       cube: [cube.x.round() as i32, cube.y.floor() as i32, cube.z.floor() as i32],
-      face: [normal.x.floor() as i32, normal.y.floor() as i32, normal.z.floor() as i32]
+      face: [
+        normal.x.floor() as i32,
+        normal.y.floor() as i32,
+        normal.z.floor() as i32,
+      ],
     });
   }
 }

@@ -39,6 +39,7 @@ branch = "main"
 [dependencies.bevy_rapier3d]
 git = "https://github.com/Nhlest/bevy_rapier"
 branch = "master"
+features = ["simd-nightly"]
 
 [dependencies.bevy]
 git = "https://github.com/bevyengine/bevy"

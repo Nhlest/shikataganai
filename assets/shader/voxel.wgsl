@@ -44,30 +44,15 @@ struct VertexOutput {
 fn vertex(
   [[builtin(vertex_index)]] id: u32,
   [[location(0)]] position: vec3<f32>,
-  [[location(1)]] tiles: vec3<u32>,
-  [[location(2)]] size: f32,
-  [[location(3)]] coord: vec4<f32>,
-  [[location(4)]] uv: vec2<f32>
+  [[location(1)]] uv: vec2<f32>,
+  [[location(2)]] tile: vec4<i32>,
 ) -> VertexOutput {
-    var atlas_size : u32 = u32(8);
-
-    var tile_id : u32 = id / u32(6);
-
-    if (tile_id % u32(2) == u32(0)) {
-      tile_id = tiles[tile_id / u32(2)] / u32(65536);
-    } else {
-      tile_id = tiles[tile_id / u32(2)] % u32(65536);
-    }
-
-    var tile_x : u32 = tile_id % atlas_size;
-    var tile_y : u32 = tile_id / atlas_size;
-
     var o: VertexOutput;
-    o.position = view.view_proj * (vec4<f32>(coord.xyz*size, 1.0) + vec4<f32>(position, 0.0));
-    o.uv = (uv + vec2<f32>(f32(tile_x), f32(tile_y))) / f32(atlas_size);
+    o.position = view.view_proj * vec4<f32>(position, 1.0);
+    o.uv = uv;
 
-    var side = coord.w;
-    var position = vec3<i32>(i32(position.x), i32(position.y), i32(position.z));
+    var side = tile.w;
+    var position = vec3<i32>(tile.xyz);
 
     if (position.x == selection.cube.x && position.y == selection.cube.y && position.z == selection.cube.z) {
       o.cube_selected = 1;
@@ -75,18 +60,18 @@ fn vertex(
       o.cube_selected = 0;
     }
 
-    if (side == 0.0) {
-      position.z = position.z - 1;
-    } else if (side == 1.0) {
+    if (side == 0) {
       position.x = position.x + 1;
-    } else if (side == 2.0) {
-      position.z = position.z + 1;
-    } else if (side == 3.0) {
+    } else if (side == 1) {
       position.x = position.x - 1;
-    } else if (side == 4.0) {
-      position.y = position.y - 1;
-    } else if (side == 5.0) {
+    } else if (side == 2) {
+      position.z = position.z + 1;
+    } else if (side == 3) {
+      position.z = position.z - 1;
+    } else if (side == 4) {
       position.y = position.y + 1;
+    } else if (side == 5) {
+      position.y = position.y - 1;
     }
 
     if (position.y == selection.face.y && position.y == selection.face.y && position.z == selection.face.z) {

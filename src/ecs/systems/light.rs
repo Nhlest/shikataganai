@@ -3,7 +3,7 @@ use crate::ecs::components::chunk::Chunk;
 use crate::ecs::components::light::LightSource;
 use crate::ecs::components::Location;
 use crate::ecs::resources::chunk_map::ChunkMap;
-use crate::ecs::resources::light::LightMap;
+use crate::ecs::resources::light::{LightMap, Relight};
 use bevy::prelude::*;
 
 fn flood_fill(
@@ -39,14 +39,6 @@ fn flood_fill(
         flood_fill(chunk_map, chunks, light_map, new_loc, level - 1);
       }
     }
-  }
-}
-
-pub struct Relight(pub bool);
-
-impl Relight {
-  pub fn relight(&mut self) {
-    self.0 = true;
   }
 }
 
