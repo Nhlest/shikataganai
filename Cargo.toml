@@ -11,7 +11,7 @@ imgui = "*"
 winit = "*"
 imgui-sys = "*"
 imgui-wgpu = "*"
-imgui-winit-support = { version = "*", features = [ "winit-26" ] }
+imgui-winit-support = { version = "*", default-features = false, features = [ "winit-26" ] }
 bytemuck = "*"
 bytemuck_derive = "*"
 num-traits = "*"
