@@ -1,17 +1,118 @@
+use bevy::prelude::Vec3;
 use std::alloc::Layout;
-use std::fmt::{Debug, Formatter};
+use std::fmt::Debug;
 use std::ops::{Index, IndexMut};
 
-pub struct Array2d<T> {
-  data: *mut T,
-  pub bounds: ((i32, i32), (i32, i32)),
+pub type DD = (i32, i32);
+pub type DDD = (i32, i32, i32);
+
+pub fn to_ddd(v: Vec3) -> DDD {
+  (v.x.floor() as i32, v.y.floor() as i32, v.z.floor() as i32)
 }
 
-impl<T: Copy> Clone for Array2d<T> {
+pub type Bounds<T> = (T, T);
+
+pub trait ArrayIndex
+where
+  Self: Sized,
+{
+  fn size(bounds: &Bounds<Self>) -> usize;
+  fn idx(&self, bounds: &Bounds<Self>) -> usize;
+  fn next(self, bounds: &Bounds<Self>) -> Option<Self>;
+  fn in_bounds(&self, other: &Bounds<Self>) -> bool;
+}
+
+impl ArrayIndex for DD {
+  fn size(bounds: &Bounds<Self>) -> usize {
+    let ((x1, y1), (x2, y2)) = bounds;
+    ((x2 - x1 + 1) * (y2 - y1 + 1)) as usize
+  }
+
+  fn idx(&self, bounds: &Bounds<Self>) -> usize {
+    #[cfg(debug_assertions)]
+    assert!(self.in_bounds(bounds), "Array index out of bounds");
+    let ((x1, y1), (x2, _)) = bounds;
+    let (x, y) = self;
+    let row = x2 - x1 + 1;
+    ((y - y1) * row + (x - x1)) as usize
+  }
+
+  fn next(self, bounds: &Bounds<Self>) -> Option<Self> {
+    let ((x1, _), (x2, y2)) = bounds;
+    let (mut x, mut y) = self;
+    x += 1;
+    if x > *x2 {
+      x = *x1;
+      y += 1;
+    }
+    if y > *y2 {
+      None
+    } else {
+      Some((x, y))
+    }
+  }
+
+  fn in_bounds(&self, other: &Bounds<Self>) -> bool {
+    let ((x1, y1), (x2, y2)) = other;
+    let (x, y) = self;
+    x >= x1 && x <= x2 && y >= y1 && y <= y2
+  }
+}
+
+pub struct Array<I: ArrayIndex + Copy + Debug, T> {
+  data: *mut T,
+  pub bounds: (I, I),
+}
+
+impl ArrayIndex for DDD {
+  fn size(bounds: &Bounds<Self>) -> usize {
+    let ((x1, y1, z1), (x2, y2, z2)) = bounds;
+    ((x2 - x1 + 1) * (y2 - y1 + 1) * (z2 - z1 + 1)) as usize
+  }
+
+  fn idx(&self, bounds: &Bounds<Self>) -> usize {
+    #[cfg(debug_assertions)]
+    assert!(self.in_bounds(bounds), "Array index out of bounds");
+    let ((x1, y1, z1), (x2, y2, _)) = bounds;
+    let (x, y, z) = self;
+    let row = x2 - x1 + 1;
+    let slice = y2 - y1 + 1;
+    ((z - z1) * row * slice + (y - y1) * row + (x - x1)) as usize
+  }
+
+  fn next(self, bounds: &Bounds<Self>) -> Option<Self> {
+    let ((x1, y1, _), (x2, y2, z2)) = bounds;
+    let (mut x, mut y, mut z) = self;
+    x += 1;
+    if x > *x2 {
+      x = *x1;
+      y += 1;
+    }
+    if y > *y2 {
+      y = *y1;
+      z += 1;
+    }
+    if z > *z2 {
+      None
+    } else {
+      Some((x, y, z))
+    }
+  }
+
+  fn in_bounds(&self, other: &Bounds<Self>) -> bool {
+    let ((x1, y1, z1), (x2, y2, z2)) = other;
+    let (x, y, z) = self;
+    x >= x1 && x <= x2 && y >= y1 && y <= y2 && z >= z1 && z <= z2
+  }
+}
+
+pub type Array2d<T> = Array<DD, T>;
+pub type Array3d<T> = Array<DDD, T>;
+
+impl<I: Copy + ArrayIndex + Debug, T: Copy> Clone for Array<I, T> {
   fn clone(&self) -> Self {
-    let ((x0, y0), (x1, y1)) = self.bounds;
     let ptr = unsafe {
-      let size = ((x1 - x0 + 1) * (y1 - y0 + 1)) as usize;
+      let size = ArrayIndex::size(&self.bounds);
       let ptr = std::alloc::alloc(Layout::array::<T>(size).unwrap()) as *mut T;
       std::ptr::copy_nonoverlapping(self.data, ptr, size);
       ptr
@@ -23,219 +124,91 @@ impl<T: Copy> Clone for Array2d<T> {
   }
 }
 
-impl<T: Debug> Debug for Array2d<T> {
-  fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-    let ((x0, y0), (x1, y1)) = self.bounds;
-    for iy in y0..=y1 {
-      for ix in x0..=x1 {
-        f.write_str(format!("{:3?}", self[(ix, iy)]).as_str()).unwrap();
-      }
-      f.write_str("\n").unwrap();
-    }
-    Ok(())
-  }
-}
-
-impl<T> Drop for Array2d<T> {
+impl<I: Copy + ArrayIndex + Debug, T> Drop for Array<I, T> {
   fn drop(&mut self) {
-    let ((x0, y0), (x1, y1)) = self.bounds;
-    let size = ((x1 - x0 + 1) * (y1 - y0 + 1)) as usize;
+    let size = ArrayIndex::size(&self.bounds) * std::mem::size_of::<T>();
     unsafe { std::alloc::dealloc(self.data as *mut u8, Layout::array::<T>(size).unwrap()) };
   }
 }
 
-impl<T> Array2d<T> {
-  pub fn new_zeroed(((x0, y0), (x1, y1)): ((i32, i32), (i32, i32))) -> Array2d<T> {
-    let size = ((x1 - x0 + 1) * (y1 - y0 + 1)) as usize;
-    let ptr = unsafe { std::alloc::alloc_zeroed(Layout::array::<T>(size).unwrap()) } as *mut T;
-    Self {
-      data: ptr,
-      bounds: ((x0, y0), (x1, y1)),
-    }
-  }
-  pub fn new_init<F: FnMut((i32, i32)) -> T>(((x0, y0), (x1, y1)): ((i32, i32), (i32, i32)), mut f: F) -> Array2d<T> {
-    let mut array = Self::new_zeroed(((x0, y0), (x1, y1)));
-    for iy in y0..=y1 {
-      for ix in x0..=x1 {
-        array[(ix, iy)] = f((ix, iy));
-      }
-    }
-    array
-  }
-  pub fn in_bounds(&self, (x, y): (i32, i32)) -> bool {
-    let ((x0, y0), (x1, y1)) = self.bounds;
-    x >= x0 && x <= x1 && y >= y0 && y <= y1
-  }
-  pub fn map_in_place<F: Fn((i32, i32), &T) -> T>(&mut self, f: F) {
-    let ((x1, y1), (x2, y2)) = self.bounds;
-    for ix in x1..=x2 {
-      for iy in y1..=y2 {
-        self[(ix, iy)] = f((ix, iy), &self[(ix, iy)]);
-      }
-    }
-  }
-  pub fn map<O, F: Fn((i32, i32), &T) -> O>(&self, f: F) -> Array2d<O> {
-    Array2d::new_init(self.bounds, |x| f(x, &self[x]))
-  }
-  pub fn foreach<F: FnMut((i32, i32), &T)>(&self, mut f: F) {
-    let ((x1, y1), (x2, y2)) = self.bounds;
-    for ix in x1..=x2 {
-      for iy in y1..=y2 {
-        f((ix, iy), &self[(ix, iy)]);
-      }
-    }
-  }
-}
-
-impl<T> Index<(i32, i32)> for Array2d<T> {
-  type Output = T;
-
-  fn index(&self, (x, y): (i32, i32)) -> &Self::Output {
-    let ((x0, y0), (x1, y1)) = self.bounds;
-    assert!(x0 <= x && x <= x1 && y0 <= y && y <= y1, "Array out of bounds");
-    let row = x1 - x0 + 1;
-    unsafe { &*self.data.add(((y - y0) * row + (x - x0)) as usize) }
-  }
-}
-
-impl<T> IndexMut<(i32, i32)> for Array2d<T> {
-  fn index_mut(&mut self, (x, y): (i32, i32)) -> &mut Self::Output {
-    let ((x0, y0), (x1, y1)) = self.bounds;
-    assert!(x0 <= x && x <= x1 && y0 <= y && y <= y1, "Array out of bounds");
-    let row = x1 - x0 + 1;
-    unsafe { &mut *self.data.add(((y - y0) * row + (x - x0)) as usize) }
-  }
-}
-
-unsafe impl<T> Send for Array2d<T> {}
-unsafe impl<T> Sync for Array2d<T> {}
-
-pub struct Array<T> {
-  data: *mut T,
-  pub bounds: ((i32, i32, i32), (i32, i32, i32)),
-}
-
-impl<T: Copy> Clone for Array<T> {
-  fn clone(&self) -> Self {
-    let ((x0, y0, z0), (x1, y1, z1)) = self.bounds;
-    let ptr = unsafe {
-      let size = ((x1 - x0 + 1) * (y1 - y0 + 1) * (z1 - z0 + 1)) as usize;
-      let ptr = std::alloc::alloc(Layout::array::<T>(size).unwrap()) as *mut T;
-      std::ptr::copy_nonoverlapping(self.data, ptr, size);
-      ptr
-    };
-    Self {
-      data: ptr,
-      bounds: self.bounds,
-    }
-  }
-}
-
-impl<T> Drop for Array<T> {
-  fn drop(&mut self) {
-    let ((x0, y0, z0), (x1, y1, z1)) = self.bounds;
-    let size = ((x1 - x0 + 1) * (y1 - y0 + 1) * (z1 - z0 + 1)) as usize;
-    unsafe { std::alloc::dealloc(self.data as *mut u8, Layout::array::<T>(size).unwrap()) };
-  }
-}
-
-impl<T: Default> Array<T> {
+impl<I: Copy + ArrayIndex + Debug, T: Default> Array<I, T> {
   pub fn zero_out(&mut self) {
     self.map_in_place(|_, _| T::default())
   }
 }
 
-impl<T> Array<T> {
-  pub unsafe fn data(&self) -> *const T {
-    self.data
-  }
-  pub fn size(&self) -> usize {
-    let ((x1, y1, z1), (x2, y2, z2)) = self.bounds;
-    ((x2 - x1 + 1) * (y2 - y1 + 1) * (z2 - z1 + 1)) as usize
-  }
-  pub fn new_zeroed(((x0, y0, z0), (x1, y1, z1)): ((i32, i32, i32), (i32, i32, i32))) -> Array<T> {
-    let size = ((x1 - x0 + 1) * (y1 - y0 + 1) * (z1 - z0 + 1)) as usize;
+impl<I: Copy + ArrayIndex + Debug, T> Array<I, T> {
+  pub fn new_zeroed((from, to): (I, I)) -> Array<I, T> {
+    let size = ArrayIndex::size(&(from, to));
     let ptr = unsafe { std::alloc::alloc_zeroed(Layout::array::<T>(size).unwrap()) } as *mut T;
     Self {
       data: ptr,
-      bounds: ((x0, y0, z0), (x1, y1, z1)),
+      bounds: (from, to),
     }
   }
-  pub fn new_init<F: Fn((i32, i32, i32)) -> T>(
-    ((x0, y0, z0), (x1, y1, z1)): ((i32, i32, i32), (i32, i32, i32)),
-    f: F,
-  ) -> Array<T> {
-    let mut array = Self::new_zeroed(((x0, y0, z0), (x1, y1, z1)));
-    for iz in z0..=z1 {
-      for iy in y0..=y1 {
-        for ix in x0..=x1 {
-          array[(ix, iy, iz)] = f((ix, iy, iz));
-        }
-      }
+  pub fn new_init<F: FnMut(I) -> T>(bounds: (I, I), mut f: F) -> Array<I, T> {
+    let mut array = Self::new_zeroed(bounds);
+    let mut i = bounds.0;
+    loop {
+      array[i] = f(i);
+      i = match i.next(&bounds) {
+        None => break,
+        Some(i) => i,
+      };
     }
     array
   }
-  pub fn as_slice(&self) -> &[u8] {
-    let ((x1, y1, z1), (x2, y2, z2)) = self.bounds;
-    let size = (x2 - x1 + 1) * (y2 - y1 + 1) * (z2 - z1 + 1) * std::mem::size_of::<T>() as i32;
-    unsafe { std::slice::from_raw_parts(self.data as *const u8, size as usize) }
+  pub unsafe fn data(&self) -> *const T {
+    self.data as *const T
   }
-  pub fn in_bounds(&self, (x, y, z): (i32, i32, i32)) -> bool {
-    let ((x0, y0, z0), (x1, y1, z1)) = self.bounds;
-    x >= x0 && x <= x1 && y >= y0 && y <= y1 && z >= z0 && z <= z1
+  pub fn size(&self) -> usize {
+    ArrayIndex::size(&self.bounds)
   }
-  pub fn map_in_place<F: Fn((i32, i32, i32), &T) -> T>(&mut self, f: F) {
-    let ((x1, y1, z1), (x2, y2, z2)) = self.bounds;
-    for ix in x1..=x2 {
-      for iy in y1..=y2 {
-        for iz in z1..=z2 {
-          self[(ix, iy, iz)] = f((ix, iy, iz), &self[(ix, iy, iz)]);
-        }
-      }
+  pub fn in_bounds(&self, test: I) -> bool {
+    test.in_bounds(&self.bounds)
+  }
+  pub fn map_in_place<F: Fn(I, &T) -> T>(&mut self, f: F) {
+    let mut i = self.bounds.0;
+    loop {
+      self[i] = f(i, &self[i]);
+      i = match i.next(&self.bounds) {
+        None => break,
+        Some(i) => i,
+      };
     }
   }
-  pub fn map<O, F: Fn((i32, i32, i32), &T) -> O>(&self, f: F) -> Array<O> {
+  pub fn map<O, F: Fn(I, &T) -> O>(&self, f: F) -> Array<I, O> {
     Array::new_init(self.bounds, |x| f(x, &self[x]))
   }
-  pub fn foreach<F: FnMut((i32, i32, i32), &T)>(&self, mut f: F) {
-    let ((x1, y1, z1), (x2, y2, z2)) = self.bounds;
-    for ix in x1..=x2 {
-      for iy in y1..=y2 {
-        for iz in z1..=z2 {
-          f((ix, iy, iz), &self[(ix, iy, iz)]);
-        }
-      }
+  pub fn foreach<F: FnMut(I, &T)>(&self, mut f: F) {
+    let mut i = self.bounds.0;
+    loop {
+      f(i, &self[i]);
+      i = match i.next(&self.bounds) {
+        None => break,
+        Some(i) => i,
+      };
     }
   }
+  pub fn as_slice(&self) -> &[u8] {
+    let size = ArrayIndex::size(&self.bounds);
+    unsafe { std::slice::from_raw_parts(self.data as *const u8, size as usize) }
+  }
 }
 
-impl<T> Index<(i32, i32, i32)> for Array<T> {
+impl<I: Copy + ArrayIndex + Debug, T> Index<I> for Array<I, T> {
   type Output = T;
 
-  fn index(&self, (x, y, z): (i32, i32, i32)) -> &Self::Output {
-    let ((x0, y0, z0), (x1, y1, z1)) = self.bounds;
-    assert!(
-      x0 <= x && x <= x1 && y0 <= y && y <= y1 && z0 <= z && z <= z1,
-      "Array out of bounds"
-    );
-    let row = x1 - x0 + 1;
-    let slice = (y1 - y0 + 1) * row;
-    unsafe { &*self.data.add(((z - z0) * slice + (y - y0) * row + (x - x0)) as usize) }
+  fn index(&self, i: I) -> &Self::Output {
+    unsafe { &*self.data.add(i.idx(&self.bounds)) }
   }
 }
 
-impl<T> IndexMut<(i32, i32, i32)> for Array<T> {
-  fn index_mut(&mut self, (x, y, z): (i32, i32, i32)) -> &mut Self::Output {
-    let ((x0, y0, z0), (x1, y1, z1)) = self.bounds;
-    assert!(
-      x0 <= x && x <= x1 && y0 <= y && y <= y1 && z0 <= z && z <= z1,
-      "Array out of bounds"
-    );
-    let row = x1 - x0 + 1;
-    let slice = (y1 - y0 + 1) * row;
-    unsafe { &mut *self.data.add(((z - z0) * slice + (y - y0) * row + (x - x0)) as usize) }
+impl<I: Copy + ArrayIndex + Debug, T> IndexMut<I> for Array<I, T> {
+  fn index_mut(&mut self, i: I) -> &mut Self::Output {
+    unsafe { &mut *self.data.add(i.idx(&self.bounds)) }
   }
 }
 
-unsafe impl<T> Send for Array<T> {}
-unsafe impl<T> Sync for Array<T> {}
+unsafe impl<I: Copy + ArrayIndex + Debug, T> Send for Array<I, T> {}
+unsafe impl<I: Copy + ArrayIndex + Debug, T> Sync for Array<I, T> {}

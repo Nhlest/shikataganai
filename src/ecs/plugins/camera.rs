@@ -2,10 +2,12 @@ use crate::ecs::components::block::BlockId;
 use crate::ecs::components::chunk::Chunk;
 use crate::ecs::plugins::settings::MouseSensitivity;
 use crate::ecs::resources::chunk_map::ChunkMap;
+use crate::util::array::{DDD, to_ddd};
 use bevy::input::mouse::MouseMotion;
 use bevy::prelude::*;
 use bevy::render::camera::CameraProjection;
 use bevy::render::primitives::Frustum;
+use bevy::tasks::AsyncComputeTaskPool;
 use bevy_rapier3d::parry::query::Ray;
 use bevy_rapier3d::prelude::*;
 use num_traits::float::FloatConst;
@@ -56,7 +58,7 @@ impl Plugin for CameraPlugin {
       .world
       .spawn()
       .insert(RigidBody::Dynamic)
-      .insert(Transform::from_xyz(10.0, 20.0, 10.0))
+      .insert(Transform::from_xyz(10.1, 20.0, 10.0))
       .insert(GlobalTransform::default())
       .insert(LockedAxes::ROTATION_LOCKED)
       .insert(Player)
@@ -162,7 +164,8 @@ fn collision_movement_system(
   mut queries: ParamSet<(Query<&mut Transform>, Query<&mut Transform, With<Cube>>)>,
   mut commands: Commands,
   chunks: Query<&Chunk>,
-  chunk_map: Res<ChunkMap>,
+  mut chunk_map: ResMut<ChunkMap>,
+  dispatcher: Res<AsyncComputeTaskPool>,
 ) {
   let (entity_camera, fps_camera) = camera.single();
   let entity_player = player.single();
@@ -178,8 +181,9 @@ fn collision_movement_system(
     for iy in -3..=3 {
       for iz in -3..=3 {
         let c = translation + Vec3::new(ix as f32, iy as f32, iz as f32);
-        if let Some((e, c)) = chunk_map.get_path_to_block(c) {
-          if chunks.get(e).unwrap().grid[c.into()].block != BlockId::Air {
+        let c = to_ddd(c);
+        if let Some(block) = chunk_map.get(&mut commands, &dispatcher, &chunks, c) {
+          if block.block != BlockId::Air {
             match iter.next() {
               None => {
                 commands
@@ -194,14 +198,14 @@ fn collision_movement_system(
                   .insert(SolverGroups::new(0b10, 0b01))
                   .insert(CollisionGroups::new(0b10, 0b01))
                   .insert(Transform::from_xyz(
-                    c.x as f32 + 0.5,
-                    c.y as f32 + 0.5,
-                    c.z as f32 + 0.5,
+                    c.0 as f32 + 0.5,
+                    c.1 as f32 + 0.5,
+                    c.2 as f32 + 0.5,
                   ))
                   .insert(GlobalTransform::default());
               }
               Some(mut transform) => {
-                transform.translation = Vec3::new(c.x as f32 + 0.5, c.y as f32 + 0.5, c.z as f32 + 0.5);
+                transform.translation = Vec3::new(c.0 as f32 + 0.5, c.1 as f32 + 0.5, c.2 as f32 + 0.5);
               }
             }
           }
@@ -222,8 +226,7 @@ fn collision_movement_system(
   );
 
   let mut camera_t = transforms.get_mut(entity_camera).unwrap();
-  let t = camera_t.translation;
-  camera_t.look_at(looking_at + t, Vec3::new(0.0, 1.0, 0.0));
+  camera_t.look_at(looking_at, Vec3::new(0.0, 1.0, 0.0));
 }
 
 pub struct MainMenuOpened(pub bool);
@@ -236,16 +239,21 @@ fn cursor_grab_system(
   let window = windows.get_primary_mut().unwrap();
 
   if key.just_pressed(KeyCode::Escape) {
-    window.set_cursor_lock_mode(false);
-    window.set_cursor_visibility(true);
-    main_menu_opened.0 = true;
+    if main_menu_opened.0 {
+      window.set_cursor_lock_mode(true);
+      window.set_cursor_visibility(false);
+    } else {
+      window.set_cursor_lock_mode(false);
+      window.set_cursor_visibility(true);
+    }
+    main_menu_opened.0 = !main_menu_opened.0;
   }
 }
 
 #[derive(Clone, Debug)]
 pub struct Selection {
-  pub cube: [i32; 3],
-  pub face: [i32; 3],
+  pub cube: DDD,
+  pub face: DDD,
 }
 
 fn block_pick(
@@ -273,12 +281,12 @@ fn block_pick(
     let cube = transform.translation - Vec3::new(0.5, 0.5, 0.5);
     let normal: Vec3 = Vec3::from(intersection.normal) + cube;
     *selection = Some(Selection {
-      cube: [cube.x.round() as i32, cube.y.floor() as i32, cube.z.floor() as i32],
-      face: [
+      cube: (cube.x.round() as i32, cube.y.floor() as i32, cube.z.floor() as i32),
+      face: (
         normal.x.floor() as i32,
         normal.y.floor() as i32,
         normal.z.floor() as i32,
-      ],
+      ),
     });
   }
 }

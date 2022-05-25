@@ -1,4 +1,3 @@
-use crate::ecs::components::block::BlockId;
 use crate::ecs::components::chunk::Chunk;
 use crate::ecs::components::light::LightSource;
 use crate::ecs::components::Location;
@@ -22,11 +21,11 @@ fn flood_fill(
   if light_map.map[location.into()] >= level {
     return;
   }
-  if let Some((e, c)) = chunk_map.get_path_to_block_location(location) {
-    if chunks.get(e).unwrap().grid[c.into()].block != BlockId::Air {
-      return;
-    }
-  }
+  // if let Some((e, c)) = chunk_map.get_path_to_block_location(location) {
+  //   if chunks.get(e).unwrap().grid[c.into()].block != BlockId::Air {
+  //     return;
+  //   }
+  // }
 
   light_map.map[location.into()] = level;
   for ix in -1..=1 {

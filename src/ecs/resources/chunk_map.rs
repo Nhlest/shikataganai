@@ -1,18 +1,27 @@
-use crate::ecs::components::block::BlockId;
+use std::mem::MaybeUninit;
+use crate::ecs::components::block::{Block};
 use crate::ecs::components::chunk::Chunk;
-use crate::ecs::components::Location;
-use crate::util::array::Array2d;
+use crate::util::array::{DD, DDD};
 use bevy::prelude::*;
+use bevy::tasks::{AsyncComputeTaskPool, Task};
+use bevy::utils::HashMap;
 
 pub struct ChunkMeta {
   pub entity: Entity,
-  pub bounds: ((i32, i32, i32), (i32, i32, i32)),
-  pub size_of_a_voxel: f32,
-  pub lower_left_back_coord: Vec3,
+  pub generated: bool,
+}
+
+impl ChunkMeta {
+  pub fn new(entity: Entity) -> Self {
+    Self {
+      entity,
+      generated: false,
+    }
+  }
 }
 
 pub struct ChunkMap {
-  pub map: Array2d<ChunkMeta>,
+  pub map: HashMap<DD, ChunkMeta>,
 }
 
 #[derive(Clone)]
@@ -28,60 +37,111 @@ impl Default for ChunkMapSize {
 }
 
 impl FromWorld for ChunkMap {
-  fn from_world(world: &mut World) -> Self {
-    let chunk_map_size = world.get_resource::<ChunkMapSize>().cloned().unwrap_or_default();
-    let chunk_entities = Array2d::new_init(((0, 0), (chunk_map_size.x - 1, chunk_map_size.y - 1)), |(x, y)| {
-      let bounds = ((x * 16, 0, y * 16), ((x + 1) * 16 - 1, 150, (y + 1) * 16 - 1));
-      let entity = world
-        .spawn()
-        .insert(Chunk::new(bounds, {
-          |(_, y, _)| {
-            if y < 10 {
-              BlockId::Cobble
-            } else if y < 14 {
-              BlockId::Dirt
-            } else if y == 14 {
-              BlockId::Grass
-            } else {
-              BlockId::Air
-            }
-          }
-        }))
-        .id();
-      ChunkMeta {
-        entity,
-        bounds,
-        size_of_a_voxel: 1.0,
-        lower_left_back_coord: Vec3::new(x as f32 * 16.0, 0.0, y as f32 * 16.0),
-      }
-    });
-    ChunkMap { map: chunk_entities }
+  fn from_world(_world: &mut World) -> Self {
+    Self { map: HashMap::new() }
   }
 }
 
-impl ChunkMap {
-  pub fn get_path_to_block(&self, coord: Vec3) -> Option<(Entity, Location)> {
-    self.get_path_to_block_location(Location::from(coord))
-  }
+#[derive(Component)]
+pub struct ChunkTask {
+  pub task: Task<(Chunk, DD)>,
+}
 
-  pub fn get_path_to_block_location(&self, coord: Location) -> Option<(Entity, Location)> {
-    let chunk_coord_i = (coord.x / 16, coord.z / 16);
-    if !self.map.in_bounds(chunk_coord_i) {
+impl ChunkMap {
+  pub fn get<'a>(&mut self, commands: &mut Commands, dispatcher: &AsyncComputeTaskPool, chunks: &'a Query<&Chunk>, idx: DDD) -> Option<&'a Block> {
+    if idx.1 < 0 || idx.1 > 255 {
       return None;
     }
-    let chunk = &self.map[chunk_coord_i];
-    let block_coord = Location::new(coord.x, coord.y, coord.z);
-    let ((x0, y0, z0), (x1, y1, z1)) = chunk.bounds;
-    if x0 <= block_coord.x
-      && x1 >= block_coord.x
-      && y0 <= block_coord.y
-      && y1 >= block_coord.y
-      && z0 <= block_coord.z
-      && z1 >= block_coord.z
-    {
-      Some((chunk.entity, block_coord))
-    } else {
-      None
+    let chunk_coord = self.get_chunk_coord(idx);
+    match self.map.get(&chunk_coord) {
+      None => {
+        let task = dispatcher.spawn(Chunk::generate(chunk_coord));
+        self.map.insert(
+          chunk_coord,
+          ChunkMeta::new(commands.spawn().insert(ChunkTask { task }).id()),
+        );
+        None
+      }
+      Some(ChunkMeta { generated, entity }) => {
+        if *generated {
+          Some(&chunks.get(*entity).unwrap().grid[idx])
+        } else {
+          None
+        }
+      }
     }
+  }
+  pub fn get_mut<'a>(&mut self, commands: &mut Commands, dispatcher: &AsyncComputeTaskPool, chunks: &'a mut Query<&mut Chunk>, idx: DDD) -> Option<&'a mut Block> {
+    if idx.1 < 0 || idx.1 > 255 {
+      return None;
+    }
+    let chunk_coord = self.get_chunk_coord(idx);
+    match self.map.get(&chunk_coord) {
+      None => {
+        let task = dispatcher.spawn(Chunk::generate(chunk_coord));
+        self.map.insert(
+          chunk_coord,
+          ChunkMeta::new(commands.spawn().insert(ChunkTask { task }).id()),
+        );
+        None
+      }
+      Some(ChunkMeta { generated, entity }) => {
+        if *generated {
+          Some(&mut chunks.get_mut(*entity).unwrap().into_inner().grid[idx])
+        } else {
+          None
+        }
+      }
+    }
+  }
+  pub fn get_many_mut<'a, const N: usize>(&mut self, commands: &mut Commands, dispatcher: &AsyncComputeTaskPool, chunks: &'a mut Query<&mut Chunk>, idxs: [DDD; N]) -> Option<[&'a mut Block; N]> {
+    for i in 0..N {
+      for j in 0..i {
+        if idxs[i] == idxs[j] { return None; }
+      }
+    }
+    let mut chunk_entities : [Entity; N] = unsafe { MaybeUninit::uninit().assume_init() };
+    for i in 0..N {
+      let idx = idxs[i];
+      if idx.1 < 0 || idx.1 > 255 {
+        return None;
+      }
+      let chunk_coord = self.get_chunk_coord(idx);
+      match self.map.get(&chunk_coord) {
+        None => {
+          let task = dispatcher.spawn(Chunk::generate(chunk_coord));
+          self.map.insert(
+            chunk_coord,
+            ChunkMeta::new(commands.spawn().insert(ChunkTask { task }).id()),
+          );
+          return None;
+        }
+        Some(ChunkMeta { generated, entity }) => {
+          if *generated {
+            chunk_entities[i] = *entity;
+          } else {
+            return None;
+          }
+        }
+      }
+    }
+    Some(
+      chunk_entities.map(|e| unsafe { chunks.get_unchecked(e).unwrap() })
+        .into_iter()
+        .enumerate()
+        .map(|(i,c)|&mut c.into_inner().grid[idxs[i]])
+        .collect::<Vec<_>>()
+        .try_into()
+        .unwrap()
+    )
+  }
+  pub fn get_chunk_coord(&self, mut coord: DDD) -> DD {
+    if coord.0 < 0 {
+      coord.0 -= 16;
+    }
+    if coord.2 < 0 {
+      coord.2 -= 16;
+    }
+    (coord.0 / 16, coord.2 / 16)
   }
 }

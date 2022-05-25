@@ -1,5 +1,5 @@
 use crate::ecs::resources::chunk_map::ChunkMapSize;
-use crate::util::array::Array;
+use crate::util::array::{Array, Array3d};
 use bevy::prelude::*;
 use std::alloc::Layout;
 
@@ -13,7 +13,7 @@ impl Relight {
 
 #[derive(Clone)]
 pub struct LightMap {
-  pub map: Array<u8>,
+  pub map: Array3d<u8>,
 }
 
 impl FromWorld for LightMap {

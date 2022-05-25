@@ -29,6 +29,7 @@ impl BlockId {
   }
 }
 
+#[derive(Debug)]
 pub struct Block {
   pub block: BlockId,
 }

@@ -6,27 +6,18 @@ edition = "2021"
 [dependencies]
 rand = "*"
 wgpu = "*"
+toml = "*"
 image = "*"
 imgui = "*"
 winit = "*"
-imgui-sys = "*"
-imgui-wgpu = "*"
-imgui-winit-support = { version = "*", default-features = false, features = [ "winit-26" ] }
-bytemuck = "*"
-bytemuck_derive = "*"
-num-traits = "*"
-#parry3d = "*"
 serde = "*"
-toml = "*"
-#block-mesh = "*"
-#bevy_mod_picking = { git = "https://github.com/aevyrie/bevy_mod_picking", branch = "main" }
-#bevy_mod_raycast = { git = "https://github.com/aevyrie/bevy_mod_raycast", branch = "main" }
-#bevy = { git = "https://github.com/bevyengine/bevy", branch = "main", default-features = false, features = ["bevy_winit", "bevy_gltf", "png", "jpeg"] } #, features = [ "trace_tracy", "trace" ] }
-#bevy-inspector-egui = "*"
-#itertools = "*"
-#lazy_static = "*"
-#strum = "*"
-#strum_macros = "*"
+bytemuck = "*"
+imgui-sys = "*"
+num-traits = "*"
+imgui-wgpu = "*"
+futures-lite = "*"
+bytemuck_derive = "*"
+imgui-winit-support = { version = "*", default-features = false, features = [ "winit-26" ] }
 
 [features]
 default = []
@@ -39,7 +30,8 @@ branch = "main"
 [dependencies.bevy_rapier3d]
 git = "https://github.com/Nhlest/bevy_rapier"
 branch = "master"
-features = ["simd-nightly"]
+default-features = false
+features = ["simd-nightly", "dim3"]
 
 [dependencies.bevy]
 git = "https://github.com/bevyengine/bevy"
@@ -51,7 +43,6 @@ features = ["bevy_winit", "png", "jpeg", "bevy_render", "bevy_core_pipeline"]
 opt-level = 1
 overflow-checks = false
 
-# Enable high optimizations for dependencies (incl. Bevy), but not for our code:
 [profile.dev.package."*"]
 opt-level = 3
 overflow-checks = false

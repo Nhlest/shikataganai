@@ -11,21 +11,20 @@ use bevy::render::render_phase::{
   SetItemPipeline, TrackedRenderPass,
 };
 use bevy::render::render_resource::{
-  BindGroup, BindGroupLayout, BindGroupLayoutEntry, BindingType, BlendState, BufferBindingType, ColorTargetState,
-  ColorWrites, CompareFunction, FragmentState, FrontFace, MultisampleState, PipelineCache, PolygonMode, PrimitiveState,
-  RenderPipelineDescriptor, SamplerBindingType, ShaderStages, SpecializedRenderPipeline, SpecializedRenderPipelines,
-  TextureFormat, TextureSampleType, TextureViewDimension, VertexBufferLayout, VertexFormat, VertexState,
-  VertexStepMode,
+  BindGroup, BindGroupLayout, BindGroupLayoutEntry, BindingType, BlendState, BufferBindingType, BufferVec,
+  ColorTargetState, ColorWrites, CompareFunction, FragmentState, FrontFace, MultisampleState, PipelineCache,
+  PolygonMode, PrimitiveState, RenderPipelineDescriptor, SamplerBindingType, ShaderStages, SpecializedRenderPipeline,
+  SpecializedRenderPipelines, TextureFormat, TextureSampleType, TextureViewDimension, VertexBufferLayout, VertexFormat,
+  VertexState, VertexStepMode,
 };
 use bevy::render::render_resource::{Buffer, ShaderType};
-use bevy::render::renderer::RenderDevice;
+use bevy::render::renderer::{RenderDevice, RenderQueue};
 use bevy::render::texture::BevyDefault;
 use bevy::render::view::{ViewUniform, ViewUniformOffset, ViewUniforms};
 use bevy::render::RenderStage;
 use bevy::render::{RenderApp, RenderWorld};
 use bytemuck_derive::*;
 use std::alloc::Layout;
-use std::slice;
 use wgpu::util::BufferInitDescriptor;
 use wgpu::{
   BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindingResource, BufferUsages, DepthStencilState,
@@ -35,7 +34,7 @@ use wgpu::{
 use crate::ecs::components::chunk::Chunk;
 use crate::ecs::plugins::camera::Selection;
 use crate::ecs::resources::block::BlockSprite;
-use crate::ecs::resources::light::{LightMap, Relight, SizedLightMap};
+use crate::ecs::resources::light::{LightMap, SizedLightMap};
 
 pub struct VoxelRendererPlugin;
 
@@ -319,13 +318,14 @@ fn queue_lights(
 
 fn queue_chunks(
   mut commands: Commands,
-  extracted_blocks: Res<ExtractedBlocks>,
+  mut extracted_blocks: ResMut<ExtractedBlocks>,
   mut views: Query<&mut RenderPhase<Opaque3d>>,
   draw_functions: Res<DrawFunctions<Opaque3d>>,
   mut pipelines: ResMut<SpecializedRenderPipelines<VoxelPipeline>>,
   mut pipeline_cache: ResMut<PipelineCache>,
   chunk_pipeline: Res<VoxelPipeline>,
   render_device: Res<RenderDevice>,
+  render_queue: Res<RenderQueue>,
   view_uniforms: Res<ViewUniforms>,
   mut voxel_bind_group: ResMut<VoxelViewBindGroup>,
   mut selection_bind_group: ResMut<SelectionBindGroup>,
@@ -366,7 +366,7 @@ fn queue_chunks(
 
   let contents = match selection.into_inner() {
     None => [-9999, -9999, -9999, 0, -9999, -9999, -9999, 0],
-    Some(Selection { cube, face }) => [cube[0], cube[1], cube[2], 0, face[0], face[1], face[2], 0],
+    Some(Selection { cube, face }) => [cube.0, cube.1, cube.2, 0, face.0, face.1, face.2, 0],
   };
   let selection_buffer = render_device.create_buffer_with_data(&BufferInitDescriptor {
     label: Some("selection_buffer"),
@@ -387,16 +387,16 @@ fn queue_chunks(
 
   let pipeline = pipelines.specialize(&mut pipeline_cache, &chunk_pipeline, ());
 
-  let ptr = extracted_blocks.blocks.as_ptr();
-  let s = extracted_blocks.blocks.len() * std::mem::size_of::<SingleSide>();
-  let buf = render_device.create_buffer_with_data(&BufferInitDescriptor {
-    label: None,
-    contents: unsafe { slice::from_raw_parts(ptr as *const u8, s) },
-    usage: BufferUsages::STORAGE | BufferUsages::VERTEX,
-  });
+  let buf = &mut extracted_blocks.blocks;
+  buf.write_buffer(&render_device, &render_queue);
+
+  if buf.is_empty() {
+    return;
+  }
+
   let e = commands
     .spawn()
-    .insert(MeshBuffer(buf, extracted_blocks.blocks.len()))
+    .insert(MeshBuffer(buf.buffer().unwrap().clone(), extracted_blocks.blocks.len()))
     .id();
 
   for mut view in views.iter_mut() {
@@ -698,15 +698,20 @@ const VERTEX: [[Vertex; 6]; 6] = [
   ],
 ];
 
-#[derive(Default)]
 pub struct ExtractedBlocks {
-  blocks: Vec<SingleSide>,
+  blocks: BufferVec<SingleSide>,
+}
+
+impl Default for ExtractedBlocks {
+  fn default() -> Self {
+    Self {
+      blocks: BufferVec::new(BufferUsages::VERTEX),
+    }
+  }
 }
 
 impl Plugin for VoxelRendererPlugin {
   fn build(&self, app: &mut App) {
-    app.insert_resource(Remesh(true));
-    app.insert_resource(Relight(true));
     let mut shaders = app.world.resource_mut::<Assets<Shader>>();
     let voxel_shader = Shader::from_wgsl(include_str!("../../../assets/shader/voxel.wgsl"));
     shaders.set_untracked(VOXEL_SHADER_HANDLE, voxel_shader);
@@ -724,6 +729,13 @@ impl Plugin for VoxelRendererPlugin {
       .add_system_to_stage(RenderStage::Extract, extract_lights)
       .add_system_to_stage(RenderStage::Queue, queue_chunks)
       .add_system_to_stage(RenderStage::Queue, queue_lights)
+      .add_system_to_stage(RenderStage::Cleanup, cleanup)
       .add_render_command::<Opaque3d, DrawChunkFull>();
+  }
+}
+
+fn cleanup(q: Query<(Entity, &MeshBuffer)>, mut c: Commands) {
+  for i in q.iter() {
+    c.entity(i.0).despawn();
   }
 }
