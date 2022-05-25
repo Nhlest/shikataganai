@@ -5,10 +5,10 @@ use crate::ecs::plugins::voxel::Remesh;
 use crate::ecs::resources::chunk_map::ChunkMap;
 use crate::ecs::resources::light::Relight;
 use crate::ecs::resources::player::{HotBarItem, HotBarItems, SelectedHotBar};
+use crate::util::array::DDD;
 use bevy::input::mouse::MouseWheel;
 use bevy::prelude::*;
 use bevy::tasks::AsyncComputeTaskPool;
-use crate::util::array::DDD;
 
 pub fn action_input(
   mouse: Res<Input<MouseButton>>,
@@ -20,7 +20,7 @@ pub fn action_input(
   hotbar_items: Res<HotBarItems>,
   hotbar_selection: Res<SelectedHotBar>,
   mut commands: Commands,
-  dispatcher: Res<AsyncComputeTaskPool>
+  dispatcher: Res<AsyncComputeTaskPool>,
 ) {
   let hotbar_selection = &hotbar_items.items[hotbar_selection.0 as usize];
   match selection.into_inner() {
@@ -39,12 +39,11 @@ pub fn action_input(
       match hotbar_selection {
         HotBarItem::PushPull => {
           if mouse.just_pressed(MouseButton::Left) {
-            if let Some([source, target_positive, down]) = chunk_map.get_many_mut(&mut commands, &dispatcher, &mut chunks, [source, target_positive, down]) {
+            if let Some([source, target_positive, down]) =
+              chunk_map.get_many_mut(&mut commands, &dispatcher, &mut chunks, [source, target_positive, down])
+            {
               if target_positive.block == BlockId::Air {
-                let block = std::mem::replace(
-                  source,
-                  Block { block: BlockId::Air },
-                );
+                let block = std::mem::replace(source, Block { block: BlockId::Air });
                 let _ = std::mem::replace(target_positive, block);
                 if down.block == BlockId::Hoist {
                   let _ = std::mem::replace(down, Block { block: BlockId::Air });
@@ -55,12 +54,11 @@ pub fn action_input(
             }
           }
           if mouse.just_pressed(MouseButton::Right) {
-            if let Some([source, target_negative, down]) = chunk_map.get_many_mut(&mut commands, &dispatcher, &mut chunks, [source, target_negative, down]) {
+            if let Some([source, target_negative, down]) =
+              chunk_map.get_many_mut(&mut commands, &dispatcher, &mut chunks, [source, target_negative, down])
+            {
               if target_negative.block == BlockId::Air {
-                let block = std::mem::replace(
-                  source,
-                  Block { block: BlockId::Air },
-                );
+                let block = std::mem::replace(source, Block { block: BlockId::Air });
                 let _ = std::mem::replace(target_negative, block);
                 if down.block == BlockId::Hoist {
                   let _ = std::mem::replace(down, Block { block: BlockId::Air });
@@ -73,12 +71,11 @@ pub fn action_input(
         }
         HotBarItem::HoistUnhoist => {
           if mouse.just_pressed(MouseButton::Left) {
-            if let Some([source, up, down]) = chunk_map.get_many_mut(&mut commands, &dispatcher, &mut chunks, [source, up, down]) {
+            if let Some([source, up, down]) =
+              chunk_map.get_many_mut(&mut commands, &dispatcher, &mut chunks, [source, up, down])
+            {
               if down.block != BlockId::Hoist && up.block == BlockId::Air {
-                let block = std::mem::replace(
-                  source,
-                  Block { block: BlockId::Hoist },
-                );
+                let block = std::mem::replace(source, Block { block: BlockId::Hoist });
                 let _ = std::mem::replace(up, block);
                 remesh.remesh();
                 relight.relight();
@@ -86,12 +83,11 @@ pub fn action_input(
             }
           }
           if mouse.just_pressed(MouseButton::Right) {
-            if let Some([source, down]) = chunk_map.get_many_mut(&mut commands, &dispatcher, &mut chunks, [source, down]) {
+            if let Some([source, down]) =
+              chunk_map.get_many_mut(&mut commands, &dispatcher, &mut chunks, [source, down])
+            {
               if down.block == BlockId::Hoist {
-                let block = std::mem::replace(
-                  source,
-                  Block { block: BlockId::Air },
-                );
+                let block = std::mem::replace(source, Block { block: BlockId::Air });
                 let _ = std::mem::replace(down, block);
                 remesh.remesh();
                 relight.relight();

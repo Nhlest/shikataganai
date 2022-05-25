@@ -31,7 +31,7 @@ branch = "main"
 git = "https://github.com/Nhlest/bevy_rapier"
 branch = "master"
 default-features = false
-features = ["simd-nightly", "dim3"]
+features = ["simd-stable", "dim3"]
 
 [dependencies.bevy]
 git = "https://github.com/bevyengine/bevy"

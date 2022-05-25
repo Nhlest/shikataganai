@@ -2,7 +2,7 @@ use crate::ecs::components::block::BlockId;
 use crate::ecs::components::chunk::Chunk;
 use crate::ecs::plugins::settings::MouseSensitivity;
 use crate::ecs::resources::chunk_map::ChunkMap;
-use crate::util::array::{DDD, to_ddd};
+use crate::util::array::{to_ddd, DDD};
 use bevy::input::mouse::MouseMotion;
 use bevy::prelude::*;
 use bevy::render::camera::CameraProjection;
