@@ -47,21 +47,24 @@ pub struct ChunkTask {
   pub task: Task<(Chunk, DD)>,
 }
 
+
 impl ChunkMap {
   pub fn get_chunk_entity_or_queue<'a>(
     &mut self,
     commands: &mut Commands,
-    dispatcher: &AsyncComputeTaskPool,
+    dispatcher: Option<&AsyncComputeTaskPool>,
     idx: DDD,
   ) -> Option<Entity> {
     let chunk_coord = self.get_chunk_coord(idx);
     match self.map.get(&chunk_coord) {
       None => {
-        let task = dispatcher.spawn(Chunk::generate(chunk_coord));
-        self.map.insert(
-          chunk_coord,
-          ChunkMeta::new(commands.spawn().insert(ChunkTask { task }).id()),
-        );
+        if let Some(dispatcher) = dispatcher {
+          let task = dispatcher.spawn(Chunk::generate(chunk_coord));
+          self.map.insert(
+            chunk_coord,
+            ChunkMeta::new(commands.spawn().insert(ChunkTask { task }).id()),
+          );
+        }
         None
       }
       Some(ChunkMeta { generated, entity }) => {
@@ -76,7 +79,7 @@ impl ChunkMap {
   pub fn get<'a>(
     &mut self,
     commands: &mut Commands,
-    dispatcher: &AsyncComputeTaskPool,
+    dispatcher: Option<&AsyncComputeTaskPool>,
     chunks: &'a Query<&Chunk>,
     idx: DDD,
   ) -> Option<&'a Block> {
@@ -90,7 +93,7 @@ impl ChunkMap {
   pub fn get_mut<'a>(
     &mut self,
     commands: &mut Commands,
-    dispatcher: &AsyncComputeTaskPool,
+    dispatcher: Option<&AsyncComputeTaskPool>,
     chunks: &'a mut Query<&mut Chunk>,
     idx: DDD,
   ) -> Option<&'a mut Block> {
@@ -104,7 +107,7 @@ impl ChunkMap {
   pub fn get_many_mut<'a, const N: usize>(
     &mut self,
     commands: &mut Commands,
-    dispatcher: &AsyncComputeTaskPool,
+    dispatcher: Option<&AsyncComputeTaskPool>,
     chunks: &'a mut Query<&mut Chunk>,
     idxs: [DDD; N],
   ) -> Option<[&'a mut Block; N]> {

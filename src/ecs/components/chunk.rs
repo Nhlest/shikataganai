@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 use crate::ecs::components::block::{Block, BlockId};
 use bevy::prelude::*;
 
@@ -6,12 +8,14 @@ use crate::util::array::{Array, Array3d, Bounds, DD, DDD};
 #[derive(Component)]
 pub struct Chunk {
   pub grid: Array3d<Block>,
+  pub free_entities: Vec<Entity>
 }
 
 impl Chunk {
   pub fn new<F: Fn(DDD) -> BlockId>(bounds: Bounds<DDD>, block_f: F) -> Self {
     Self {
       grid: Array::new_init(bounds, |c| Block { block: block_f(c) }),
+      free_entities: Vec::new()
     }
   }
   pub async fn generate(coord: DD) -> (Chunk, DD) {

@@ -1,4 +1,5 @@
 use crate::ecs::resources::block::BlockSprite;
+use bevy::prelude::*;
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum BlockId {
@@ -29,7 +30,7 @@ impl BlockId {
   }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Component)]
 pub struct Block {
   pub block: BlockId,
 }

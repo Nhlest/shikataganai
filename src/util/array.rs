@@ -10,6 +10,10 @@ pub fn to_ddd(v: Vec3) -> DDD {
   (v.x.floor() as i32, v.y.floor() as i32, v.z.floor() as i32)
 }
 
+pub fn from_ddd(v: DDD) -> Vec3 {
+  Vec3::new(v.0 as f32, v.1 as f32, v.2 as f32)
+}
+
 pub type Bounds<T> = (T, T);
 
 pub trait ArrayIndex

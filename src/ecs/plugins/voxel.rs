@@ -1,4 +1,4 @@
-use crate::ecs::components::block::BlockId;
+use crate::ecs::components::block::{Block, BlockId};
 use bevy::core_pipeline::Opaque3d;
 use bevy::ecs::system::lifetimeless::{Read, SQuery, SRes};
 use bevy::ecs::system::SystemParamItem;
@@ -32,6 +32,7 @@ use wgpu::{
 };
 
 use crate::ecs::components::chunk::Chunk;
+use crate::ecs::plugins::animation::Animation;
 use crate::ecs::plugins::camera::Selection;
 use crate::ecs::resources::block::BlockSprite;
 use crate::ecs::resources::light::{LightMap, SizedLightMap};
@@ -43,6 +44,33 @@ pub struct Remesh(pub bool);
 impl Remesh {
   pub fn remesh(&mut self) {
     self.0 = true;
+  }
+}
+
+fn extract_free_entities(
+  mut render_world: ResMut<RenderWorld>,
+  chunks: Query<&Chunk>,
+  query: Query<(&Animation, &Transform)>
+) {
+  let mut extracted_free_entities = render_world.get_resource_mut::<ExtractedFreeEntities>().unwrap();
+  extracted_free_entities.free_entities.clear();
+  for chunk in chunks.iter() {
+    for e in chunk.free_entities.iter() {
+      let (a, t) = query.get(*e).unwrap();
+      match &a.block {
+        None => {}
+        Some(block) => {
+          if block.block == BlockId::Air {
+          } else {
+            for (ix, iy, iz) in [(-1, 0, 0), (1, 0, 0), (0, -1, 0), (0, 1, 0), (0, 0, -1), (0, 0, 1)] {
+              extracted_free_entities
+                .free_entities
+                .push(SingleSide::new((t.translation.x, t.translation.y, t.translation.z), (ix, iy, iz), block.block.into_array_of_faces()));
+            }
+          }
+        }
+      }
+    }
   }
 }
 
@@ -69,7 +97,7 @@ fn extract_chunks(
           {
             extracted_blocks
               .blocks
-              .push(SingleSide::new((x, y, z), (ix, iy, iz), s.block.into_array_of_faces()));
+              .push(SingleSide::new((x as f32, y as f32, z as f32), (ix, iy, iz), s.block.into_array_of_faces()));
           }
         }
       }
@@ -78,10 +106,10 @@ fn extract_chunks(
 }
 
 impl SingleSide {
-  fn new((x, y, z): (i32, i32, i32), (ix, iy, iz): (i32, i32, i32), block: [BlockSprite; 6]) -> Self {
-    let fx = x as f32;
-    let fy = y as f32;
-    let fz = z as f32;
+  fn new((x, y, z): (f32, f32, f32), (ix, iy, iz): (i32, i32, i32), block: [BlockSprite; 6]) -> Self {
+    let fx = x;
+    let fy = y;
+    let fz = z;
     let side = if ix != 0 {
       if ix == 1 {
         0
@@ -112,7 +140,7 @@ impl SingleSide {
           uv0 / 8.0 + block[side].into_uv().0[0],
           uv1 / 8.0 + block[side].into_uv().0[1],
         ],
-        tile_side: [x, y, z, side as i32],
+        tile_side: [x.floor() as i32, y.floor() as i32, z.floor() as i32, side as i32],
       },
     ))
   }
@@ -318,7 +346,7 @@ fn queue_lights(
 
 fn queue_chunks(
   mut commands: Commands,
-  mut extracted_blocks: ResMut<ExtractedBlocks>,
+  (mut extracted_blocks, mut extracted_free_entities) : (ResMut<ExtractedBlocks>, ResMut<ExtractedFreeEntities>),
   mut views: Query<&mut RenderPhase<Opaque3d>>,
   draw_functions: Res<DrawFunctions<Opaque3d>>,
   mut pipelines: ResMut<SpecializedRenderPipelines<VoxelPipeline>>,
@@ -390,22 +418,38 @@ fn queue_chunks(
   let buf = &mut extracted_blocks.blocks;
   buf.write_buffer(&render_device, &render_queue);
 
-  if buf.is_empty() {
-    return;
+  let buf_e = &mut extracted_free_entities.free_entities;
+  buf_e.write_buffer(&render_device, &render_queue);
+
+  if !buf.is_empty() {
+    let e = commands
+      .spawn()
+      .insert(MeshBuffer(buf.buffer().unwrap().clone(), extracted_blocks.blocks.len()))
+      .id();
+    for mut view in views.iter_mut() {
+      view.add(Opaque3d {
+        distance: 0.6,
+        draw_function: draw_chunk_function,
+        pipeline,
+        entity: e,
+      });
+    }
   }
 
-  let e = commands
-    .spawn()
-    .insert(MeshBuffer(buf.buffer().unwrap().clone(), extracted_blocks.blocks.len()))
-    .id();
+  if !buf_e.is_empty() {
+    let e_e = commands
+      .spawn()
+      .insert(MeshBuffer(buf_e.buffer().unwrap().clone(), extracted_free_entities.free_entities.len()))
+      .id();
 
-  for mut view in views.iter_mut() {
-    view.add(Opaque3d {
-      distance: 0.0,
-      draw_function: draw_chunk_function,
-      pipeline,
-      entity: e,
-    });
+    for mut view in views.iter_mut() {
+      view.add(Opaque3d {
+        distance: 0.5,
+        draw_function: draw_chunk_function,
+        pipeline,
+        entity: e_e,
+      });
+    }
   }
 }
 
@@ -702,10 +746,22 @@ pub struct ExtractedBlocks {
   blocks: BufferVec<SingleSide>,
 }
 
+pub struct ExtractedFreeEntities {
+  free_entities: BufferVec<SingleSide>,
+}
+
 impl Default for ExtractedBlocks {
   fn default() -> Self {
     Self {
       blocks: BufferVec::new(BufferUsages::VERTEX),
+    }
+  }
+}
+
+impl Default for ExtractedFreeEntities {
+  fn default() -> Self {
+    Self {
+      free_entities: BufferVec::new(BufferUsages::VERTEX),
     }
   }
 }
@@ -718,6 +774,7 @@ impl Plugin for VoxelRendererPlugin {
     let render_app = app.get_sub_app_mut(RenderApp).unwrap();
     render_app
       .init_resource::<ExtractedBlocks>()
+      .init_resource::<ExtractedFreeEntities>()
       .init_resource::<VoxelPipeline>()
       .init_resource::<VoxelViewBindGroup>()
       .init_resource::<SelectionBindGroup>()
@@ -726,6 +783,7 @@ impl Plugin for VoxelRendererPlugin {
       .init_resource::<TextureBindGroup>()
       .init_resource::<LightBindGroup>()
       .add_system_to_stage(RenderStage::Extract, extract_chunks)
+      .add_system_to_stage(RenderStage::Extract, extract_free_entities)
       .add_system_to_stage(RenderStage::Extract, extract_lights)
       .add_system_to_stage(RenderStage::Queue, queue_chunks)
       .add_system_to_stage(RenderStage::Queue, queue_lights)

@@ -182,7 +182,7 @@ fn collision_movement_system(
       for iz in -3..=3 {
         let c = translation + Vec3::new(ix as f32, iy as f32, iz as f32);
         let c = to_ddd(c);
-        if let Some(block) = chunk_map.get(&mut commands, &dispatcher, &chunks, c) {
+        if let Some(block) = chunk_map.get(&mut commands, Some(&dispatcher), &chunks, c) {
           if block.block != BlockId::Air {
             match iter.next() {
               None => {

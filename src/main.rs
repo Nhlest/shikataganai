@@ -8,6 +8,7 @@ use bevy::prelude::App;
 use bevy::DefaultPlugins;
 use bevy_embedded_assets::EmbeddedAssetPlugin;
 use bevy_rapier3d::prelude::{NoUserData, RapierPhysicsPlugin};
+use crate::ecs::plugins::animation::AnimationPlugin;
 
 use crate::ecs::plugins::camera::CameraPlugin;
 use crate::ecs::plugins::game::GamePlugin;
@@ -27,7 +28,9 @@ fn main() {
       group.add_before::<bevy::asset::AssetPlugin, _>(EmbeddedAssetPlugin)
     })
     .add_plugin(CameraPlugin)
+    // .add_plugin(bevy_framepace::FramepacePlugin::default())
     .add_plugin(GamePlugin)
+    .add_plugin(AnimationPlugin)
     .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
     // .add_plugin(RapierDebugRenderPlugin::default())
     // .add_plugin(LogDiagnosticsPlugin::default())
