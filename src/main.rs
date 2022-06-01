@@ -4,7 +4,7 @@
 
 #[allow(unused_imports)]
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
-use bevy::prelude::App;
+use bevy::prelude::{App, Entity};
 use bevy::DefaultPlugins;
 use bevy_embedded_assets::EmbeddedAssetPlugin;
 use bevy_rapier3d::prelude::{NoUserData, RapierPhysicsPlugin};
@@ -28,14 +28,14 @@ fn main() {
       group.add_before::<bevy::asset::AssetPlugin, _>(EmbeddedAssetPlugin)
     })
     .add_plugin(CameraPlugin)
-    // .add_plugin(bevy_framepace::FramepacePlugin::default())
     .add_plugin(GamePlugin)
     .add_plugin(AnimationPlugin)
     .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
+    .add_plugin(ImguiPlugin)
+    .add_plugin(VoxelRendererPlugin)
+    // .add_plugin(bevy_framepace::FramepacePlugin::default())
     // .add_plugin(RapierDebugRenderPlugin::default())
     // .add_plugin(LogDiagnosticsPlugin::default())
     // .add_plugin(FrameTimeDiagnosticsPlugin::default())
-    .add_plugin(ImguiPlugin)
-    .add_plugin(VoxelRendererPlugin)
     .run();
 }

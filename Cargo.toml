@@ -40,6 +40,9 @@ branch = "main"
 default-features = false
 features = ["bevy_winit", "png", "jpeg", "bevy_render", "bevy_core_pipeline"]
 
+[build-dependencies]
+glsl-to-spirv = "0.1.5"
+
 [profile.dev]
 opt-level = 1
 overflow-checks = false

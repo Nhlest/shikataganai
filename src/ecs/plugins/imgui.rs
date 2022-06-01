@@ -168,19 +168,8 @@ impl Plugin for ImguiPlugin {
     let hidpi_factor = window.scale_factor();
     let mut imgui = Context::create();
 
-    // imgui.io_mut().display_framebuffer_scale = [1.0 as f32, 1.0 as f32];
-
     let mut platform = WinitPlatform::init(&mut imgui);
     platform.attach_window(imgui.io_mut(), window, imgui_winit_support::HiDpiMode::Default);
-
-    // let event: Event<()> = Event::WindowEvent {
-    //   window_id: window.id(),
-    //   event: WindowEvent::ScaleFactorChanged {
-    //     scale_factor: 1.0,
-    //     new_inner_size: &mut window.inner_size(),
-    //   },
-    // };
-    // platform.handle_event(imgui.io_mut(), window, &event);
 
     imgui.set_ini_filename(None);
 
@@ -329,25 +318,3 @@ impl Node for ImguiNode {
     Ok(())
   }
 }
-//
-// pub fn setup_style(imgui: NonSendMut<ImguiState>) {
-//   let mut style = imgui.get_current_context().style_mut();
-//   style.frame_rounding = 5.0;
-//   style.colors[ImGuiCol_Button as usize] = [0.41, 0.15, 0.73, 0.40];
-//   style.colors[ImGuiCol_FrameBg as usize] = [0.26, 0.18, 0.39, 0.54];
-//   style.colors[ImGuiCol_Tab as usize] = [0.26, 0.18, 0.39, 0.54];
-//
-//   style.colors[ImGuiCol_FrameBgHovered as usize] = [0.51, 0.30, 0.97, 0.40];
-//   style.colors[ImGuiCol_ButtonHovered as usize] = [0.51, 0.30, 0.97, 0.40];
-//   style.colors[ImGuiCol_HeaderHovered as usize] = [0.51, 0.30, 0.97, 0.40];
-//   style.colors[ImGuiCol_TabHovered as usize] = [0.51, 0.30, 0.97, 0.40];
-//
-//   style.colors[ImGuiCol_FrameBgActive as usize] = [0.64, 0.48, 0.97, 0.40];
-//   style.colors[ImGuiCol_ButtonActive as usize] = [0.64, 0.48, 0.97, 0.40];
-//   style.colors[ImGuiCol_HeaderActive as usize] = [0.64, 0.48, 0.97, 0.40];
-//   style.colors[ImGuiCol_TabActive as usize] = [0.64, 0.48, 0.97, 0.40];
-//
-//   style.colors[ImGuiCol_TitleBgActive as usize] = [0.15, 0.04, 0.34, 1.00];
-//
-//   style.colors[ImGuiCol_Header as usize] = [0.31, 0.12, 0.49, 0.31];
-// }

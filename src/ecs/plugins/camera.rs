@@ -1,8 +1,8 @@
 use crate::ecs::components::block::BlockId;
 use crate::ecs::components::chunk::Chunk;
 use crate::ecs::plugins::settings::MouseSensitivity;
-use crate::ecs::resources::chunk_map::ChunkMap;
-use crate::util::array::{to_ddd, DDD};
+use crate::ecs::resources::chunk_map::{ChunkMap, ChunkMeta};
+use crate::util::array::{to_ddd, DDD, DD};
 use bevy::input::mouse::MouseMotion;
 use bevy::prelude::*;
 use bevy::render::camera::CameraProjection;
@@ -79,9 +79,9 @@ impl Plugin for CameraPlugin {
       });
     app
       .add_system(movement_input_system)
+      .add_system(cursor_grab_system)
       .add_system_to_stage(CoreStage::PreUpdate, collision_movement_system)
-      .add_system_to_stage(CoreStage::Update, block_pick)
-      .add_system(cursor_grab_system);
+      .add_system_to_stage(CoreStage::Update, block_pick);
   }
 }
 
@@ -97,43 +97,46 @@ fn movement_input_system(
   time: Res<Time>,
 ) {
   let window = windows.get_primary_mut().unwrap();
-  if !window.cursor_locked() {
-    return;
-  }
-
-  let mut fps_camera = player.single_mut();
+  let mut movement = Vec3::default();
   let mut camera_velocity = camera.single_mut();
+  let mut fps_camera = player.single_mut();
   let transform = camera_transform.single();
 
-  for MouseMotion { delta } in mouse_events.iter() {
-    fps_camera.phi_a += delta.x * mouse_sensitivity.0 * 0.04;
-    fps_camera.theta_a = fps_camera.theta_a + delta.y * mouse_sensitivity.0 * 0.04;
-  }
+  if window.cursor_locked() {
+    for MouseMotion { delta } in mouse_events.iter() {
+      fps_camera.phi_a += delta.x * mouse_sensitivity.0 * 0.04;
+      fps_camera.theta_a = fps_camera.theta_a + delta.y * mouse_sensitivity.0 * 0.04;
+    }
 
-  fps_camera.phi += fps_camera.phi_a * time.delta().as_secs_f32();
-  fps_camera.theta = (fps_camera.theta + fps_camera.theta_a * time.delta().as_secs_f32()).clamp(0.05, f32::PI() - 0.05);
+    fps_camera.phi += fps_camera.phi_a * time.delta().as_secs_f32();
+    fps_camera.theta = (fps_camera.theta + fps_camera.theta_a * time.delta().as_secs_f32()).clamp(0.05, f32::PI() - 0.05);
 
-  fps_camera.phi_a *= 0.70;
-  fps_camera.theta_a *= 0.70;
+    fps_camera.phi_a *= 0.70;
+    fps_camera.theta_a *= 0.70;
 
-  let mut movement = Vec3::default();
-  if key_events.pressed(KeyCode::W) {
-    let mut fwd = transform.forward();
-    fwd.y = 0.0;
-    let fwd = fwd.normalize();
-    movement += fwd;
-  }
-  if key_events.pressed(KeyCode::A) {
-    movement += transform.left()
-  }
-  if key_events.pressed(KeyCode::D) {
-    movement += transform.right()
-  }
-  if key_events.pressed(KeyCode::S) {
-    let mut back = transform.back();
-    back.y = 0.0;
-    let back = back.normalize();
-    movement += back;
+    if key_events.pressed(KeyCode::W) {
+      let mut fwd = transform.forward();
+      fwd.y = 0.0;
+      let fwd = fwd.normalize();
+      movement += fwd;
+    }
+    if key_events.pressed(KeyCode::A) {
+      movement += transform.left()
+    }
+    if key_events.pressed(KeyCode::D) {
+      movement += transform.right()
+    }
+    if key_events.pressed(KeyCode::S) {
+      let mut back = transform.back();
+      back.y = 0.0;
+      let back = back.normalize();
+      movement += back;
+    }
+
+    if key_events.pressed(KeyCode::Space) && *stationary_frames > 2 {
+      *stationary_frames = 0;
+      camera_velocity.linvel.y = 7.0;
+    }
   }
 
   movement = movement.normalize_or_zero();
@@ -142,11 +145,6 @@ fn movement_input_system(
     *stationary_frames = *stationary_frames + 1;
   } else {
     *stationary_frames = 0; // TODO: potential for a double jump here;
-  }
-
-  if key_events.pressed(KeyCode::Space) && *stationary_frames > 2 {
-    *stationary_frames = 0;
-    camera_velocity.linvel.y = 7.0;
   }
 
   let y = camera_velocity.linvel.y;
@@ -183,7 +181,7 @@ fn collision_movement_system(
         let c = translation + Vec3::new(ix as f32, iy as f32, iz as f32);
         let c = to_ddd(c);
         if let Some(block) = chunk_map.get(&mut commands, Some(&dispatcher), &chunks, c) {
-          if block.block != BlockId::Air {
+          if !block.passable() {
             match iter.next() {
               None => {
                 commands
@@ -250,7 +248,7 @@ fn cursor_grab_system(
   }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct Selection {
   pub cube: DDD,
   pub face: DDD,

@@ -14,7 +14,7 @@ pub struct Chunk {
 impl Chunk {
   pub fn new<F: Fn(DDD) -> BlockId>(bounds: Bounds<DDD>, block_f: F) -> Self {
     Self {
-      grid: Array::new_init(bounds, |c| Block { block: block_f(c) }),
+      grid: Array::new_init(bounds, |c| Block::new(block_f(c))),
       free_entities: Vec::new()
     }
   }

@@ -6,7 +6,6 @@ use bevy::winit::WinitWindows;
 use std::fs::OpenOptions;
 use std::io::Write;
 
-// let there: be = light;
 pub struct Preamble;
 
 impl Plugin for Preamble {

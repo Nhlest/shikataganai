@@ -1,15 +1,6 @@
-use crate::ecs::resources::chunk_map::ChunkMapSize;
 use crate::util::array::{Array, Array3d};
 use bevy::prelude::*;
 use std::alloc::Layout;
-
-pub struct Relight(pub bool);
-
-impl Relight {
-  pub fn relight(&mut self) {
-    self.0 = true;
-  }
-}
 
 #[derive(Clone)]
 pub struct LightMap {
@@ -18,11 +9,10 @@ pub struct LightMap {
 
 impl FromWorld for LightMap {
   fn from_world(world: &mut World) -> Self {
-    let chunk_map_size = world.resource::<ChunkMapSize>();
     Self {
       map: Array::new_zeroed((
         (0, 0, 0),
-        ((chunk_map_size.x - 1) * 16 - 1, 150, (chunk_map_size.y - 1) * 16 - 1),
+        ((5 - 1) * 16 - 1, 150, (5 - 1) * 16 - 1),
       )),
     }
   }

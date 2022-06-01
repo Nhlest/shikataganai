@@ -8,6 +8,7 @@ pub enum BlockSprite {
   Grass,
   Cobblestone,
   Wood,
+  Grid
 }
 
 impl BlockSprite {

@@ -1,5 +1,5 @@
 use crate::ecs::components::block::{Block, BlockId};
-use bevy::core_pipeline::Opaque3d;
+use bevy::core_pipeline::{Opaque3d, Transparent3d};
 use bevy::ecs::system::lifetimeless::{Read, SQuery, SRes};
 use bevy::ecs::system::SystemParamItem;
 use bevy::prelude::*;
@@ -25,6 +25,7 @@ use bevy::render::RenderStage;
 use bevy::render::{RenderApp, RenderWorld};
 use bytemuck_derive::*;
 use std::alloc::Layout;
+use bevy::utils::hashbrown::HashMap;
 use wgpu::util::BufferInitDescriptor;
 use wgpu::{
   BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindingResource, BufferUsages, DepthStencilState,
@@ -35,74 +36,55 @@ use crate::ecs::components::chunk::Chunk;
 use crate::ecs::plugins::animation::Animation;
 use crate::ecs::plugins::camera::Selection;
 use crate::ecs::resources::block::BlockSprite;
+use crate::ecs::resources::chunk_map::ChunkMap;
 use crate::ecs::resources::light::{LightMap, SizedLightMap};
+use crate::util::array::DD;
 
 pub struct VoxelRendererPlugin;
 
-pub struct Remesh(pub bool);
-
-impl Remesh {
-  pub fn remesh(&mut self) {
-    self.0 = true;
-  }
-}
-
-fn extract_free_entities(
-  mut render_world: ResMut<RenderWorld>,
-  chunks: Query<&Chunk>,
-  query: Query<(&Animation, &Transform)>
-) {
-  let mut extracted_free_entities = render_world.get_resource_mut::<ExtractedFreeEntities>().unwrap();
-  extracted_free_entities.free_entities.clear();
-  for chunk in chunks.iter() {
-    for e in chunk.free_entities.iter() {
-      let (a, t) = query.get(*e).unwrap();
-      match &a.block {
-        None => {}
-        Some(block) => {
-          if block.block == BlockId::Air {
-          } else {
-            for (ix, iy, iz) in [(-1, 0, 0), (1, 0, 0), (0, -1, 0), (0, 1, 0), (0, 0, -1), (0, 0, 1)] {
-              extracted_free_entities
-                .free_entities
-                .push(SingleSide::new((t.translation.x, t.translation.y, t.translation.z), (ix, iy, iz), block.block.into_array_of_faces()));
-            }
-          }
-        }
-      }
-    }
-  }
+pub enum RemeshEvent {
+  Remesh(DD)
 }
 
 fn extract_chunks(
   mut render_world: ResMut<RenderWorld>,
   chunks: Query<&Chunk>,
+  chunk_map: ResMut<ChunkMap>,
   selection: Res<Option<Selection>>,
-  mut remesh: ResMut<Remesh>,
+  mut remesh_events: EventReader<RemeshEvent>
 ) {
   render_world.insert_resource(selection.clone());
-  if !remesh.0 {
-    return;
-  }
-  remesh.0 = false;
-  let mut extracted_blocks = render_world.get_resource_mut::<ExtractedBlocks>().unwrap();
-  extracted_blocks.blocks.clear();
-  for chunk in chunks.iter() {
-    chunk.grid.foreach(|(x, y, z), s| {
-      if s.block == BlockId::Air {
-      } else {
-        for (ix, iy, iz) in [(-1, 0, 0), (1, 0, 0), (0, -1, 0), (0, 1, 0), (0, 0, -1), (0, 0, 1)] {
-          if !chunk.grid.in_bounds((x + ix, y + iy, z + iz))
-            || chunk.grid[(x + ix, y + iy, z + iz)].block == BlockId::Air
-          {
-            extracted_blocks
-              .blocks
-              .push(SingleSide::new((x as f32, y as f32, z as f32), (ix, iy, iz), s.block.into_array_of_faces()));
-          }
-        }
+  let mut updated = vec![];
+  for event in remesh_events.iter() {
+    if let RemeshEvent::Remesh(ch) = event {
+      updated.push(*ch);
+      let mut extracted_blocks = render_world.get_resource_mut::<ExtractedBlocks>().unwrap();
+      let chunk_entity = chunk_map.map.get(ch).unwrap();
+      if !chunk_entity.generated {
+        continue;
       }
-    });
+      let chunk = chunks.get(chunk_entity.entity).unwrap();
+      extracted_blocks.blocks.insert(*ch, BufferVec::new(BufferUsages::VERTEX));
+        chunk.grid.foreach(|(x, y, z), s| {
+          if !s.visible() {
+          } else {
+            for (ix, iy, iz) in [(-1, 0, 0), (1, 0, 0), (0, -1, 0), (0, 1, 0), (0, 0, -1), (0, 0, 1)] {
+              if !chunk.grid.in_bounds((x + ix, y + iy, z + iz))
+                || !chunk.grid[(x + ix, y + iy, z + iz)].visible()
+              {
+                extracted_blocks
+                  .blocks.get_mut(ch).unwrap()
+                  .push(SingleSide::new((x as f32, y as f32, z as f32), (ix, iy, iz), s.block.into_array_of_faces()));
+                extracted_blocks
+                  .blocks.get_mut(ch).unwrap()
+                  .push(SingleSide::new((x as f32, y as f32, z as f32), (ix, iy, iz), BlockId::Grid.into_array_of_faces()));
+              }
+            }
+          }
+        });
+    }
   }
+  render_world.insert_resource(updated);
 }
 
 impl SingleSide {
@@ -141,6 +123,7 @@ impl SingleSide {
           uv1 / 8.0 + block[side].into_uv().0[1],
         ],
         tile_side: [x.floor() as i32, y.floor() as i32, z.floor() as i32, side as i32],
+        meta: [0; 4]
       },
     ))
   }
@@ -178,34 +161,36 @@ pub struct SingleVertex {
   pub position: [f32; 3],
   pub uv: [f32; 2],
   pub tile_side: [i32; 4],
+  pub meta: [u8; 4],
 }
 
 #[repr(C)]
 #[derive(Copy, Clone, Pod, Zeroable)]
 struct SingleSide([SingleVertex; 6]);
 
-pub const VOXEL_SHADER_HANDLE: HandleUntyped = HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 2763343953151597899);
+pub const VOXEL_SHADER_VERTEX_HANDLE: HandleUntyped = HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 2763343953151597899);
+pub const VOXEL_SHADER_FRAGMENT_HANDLE: HandleUntyped = HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 2763343953151597999);
 
 impl SpecializedRenderPipeline for VoxelPipeline {
   type Key = ();
 
   fn specialize(&self, _key: Self::Key) -> RenderPipelineDescriptor {
     let shader_defs = Vec::new();
-    let vertex_formats = vec![VertexFormat::Float32x3, VertexFormat::Float32x2, VertexFormat::Sint32x4];
+    let vertex_formats = vec![VertexFormat::Float32x3, VertexFormat::Float32x2, VertexFormat::Sint32x4, VertexFormat::Uint8x4];
 
     let vertex_layout = VertexBufferLayout::from_vertex_formats(VertexStepMode::Vertex, vertex_formats);
 
     RenderPipelineDescriptor {
       vertex: VertexState {
-        shader: VOXEL_SHADER_HANDLE.typed::<Shader>(),
-        entry_point: "vertex".into(),
+        shader: VOXEL_SHADER_VERTEX_HANDLE.typed::<Shader>(),
+        entry_point: "main".into(),
         shader_defs: shader_defs.clone(),
         buffers: vec![vertex_layout],
       },
       fragment: Some(FragmentState {
-        shader: VOXEL_SHADER_HANDLE.typed::<Shader>(),
+        shader: VOXEL_SHADER_FRAGMENT_HANDLE.typed::<Shader>(),
         shader_defs,
-        entry_point: "fragment".into(),
+        entry_point: "main".into(),
         targets: vec![ColorTargetState {
           format: TextureFormat::bevy_default(),
           blend: Some(BlendState::ALPHA_BLENDING),
@@ -215,7 +200,7 @@ impl SpecializedRenderPipeline for VoxelPipeline {
       layout: Some(vec![
         self.view_layout.clone(),
         self.texture_layout.clone(),
-        self.lights_layout.clone(),
+        // self.lights_layout.clone(),
         self.selection_layout.clone(),
       ]),
       primitive: PrimitiveState {
@@ -346,14 +331,13 @@ fn queue_lights(
 
 fn queue_chunks(
   mut commands: Commands,
-  (mut extracted_blocks, mut extracted_free_entities) : (ResMut<ExtractedBlocks>, ResMut<ExtractedFreeEntities>),
+  mut extracted_blocks : ResMut<ExtractedBlocks>,
   mut views: Query<&mut RenderPhase<Opaque3d>>,
   draw_functions: Res<DrawFunctions<Opaque3d>>,
   mut pipelines: ResMut<SpecializedRenderPipelines<VoxelPipeline>>,
   mut pipeline_cache: ResMut<PipelineCache>,
   chunk_pipeline: Res<VoxelPipeline>,
-  render_device: Res<RenderDevice>,
-  render_queue: Res<RenderQueue>,
+  (render_device, render_queue): (Res<RenderDevice>, Res<RenderQueue>),
   view_uniforms: Res<ViewUniforms>,
   mut voxel_bind_group: ResMut<VoxelViewBindGroup>,
   mut selection_bind_group: ResMut<SelectionBindGroup>,
@@ -361,6 +345,7 @@ fn queue_chunks(
   handle: Res<TextureHandle>,
   mut bind_group: ResMut<TextureBindGroup>,
   selection: Res<Option<Selection>>,
+  updated: Res<Vec<DD>>
 ) {
   if let Some(gpu_image) = gpu_images.get(&handle.0) {
     *bind_group = TextureBindGroup {
@@ -411,54 +396,41 @@ fn queue_chunks(
     layout: &chunk_pipeline.selection_layout,
   }));
 
-  let draw_chunk_function = draw_functions.read().get_id::<DrawChunkFull>().unwrap();
+  let draw_function = draw_functions.read().get_id::<DrawChunkFull>().unwrap();
 
   let pipeline = pipelines.specialize(&mut pipeline_cache, &chunk_pipeline, ());
 
   let buf = &mut extracted_blocks.blocks;
-  buf.write_buffer(&render_device, &render_queue);
-
-  let buf_e = &mut extracted_free_entities.free_entities;
-  buf_e.write_buffer(&render_device, &render_queue);
-
-  if !buf.is_empty() {
-    let e = commands
-      .spawn()
-      .insert(MeshBuffer(buf.buffer().unwrap().clone(), extracted_blocks.blocks.len()))
-      .id();
-    for mut view in views.iter_mut() {
-      view.add(Opaque3d {
-        distance: 0.6,
-        draw_function: draw_chunk_function,
-        pipeline,
-        entity: e,
-      });
+  for i in updated.iter() {
+    let buf = buf.get_mut(i).unwrap();
+    buf.write_buffer(&render_device, &render_queue);
+  }
+  for (i, buf) in buf.iter_mut() {
+    // buf.write_buffer(&render_device, &render_queue);
+    if !buf.is_empty() {
+      let entity = commands
+        .spawn()
+        .insert(MeshBuffer(buf.buffer().unwrap().clone(), buf.len()))
+        .id();
+      for mut view in views.iter_mut() {
+        view.add(Opaque3d {
+          distance: 2.0,
+          draw_function,
+          pipeline,
+          entity,
+        });
+      }
     }
   }
 
-  if !buf_e.is_empty() {
-    let e_e = commands
-      .spawn()
-      .insert(MeshBuffer(buf_e.buffer().unwrap().clone(), extracted_free_entities.free_entities.len()))
-      .id();
-
-    for mut view in views.iter_mut() {
-      view.add(Opaque3d {
-        distance: 0.5,
-        draw_function: draw_chunk_function,
-        pipeline,
-        entity: e_e,
-      });
-    }
-  }
 }
 
 type DrawChunkFull = (
   SetItemPipeline,
   SetVoxelViewBindGroup<0>,
   SetVoxelTextureBindGroup<1>,
-  SetLightBindGroup<2>,
-  SetSelectionBindGroup<3>,
+  // SetLightBindGroup<2>,
+  SetSelectionBindGroup<2>,
   DrawChunk,
 );
 
@@ -573,6 +545,78 @@ impl<P: PhaseItem, const I: usize> RenderCommand<P> for SetSelectionBindGroup<I>
   ) -> RenderCommandResult {
     pass.set_bind_group(I, &bind_group.into_inner().bind_group.as_ref().unwrap(), &[]);
     RenderCommandResult::Success
+  }
+}
+
+pub struct ExtractedOverlays {
+  overlays: BufferVec<SingleSide>,
+}
+
+pub struct ExtractedBlocks {
+  blocks: HashMap<DD, BufferVec<SingleSide>>,
+}
+
+pub struct ExtractedFreeEntities {
+  free_entities: BufferVec<SingleSide>,
+}
+
+impl Default for ExtractedOverlays {
+  fn default() -> Self {
+    Self {
+      overlays: BufferVec::new(BufferUsages::VERTEX),
+    }
+  }
+}
+
+impl Default for ExtractedBlocks {
+  fn default() -> Self {
+    Self {
+      blocks: HashMap::new()
+    }
+  }
+}
+
+impl Default for ExtractedFreeEntities {
+  fn default() -> Self {
+    Self {
+      free_entities: BufferVec::new(BufferUsages::VERTEX),
+    }
+  }
+}
+
+impl Plugin for VoxelRendererPlugin {
+  fn build(&self, app: &mut App) {
+    let mut shaders = app.world.resource_mut::<Assets<Shader>>();
+    let voxel_shader_vertex = Shader::from_spirv(include_bytes!("../../../assets/shader/voxel.vert.spv").as_slice());
+    let voxel_shader_fragment = Shader::from_spirv(include_bytes!("../../../assets/shader/voxel.frag.spv").as_slice());
+    shaders.set_untracked(VOXEL_SHADER_VERTEX_HANDLE, voxel_shader_vertex);
+    shaders.set_untracked(VOXEL_SHADER_FRAGMENT_HANDLE, voxel_shader_fragment);
+
+    app
+      .add_event::<RemeshEvent>();
+
+    let render_app = app.get_sub_app_mut(RenderApp).unwrap();
+    render_app
+      .init_resource::<ExtractedBlocks>()
+      .init_resource::<VoxelPipeline>()
+      .init_resource::<VoxelViewBindGroup>()
+      .init_resource::<SelectionBindGroup>()
+      .init_resource::<SpecializedRenderPipelines<VoxelPipeline>>()
+      .init_resource::<TextureHandle>()
+      .init_resource::<TextureBindGroup>()
+      .init_resource::<LightBindGroup>()
+      .add_system_to_stage(RenderStage::Extract, extract_chunks)
+      .add_system_to_stage(RenderStage::Extract, extract_lights)
+      .add_system_to_stage(RenderStage::Queue, queue_chunks)
+      .add_system_to_stage(RenderStage::Queue, queue_lights)
+      .add_system_to_stage(RenderStage::Cleanup, cleanup)
+      .add_render_command::<Opaque3d, DrawChunkFull>();
+  }
+}
+
+fn cleanup(q: Query<(Entity, &MeshBuffer)>, mut c: Commands) {
+  for i in q.iter() {
+    c.entity(i.0).despawn();
   }
 }
 
@@ -741,59 +785,3 @@ const VERTEX: [[Vertex; 6]; 6] = [
     },
   ],
 ];
-
-pub struct ExtractedBlocks {
-  blocks: BufferVec<SingleSide>,
-}
-
-pub struct ExtractedFreeEntities {
-  free_entities: BufferVec<SingleSide>,
-}
-
-impl Default for ExtractedBlocks {
-  fn default() -> Self {
-    Self {
-      blocks: BufferVec::new(BufferUsages::VERTEX),
-    }
-  }
-}
-
-impl Default for ExtractedFreeEntities {
-  fn default() -> Self {
-    Self {
-      free_entities: BufferVec::new(BufferUsages::VERTEX),
-    }
-  }
-}
-
-impl Plugin for VoxelRendererPlugin {
-  fn build(&self, app: &mut App) {
-    let mut shaders = app.world.resource_mut::<Assets<Shader>>();
-    let voxel_shader = Shader::from_wgsl(include_str!("../../../assets/shader/voxel.wgsl"));
-    shaders.set_untracked(VOXEL_SHADER_HANDLE, voxel_shader);
-    let render_app = app.get_sub_app_mut(RenderApp).unwrap();
-    render_app
-      .init_resource::<ExtractedBlocks>()
-      .init_resource::<ExtractedFreeEntities>()
-      .init_resource::<VoxelPipeline>()
-      .init_resource::<VoxelViewBindGroup>()
-      .init_resource::<SelectionBindGroup>()
-      .init_resource::<SpecializedRenderPipelines<VoxelPipeline>>()
-      .init_resource::<TextureHandle>()
-      .init_resource::<TextureBindGroup>()
-      .init_resource::<LightBindGroup>()
-      .add_system_to_stage(RenderStage::Extract, extract_chunks)
-      .add_system_to_stage(RenderStage::Extract, extract_free_entities)
-      .add_system_to_stage(RenderStage::Extract, extract_lights)
-      .add_system_to_stage(RenderStage::Queue, queue_chunks)
-      .add_system_to_stage(RenderStage::Queue, queue_lights)
-      .add_system_to_stage(RenderStage::Cleanup, cleanup)
-      .add_render_command::<Opaque3d, DrawChunkFull>();
-  }
-}
-
-fn cleanup(q: Query<(Entity, &MeshBuffer)>, mut c: Commands) {
-  for i in q.iter() {
-    c.entity(i.0).despawn();
-  }
-}

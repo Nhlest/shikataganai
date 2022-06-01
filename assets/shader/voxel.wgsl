@@ -6,9 +6,7 @@ struct View {
 var<uniform> view: View;
 
 struct Light {
-  x: i32;
-  y: i32;
-  map: array<u32>;
+  map: array<vec3<f32> >;
 };
 
 [[group(2), binding(0)]]
@@ -23,13 +21,14 @@ struct Selection {
 var<uniform> selection: Selection;
 
 fn readU8(x: i32, y: i32, z: i32) -> u32 {
-    var offset : u32 = u32(light.x * light.y * z + light.x * y + x);
-	var ipos : u32 = offset / 4u;
-	var val_u32 : u32 = light.map[ipos];
-	var shift : u32 = 8u * (offset % 4u);
-	var val_u8 : u32 = (val_u32 >> shift) & 0xFFu;
+//  var offset : u32 = u32(light.x * light.y * z + light.x * y + x);
+// 	var ipos : u32 = offset / 4u;
+// 	var val_u32 : u32 = light.map[ipos];
+// 	var shift : u32 = 8u * (offset % 4u);
+// 	var val_u8 : u32 = (val_u32 >> shift) & 0xFFu;
 
-	return val_u8;
+    return 2u;
+//	return val_u8;
 }
 
 struct VertexOutput {
@@ -46,6 +45,7 @@ fn vertex(
   [[location(0)]] position: vec3<f32>,
   [[location(1)]] uv: vec2<f32>,
   [[location(2)]] tile: vec4<i32>,
+  [[location(3)]] metadata: vec4<u8>
 ) -> VertexOutput {
     var o: VertexOutput;
     o.position = view.view_proj * vec4<f32>(position, 1.0);
@@ -92,12 +92,12 @@ var block_texture: texture_2d<f32>;
 var block_sampler: sampler;
 
 [[stage(fragment)]]
-fn fragment(in: VertexOutput) -> [[location(0)]] vec4<f32> {
-    var color = textureSample(block_texture, block_sampler, in.uv);
-    color = vec4<f32>(color.rgb * in.brightness, color.a);
-    if (in.face_selected == 1 && in.cube_selected == 1) {
+fn fragment(vin: VertexOutput) -> [[location(0)]] vec4<f32> {
+    var color = textureSample(block_texture, block_sampler, vin.uv);
+    color = vec4<f32>(color.rgb * vin.brightness, color.a);
+    if (vin.face_selected == 1 && vin.cube_selected == 1) {
       color.r = color.r + 0.2;
-    } else if (in.cube_selected == 1) {
+    } else if (vin.cube_selected == 1) {
       color.g = color.g + 0.2;
     }
     return color;

@@ -1,10 +1,12 @@
-use crate::ecs::components::block::Block;
+use crate::ecs::components::block::{Block, BlockId};
 use crate::ecs::components::chunk::Chunk;
-use crate::util::array::{DD, DDD};
+use crate::util::array::{DD, DDD, from_ddd};
 use bevy::prelude::*;
 use bevy::tasks::{AsyncComputeTaskPool, Task};
 use bevy::utils::HashMap;
 use std::mem::MaybeUninit;
+use bevy_rapier3d::prelude::*;
+use crate::ecs::plugins::animation::Animation;
 
 pub struct ChunkMeta {
   pub entity: Entity,
@@ -22,18 +24,6 @@ impl ChunkMeta {
 
 pub struct ChunkMap {
   pub map: HashMap<DD, ChunkMeta>,
-}
-
-#[derive(Clone)]
-pub struct ChunkMapSize {
-  pub x: i32,
-  pub y: i32,
-}
-
-impl Default for ChunkMapSize {
-  fn default() -> Self {
-    Self { x: 5, y: 5 }
-  }
 }
 
 impl FromWorld for ChunkMap {
@@ -141,6 +131,71 @@ impl ChunkMap {
         .try_into()
         .unwrap(),
     )
+  }
+  pub fn get_many_mut_with_free_entities<'a, const N: usize>(
+    &mut self,
+    commands: &mut Commands,
+    dispatcher: Option<&AsyncComputeTaskPool>,
+    chunks: &'a mut Query<&mut Chunk>,
+    idxs: [DDD; N],
+  ) -> Option<[(&'a mut Block, &'a mut Vec<Entity>); N]> {
+    for i in 0..N {
+      for j in 0..i {
+        if idxs[i] == idxs[j] {
+          return None;
+        }
+      }
+    }
+    let mut chunk_entities: [Entity; N] = unsafe { MaybeUninit::uninit().assume_init() };
+    for i in 0..N {
+      let idx = idxs[i];
+      if idx.1 < 0 || idx.1 > 255 {
+        return None;
+      }
+      match self.get_chunk_entity_or_queue(commands, dispatcher, idx) {
+        None => return None,
+        Some(entity) => {
+          chunk_entities[i] = entity;
+        }
+      }
+    }
+    Some(
+      chunk_entities
+        .map(|e| unsafe { chunks.get_unchecked(e).unwrap() })
+        .into_iter()
+        .enumerate()
+        .map(|(i, c)| {
+          let c = c.into_inner();
+          (&mut c.grid[idxs[i]], &mut c.free_entities)
+        })
+        .collect::<Vec<_>>()
+        .try_into()
+        .unwrap(),
+    )
+  }
+  pub fn animate(&mut self, source: DDD, target: DDD, commands: &mut Commands, chunks: &mut Query<&mut Chunk>, source_replace: BlockId) {
+    let [(source_block, free_entities), (target_block, _)] = self.get_many_mut_with_free_entities(commands, None, chunks, [source, target]).unwrap();
+    let block = std::mem::replace(source_block, Block::new(source_replace));
+    let _ = std::mem::replace(target_block, Block::new(BlockId::Reserved));
+    free_entities.push(
+      commands.spawn()
+        .insert(Transform::from_translation(from_ddd(source)))
+        .insert(Animation::new(source, target, 1.0, Some(block)))
+        .insert(RigidBody::KinematicPositionBased)
+        .with_children(|c| {
+          c.spawn()
+            .insert(Collider::cuboid(0.5, 0.5, 0.5))
+            .insert(Friction {
+              coefficient: 0.0,
+              combine_rule: CoefficientCombineRule::Min,
+            })
+            .insert(SolverGroups::new(0b10, 0b01))
+            .insert(CollisionGroups::new(0b10, 0b01))
+            .insert(Transform::from_translation(Vec3::new(0.5, 0.5, 0.5)))
+            .insert(GlobalTransform::default());
+        })
+        .id()
+    );
   }
   pub fn get_chunk_coord(&self, mut coord: DDD) -> DD {
     if coord.0 < 0 {
