@@ -197,9 +197,10 @@ fn collision_movement_system(
                   .insert(SolverGroups::new(0b10, 0b01))
                   .insert(CollisionGroups::new(0b10, 0b01))
                   .insert(Transform::from_xyz(
-                    c.0 as f32 + 0.5,
-                    c.1 as f32 + 0.5,
-                    c.2 as f32 + 0.5,
+                    c.x as f32 + 0.5,
+                    c.y as f32 + 0.5,
+                    c.z as f32 + 0.5,
+
                   ))
                   .insert(GlobalTransform::default());
               }
@@ -225,7 +226,8 @@ fn collision_movement_system(
   );
 
   let mut camera_t = transforms.get_mut(entity_camera).unwrap();
-  camera_t.look_at(looking_at, Vec3::new(0.0, 1.0, 0.0));
+  let t = camera_t.translation;
+  camera_t.look_at(looking_at + t, Vec3::new(0.0, 1.0, 0.0));
 }
 
 #[derive(Clone, Debug)]

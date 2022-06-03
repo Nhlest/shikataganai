@@ -139,7 +139,7 @@ pub fn handle_menu_system(
     window.set_cursor_visibility(true);
     main_menu_opened.0 = true;
   }
-
+  
   if key.just_pressed(KeyCode::Grave){
     debug_menu_opened.0 = !debug_menu_opened.0;
   }

@@ -8,6 +8,8 @@ use bevy::app::AppExit;
 use bevy::prelude::*;
 use imgui::{ComboBoxPreviewMode, Condition, StyleVar};
 
+use super::input::DebugMenuOpened;
+
 pub fn hot_bar(
   imgui: NonSendMut<ImguiState>,
   window: Res<Windows>,
@@ -161,7 +163,7 @@ pub fn main_menu(
       match tok {
         None => {}
         Some(_) => {
-          for (x, y) in [
+          for (x, y) in [ //TODO: Get available resolutions instead of constant ones.
             (320, 180),
             (640, 360),
             (853, 480),
