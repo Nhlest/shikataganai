@@ -2,6 +2,10 @@
 #![feature(negative_impls)]
 #![feature(vec_into_raw_parts)]
 
+extern crate tracing;
+extern crate imgui;
+extern crate bevy_rapier3d;
+
 #[allow(unused_imports)]
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::prelude::App;
@@ -10,6 +14,7 @@ use bevy_embedded_assets::EmbeddedAssetPlugin;
 use bevy_rapier3d::prelude::{NoUserData, RapierPhysicsPlugin};
 
 use crate::ecs::plugins::camera::CameraPlugin;
+use crate::ecs::plugins::console::ConsolePlugin;
 use crate::ecs::plugins::game::GamePlugin;
 use crate::ecs::plugins::imgui::{ImguiPlugin, ImguiState};
 use crate::ecs::plugins::preamble::Preamble;
@@ -32,6 +37,7 @@ fn main() {
     // .add_plugin(RapierDebugRenderPlugin::default())
     // .add_plugin(LogDiagnosticsPlugin::default())
     // .add_plugin(FrameTimeDiagnosticsPlugin::default())
+    .add_plugin(ConsolePlugin)
     .add_plugin(ImguiPlugin)
     .add_plugin(VoxelRendererPlugin)
     .run();

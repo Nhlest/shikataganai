@@ -2349,6 +2349,7 @@ dependencies = [
  "rand",
  "serde",
  "toml",
+ "tracing",
  "wgpu",
  "winit",
 ]
