@@ -3,6 +3,7 @@ use crate::ecs::components::Location;
 use crate::ecs::systems::input::MainMenuOpened;
 use crate::ecs::systems::input::DebugMenuOpened;
 use crate::ecs::systems::input::handle_menu_system;
+use crate::ecs::plugins::voxel::Remesh;
 use crate::ecs::resources::chunk_map::{ChunkMap, ChunkMapSize};
 use crate::ecs::resources::light::{LightMap, Relight};
 use crate::ecs::resources::player::{HotBarItems, SelectedHotBar};
@@ -10,8 +11,9 @@ use crate::ecs::resources::strain::Restrain;
 use crate::ecs::systems::chunkgen::collect_async_chunks;
 use crate::ecs::systems::input::{action_input, hot_bar_scroll_input};
 use crate::ecs::systems::light::light_system;
-use crate::ecs::systems::ui::{cursor, hot_bar, main_menu, debug_console};
+use crate::ecs::systems::ui::{cursor, hot_bar, main_menu};
 use bevy::prelude::*;
+use crate::ecs::plugins::voxel::Remesh;
 
 pub struct GamePlugin;
 
