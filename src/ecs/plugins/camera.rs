@@ -200,16 +200,6 @@ fn collision_movement_system(
                     c.0 as f32 + 0.5,
                     c.1 as f32 + 0.5,
                     c.2 as f32 + 0.5,
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-
-=======
->>>>>>> parent of c184b84 (Merge branch 'master' of https://github.com/Patrickek/shikataganai)
-=======
->>>>>>> parent of c184b84 (Merge branch 'master' of https://github.com/Patrickek/shikataganai)
-=======
->>>>>>> parent of c184b84 (Merge branch 'master' of https://github.com/Patrickek/shikataganai)
                   ))
                   .insert(GlobalTransform::default());
               }

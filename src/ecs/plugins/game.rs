@@ -13,7 +13,6 @@ use crate::ecs::systems::input::{action_input, hot_bar_scroll_input};
 use crate::ecs::systems::light::light_system;
 use crate::ecs::systems::ui::{cursor, hot_bar, main_menu};
 use bevy::prelude::*;
-use crate::ecs::plugins::voxel::Remesh;
 
 pub struct GamePlugin;
 
