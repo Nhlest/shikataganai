@@ -20,7 +20,7 @@ use wgpu::TextureFormat::Bgra8UnormSrgb;
 use wgpu::{TextureDimension, TextureUsages};
 use winit::dpi::{LogicalSize, PhysicalPosition, PhysicalSize};
 use winit::event::*;
-
+use bevy::input::keyboard::KeyboardInput;
 pub static mut IMGUI_CTX: Option<Context> = None;
 pub static mut IMGUI_UI: Option<Ui> = None;
 
@@ -59,6 +59,8 @@ fn start_frame(
   // mut ev_window_created: EventReader<WindowCreated>,
   windows: Res<Windows>,
   winit_windows: NonSend<WinitWindows>,
+  mut ev_keyboard_input: EventReader<KeyboardInput>,
+  mut ev_received_character: EventReader<ReceivedCharacter>,
 ) {
   unsafe {
     let ctx = IMGUI_CTX.as_mut().unwrap();
@@ -146,7 +148,32 @@ fn start_frame(
       };
       platform.handle_event(ctx.io_mut(), window, &event);
     }
-
+    for i in ev_keyboard_input.iter() {
+      let event: Event<()> = Event::WindowEvent {
+        window_id: window.id(),
+        event: WindowEvent::KeyboardInput {
+          device_id: DeviceId::dummy(),
+          input: winit::event::KeyboardInput {
+            scancode: i.scan_code,
+            state: match i.state {
+              ButtonState::Pressed => ElementState::Pressed,
+              ButtonState::Released => ElementState::Released
+            },
+            virtual_keycode: i.key_code.map(|x| std::mem::transmute(x as u32)),
+            modifiers: Default::default()
+          },
+          is_synthetic: false
+        },
+      };
+      platform.handle_event(ctx.io_mut(), window, &event);
+    }
+    for i in ev_received_character.iter() {
+      let event: Event<()> = Event::WindowEvent {
+        window_id: window.id(),
+        event: WindowEvent::ReceivedCharacter(i.char),
+      };
+      platform.handle_event(ctx.io_mut(), window, &event);
+    }
     platform
       .prepare_frame(ctx.io_mut(), window)
       .expect("Failed to prepare frame");
@@ -154,10 +181,14 @@ fn start_frame(
   }
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, Hash, SystemLabel)]
+pub struct ImguiFrameSystem;
+
 impl Plugin for ImguiPlugin {
   fn build(&self, app: &mut App) {
     app.insert_non_send_resource(ImguiState);
-    app.add_system_to_stage(CoreStage::PreUpdate, start_frame.after(InputSystem));
+    // app.add_system_to_stage(CoreStage::PreUpdate, start_frame.after(InputSystem));
+    app.add_system_to_stage(CoreStage::PreUpdate, start_frame.label(ImguiFrameSystem).after(InputSystem));
     let windows = app.world.get_resource::<Windows>().unwrap();
     let winit_windows = app.world.get_non_send_resource::<WinitWindows>().unwrap();
     let window = winit_windows.get_window(windows.get_primary().unwrap().id()).unwrap();

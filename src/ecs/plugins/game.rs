@@ -1,6 +1,8 @@
 use crate::ecs::components::light::LightSource;
 use crate::ecs::components::Location;
-use crate::ecs::plugins::camera::MainMenuOpened;
+use crate::ecs::systems::input::MainMenuOpened;
+use crate::ecs::systems::input::DebugMenuOpened;
+use crate::ecs::systems::input::handle_menu_system;
 use crate::ecs::plugins::voxel::Remesh;
 use crate::ecs::resources::chunk_map::{ChunkMap, ChunkMapSize};
 use crate::ecs::resources::light::{LightMap, Relight};
@@ -23,9 +25,11 @@ impl Plugin for GamePlugin {
       .add_system(hot_bar)
       .add_system(cursor)
       .add_system(main_menu.exclusive_system())
+      .add_system(handle_menu_system)
       .add_system(collect_async_chunks)
       .insert_resource(ChunkMapSize { x: 5, y: 5 })
       .insert_resource(MainMenuOpened(true))
+      .insert_resource(DebugMenuOpened(false))
       .init_resource::<SelectedHotBar>()
       .init_resource::<HotBarItems>()
       .init_resource::<LightMap>()

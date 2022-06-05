@@ -9,6 +9,7 @@ use crate::util::array::DDD;
 use bevy::input::mouse::MouseWheel;
 use bevy::prelude::*;
 use bevy::tasks::AsyncComputeTaskPool;
+use tracing::field::debug;
 
 pub fn action_input(
   mouse: Res<Input<MouseButton>>,
@@ -121,5 +122,28 @@ pub fn hot_bar_scroll_input(
   }
   if keys.just_pressed(KeyCode::Key3) {
     selected_hotbar.0 = 2;
+  }
+}
+pub struct MainMenuOpened(pub bool);
+pub struct DebugMenuOpened(pub bool);
+
+pub fn handle_menu_system(
+  mut windows: ResMut<Windows>,
+  key: Res<Input<KeyCode>>,
+  mut main_menu_opened: ResMut<MainMenuOpened>,
+  mut debug_menu_opened: ResMut<DebugMenuOpened>,
+) {
+  let window = windows.get_primary_mut().unwrap();
+
+  
+  if key.just_pressed(KeyCode::Escape) {
+    window.set_cursor_lock_mode(main_menu_opened.0);
+    window.set_cursor_visibility(!main_menu_opened.0);
+    main_menu_opened.0 = !main_menu_opened.0;
+  }
+  if key.just_pressed(KeyCode::Grave){
+    window.set_cursor_lock_mode(debug_menu_opened.0);
+    window.set_cursor_visibility(!debug_menu_opened.0);
+    debug_menu_opened.0 = !debug_menu_opened.0;
   }
 }
