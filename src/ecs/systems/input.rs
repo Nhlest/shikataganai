@@ -9,6 +9,7 @@ use crate::util::array::DDD;
 use bevy::input::mouse::MouseWheel;
 use bevy::prelude::*;
 use bevy::tasks::AsyncComputeTaskPool;
+use tracing::field::debug;
 
 pub fn action_input(
   mouse: Res<Input<MouseButton>>,
@@ -134,13 +135,15 @@ pub fn handle_menu_system(
 ) {
   let window = windows.get_primary_mut().unwrap();
 
+  
   if key.just_pressed(KeyCode::Escape) {
-    window.set_cursor_lock_mode(false);
-    window.set_cursor_visibility(true);
-    main_menu_opened.0 = true;
+    window.set_cursor_lock_mode(main_menu_opened.0);
+    window.set_cursor_visibility(!main_menu_opened.0);
+    main_menu_opened.0 = !main_menu_opened.0;
   }
-
   if key.just_pressed(KeyCode::Grave){
+    window.set_cursor_lock_mode(debug_menu_opened.0);
+    window.set_cursor_visibility(!debug_menu_opened.0);
     debug_menu_opened.0 = !debug_menu_opened.0;
   }
 }
