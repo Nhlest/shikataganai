@@ -45,7 +45,7 @@ impl ChunkMap {
     dispatcher: Option<&AsyncComputeTaskPool>,
     idx: DDD,
   ) -> Option<Entity> {
-    let chunk_coord = self.get_chunk_coord(idx);
+    let chunk_coord = ChunkMap::get_chunk_coord(idx);
     match self.map.get(&chunk_coord) {
       None => {
         if let Some(dispatcher) = dispatcher {
@@ -197,7 +197,7 @@ impl ChunkMap {
         .id()
     );
   }
-  pub fn get_chunk_coord(&self, mut coord: DDD) -> DD {
+  pub fn get_chunk_coord(mut coord: DDD) -> DD {
     if coord.0 < 0 {
       coord.0 -= 16;
     }

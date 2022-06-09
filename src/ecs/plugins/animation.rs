@@ -61,7 +61,7 @@ pub fn animation_system(
       } else {
         commands.entity(e).remove::<Animation>();
       }
-      remesh.send(RemeshEvent::Remesh(chunk_map.get_chunk_coord(animation.to)));
+      remesh.send(RemeshEvent::Remesh(ChunkMap::get_chunk_coord(animation.to)));
     } else {
       transform.translation = from_ddd(animation.from) + (from_ddd(animation.to) - from_ddd(animation.from)) * animation.t;
       animation.t += time.delta().as_secs_f32() * animation.speed;

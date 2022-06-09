@@ -1,7 +1,6 @@
 use crate::ecs::plugins::camera::MainMenuOpened;
 use crate::ecs::resources::chunk_map::{ChunkMap};
 use crate::ecs::resources::player::{HotBarItems, SelectedHotBar};
-use crate::ecs::resources::light::LightMap;
 use crate::ecs::systems::chunkgen::collect_async_chunks;
 use crate::ecs::systems::input::{action_input, hot_bar_scroll_input};
 use crate::ecs::systems::light::light_system;
@@ -23,7 +22,6 @@ impl Plugin for GamePlugin {
       .insert_resource(MainMenuOpened(true))
       .init_resource::<SelectedHotBar>()
       .init_resource::<HotBarItems>()
-      .init_resource::<LightMap>()
       .init_resource::<ChunkMap>();
   }
 }

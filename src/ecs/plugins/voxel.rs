@@ -37,7 +37,6 @@ use crate::ecs::plugins::animation::Animation;
 use crate::ecs::plugins::camera::Selection;
 use crate::ecs::resources::block::BlockSprite;
 use crate::ecs::resources::chunk_map::ChunkMap;
-use crate::ecs::resources::light::{LightMap, SizedLightMap};
 use crate::util::array::DD;
 
 pub struct VoxelRendererPlugin;
@@ -51,7 +50,7 @@ fn extract_chunks(
   chunks: Query<&Chunk>,
   chunk_map: ResMut<ChunkMap>,
   selection: Res<Option<Selection>>,
-  mut remesh_events: EventReader<RemeshEvent>
+  mut remesh_events: EventReader<RemeshEvent>,
 ) {
   render_world.insert_resource(selection.clone());
   let mut updated = vec![];
@@ -72,12 +71,19 @@ fn extract_chunks(
               if !chunk.grid.in_bounds((x + ix, y + iy, z + iz))
                 || !chunk.grid[(x + ix, y + iy, z + iz)].visible()
               {
+                let lighting = {
+                  if x % 2 == 0 {
+                    1
+                  } else {
+                    8
+                  }
+                };
                 extracted_blocks
                   .blocks.get_mut(ch).unwrap()
-                  .push(SingleSide::new((x as f32, y as f32, z as f32), (ix, iy, iz), s.block.into_array_of_faces()));
-                extracted_blocks
-                  .blocks.get_mut(ch).unwrap()
-                  .push(SingleSide::new((x as f32, y as f32, z as f32), (ix, iy, iz), BlockId::Grid.into_array_of_faces()));
+                  .push(SingleSide::new((x as f32, y as f32, z as f32), (ix, iy, iz), s.block.into_array_of_faces(), lighting));
+                // extracted_blocks
+                //   .blocks.get_mut(ch).unwrap()
+                //   .push(SingleSide::new((x as f32, y as f32, z as f32), (ix, iy, iz), BlockId::Grid.into_array_of_faces()));
               }
             }
           }
@@ -88,7 +94,7 @@ fn extract_chunks(
 }
 
 impl SingleSide {
-  fn new((x, y, z): (f32, f32, f32), (ix, iy, iz): (i32, i32, i32), block: [BlockSprite; 6]) -> Self {
+  fn new((x, y, z): (f32, f32, f32), (ix, iy, iz): (i32, i32, i32), block: [BlockSprite; 6], lighting: u8) -> Self {
     let fx = x;
     let fy = y;
     let fz = z;
@@ -123,30 +129,30 @@ impl SingleSide {
           uv1 / 8.0 + block[side].into_uv().0[1],
         ],
         tile_side: [x.floor() as i32, y.floor() as i32, z.floor() as i32, side as i32],
-        meta: [0; 4]
+        meta: [lighting, 0, 0, 0]
       },
     ))
   }
 }
 
-fn extract_lights(mut render_world: ResMut<RenderWorld>, light: Res<LightMap>) {
-  let ((x1, y1, _), (x2, y2, _)) = light.map.bounds;
-  let x = x2 - x1 + 1;
-  let y = y2 - y1 + 1;
-  let size = light.map.size();
-  let ptr = unsafe {
-    let ptr = std::alloc::alloc(Layout::from_size_align(4 + 4 + size, 4).unwrap());
-    let i = ptr as *mut i32;
-    i.write(x);
-    i.add(1).write(y);
-    std::ptr::copy_nonoverlapping(light.map.data(), ptr.add(8), size);
-    ptr
-  };
-  render_world.insert_resource(SizedLightMap {
-    ptr: ptr,
-    size: size + 8,
-  });
-}
+// fn extract_lights(mut render_world: ResMut<RenderWorld>, light: Res<LightMap>) {
+//   let ((x1, y1, _), (x2, y2, _)) = light.map.bounds;
+//   let x = x2 - x1 + 1;
+//   let y = y2 - y1 + 1;
+//   let size = light.map.size();
+//   let ptr = unsafe {
+//     let ptr = std::alloc::alloc(Layout::from_size_align(4 + 4 + size, 4).unwrap());
+//     let i = ptr as *mut i32;
+//     i.write(x);
+//     i.add(1).write(y);
+//     std::ptr::copy_nonoverlapping(light.map.data(), ptr.add(8), size);
+//     ptr
+//   };
+//   render_world.insert_resource(SizedLightMap {
+//     ptr: ptr,
+//     size: size + 8,
+//   });
+// }
 
 pub struct VoxelPipeline {
   view_layout: BindGroupLayout,
@@ -306,28 +312,28 @@ impl FromWorld for TextureHandle {
   }
 }
 
-fn queue_lights(
-  render_device: Res<RenderDevice>,
-  light_map: Res<SizedLightMap>,
-  mut light_bind_group: ResMut<LightBindGroup>,
-  chunk_pipeline: Res<VoxelPipeline>,
-) {
-  let buffer = render_device.create_buffer_with_data(&BufferInitDescriptor {
-    label: Some("light buffer"),
-    contents: light_map.as_slice(),
-    usage: BufferUsages::STORAGE | BufferUsages::VERTEX,
-  });
-  *light_bind_group = LightBindGroup {
-    bind_group: Some(render_device.create_bind_group(&BindGroupDescriptor {
-      entries: &[BindGroupEntry {
-        binding: 0,
-        resource: BindingResource::Buffer(buffer.as_entire_buffer_binding()),
-      }],
-      label: Some("light_bind_group"),
-      layout: &chunk_pipeline.lights_layout,
-    })),
-  };
-}
+// fn queue_lights(
+//   render_device: Res<RenderDevice>,
+//   light_map: Res<SizedLightMap>,
+//   mut light_bind_group: ResMut<LightBindGroup>,
+//   chunk_pipeline: Res<VoxelPipeline>,
+// ) {
+//   let buffer = render_device.create_buffer_with_data(&BufferInitDescriptor {
+//     label: Some("light buffer"),
+//     contents: light_map.as_slice(),
+//     usage: BufferUsages::STORAGE | BufferUsages::VERTEX,
+//   });
+//   *light_bind_group = LightBindGroup {
+//     bind_group: Some(render_device.create_bind_group(&BindGroupDescriptor {
+//       entries: &[BindGroupEntry {
+//         binding: 0,
+//         resource: BindingResource::Buffer(buffer.as_entire_buffer_binding()),
+//       }],
+//       label: Some("light_bind_group"),
+//       layout: &chunk_pipeline.lights_layout,
+//     })),
+//   };
+// }
 
 fn queue_chunks(
   mut commands: Commands,
@@ -606,9 +612,9 @@ impl Plugin for VoxelRendererPlugin {
       .init_resource::<TextureBindGroup>()
       .init_resource::<LightBindGroup>()
       .add_system_to_stage(RenderStage::Extract, extract_chunks)
-      .add_system_to_stage(RenderStage::Extract, extract_lights)
+      // .add_system_to_stage(RenderStage::Extract, extract_lights)
       .add_system_to_stage(RenderStage::Queue, queue_chunks)
-      .add_system_to_stage(RenderStage::Queue, queue_lights)
+      // .add_system_to_stage(RenderStage::Queue, queue_lights)
       .add_system_to_stage(RenderStage::Cleanup, cleanup)
       .add_render_command::<Opaque3d, DrawChunkFull>();
   }

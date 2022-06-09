@@ -8,6 +8,7 @@ layout(set = 0, location = 3) in uvec4 meta;
 layout(location = 0) out vec2 uv_out;
 layout(location = 1) out int cube_selected;
 layout(location = 2) out int face_selected;
+layout(location = 3) out float brightness;
 
 layout (set = 2, binding = 0) uniform Selection {
   ivec3 cube;
@@ -41,4 +42,5 @@ void main() {
 
   face_selected = position == selection.face ? 1 : 0;
   uv_out = uv;
+  brightness = (meta[0] * 16.0) / 256.0;
 }
