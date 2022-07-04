@@ -1,8 +1,7 @@
-use crate::ecs::components::block::BlockId;
 use crate::ecs::components::chunk::Chunk;
 use crate::ecs::plugins::settings::MouseSensitivity;
-use crate::ecs::resources::chunk_map::{ChunkMap, ChunkMeta};
-use crate::util::array::{to_ddd, DDD, DD};
+use crate::ecs::resources::chunk_map::{BlockAccessor, BlockAccessorSpawner, ChunkMap};
+use crate::util::array::{to_ddd, DDD};
 use bevy::input::mouse::MouseMotion;
 use bevy::prelude::*;
 use bevy::render::camera::CameraProjection;
@@ -160,10 +159,7 @@ fn collision_movement_system(
   camera: Query<(Entity, &FPSCamera)>,
   player: Query<Entity, With<Player>>,
   mut queries: ParamSet<(Query<&mut Transform>, Query<&mut Transform, With<Cube>>)>,
-  mut commands: Commands,
-  chunks: Query<&Chunk>,
-  mut chunk_map: ResMut<ChunkMap>,
-  dispatcher: Res<AsyncComputeTaskPool>,
+  mut block_accessor: BlockAccessorSpawner,
 ) {
   let (entity_camera, fps_camera) = camera.single();
   let entity_player = player.single();
@@ -180,11 +176,11 @@ fn collision_movement_system(
       for iz in -3..=3 {
         let c = translation + Vec3::new(ix as f32, iy as f32, iz as f32);
         let c = to_ddd(c);
-        if let Some(block) = chunk_map.get(&mut commands, Some(&dispatcher), &chunks, c) {
+        if let Some(block) = block_accessor.get_single(c) {
           if !block.passable() {
             match iter.next() {
               None => {
-                commands
+                block_accessor.commands
                   .spawn()
                   .insert(RigidBody::Fixed)
                   .insert(Collider::cuboid(0.5, 0.5, 0.5))

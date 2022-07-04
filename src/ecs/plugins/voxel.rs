@@ -1,5 +1,4 @@
-use crate::ecs::components::block::{Block, BlockId};
-use bevy::core_pipeline::{Opaque3d, Transparent3d};
+use bevy::core_pipeline::Opaque3d;
 use bevy::ecs::system::lifetimeless::{Read, SQuery, SRes};
 use bevy::ecs::system::SystemParamItem;
 use bevy::prelude::*;
@@ -24,7 +23,6 @@ use bevy::render::view::{ViewUniform, ViewUniformOffset, ViewUniforms};
 use bevy::render::RenderStage;
 use bevy::render::{RenderApp, RenderWorld};
 use bytemuck_derive::*;
-use std::alloc::Layout;
 use bevy::utils::hashbrown::HashMap;
 use wgpu::util::BufferInitDescriptor;
 use wgpu::{
@@ -33,16 +31,23 @@ use wgpu::{
 };
 
 use crate::ecs::components::chunk::Chunk;
-use crate::ecs::plugins::animation::Animation;
 use crate::ecs::plugins::camera::Selection;
 use crate::ecs::resources::block::BlockSprite;
 use crate::ecs::resources::chunk_map::ChunkMap;
-use crate::util::array::DD;
+use crate::util::array::{DD, DDD};
 
 pub struct VoxelRendererPlugin;
 
+pub enum RelightType {
+  LightSourceAdded,
+  LightSourceRemoved,
+  BlockAdded,
+  BlockRemoved
+}
+
 pub enum RemeshEvent {
-  Remesh(DD)
+  Remesh(DD),
+  Relight(RelightType, DDD)
 }
 
 fn extract_chunks(
@@ -59,9 +64,6 @@ fn extract_chunks(
       updated.push(*ch);
       let mut extracted_blocks = render_world.get_resource_mut::<ExtractedBlocks>().unwrap();
       let chunk_entity = chunk_map.map.get(ch).unwrap();
-      if !chunk_entity.generated {
-        continue;
-      }
       let chunk = chunks.get(chunk_entity.entity).unwrap();
       extracted_blocks.blocks.insert(*ch, BufferVec::new(BufferUsages::VERTEX));
         chunk.grid.foreach(|(x, y, z), s| {
@@ -81,9 +83,6 @@ fn extract_chunks(
                 extracted_blocks
                   .blocks.get_mut(ch).unwrap()
                   .push(SingleSide::new((x as f32, y as f32, z as f32), (ix, iy, iz), s.block.into_array_of_faces(), lighting));
-                // extracted_blocks
-                //   .blocks.get_mut(ch).unwrap()
-                //   .push(SingleSide::new((x as f32, y as f32, z as f32), (ix, iy, iz), BlockId::Grid.into_array_of_faces()));
               }
             }
           }

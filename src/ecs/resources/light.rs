@@ -1,7 +1,4 @@
-use crate::util::array::{Array, Array3d};
-use bevy::prelude::*;
-use std::alloc::Layout;
-
+#[derive(Copy, Clone)]
 pub struct LightLevel {
   pub heaven: u8,
   pub hearth: u8,
@@ -12,6 +9,12 @@ impl LightLevel {
     Self {
       heaven,
       hearth
+    }
+  }
+  pub fn dark() -> Self {
+    Self {
+      heaven: 0,
+      hearth: 0
     }
   }
 }

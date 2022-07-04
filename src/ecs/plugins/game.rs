@@ -3,7 +3,6 @@ use crate::ecs::resources::chunk_map::{ChunkMap};
 use crate::ecs::resources::player::{HotBarItems, SelectedHotBar};
 use crate::ecs::systems::chunkgen::collect_async_chunks;
 use crate::ecs::systems::input::{action_input, hot_bar_scroll_input};
-use crate::ecs::systems::light::light_system;
 use crate::ecs::systems::ui::{cursor, hot_bar, main_menu};
 use bevy::prelude::*;
 
@@ -12,7 +11,6 @@ pub struct GamePlugin;
 impl Plugin for GamePlugin {
   fn build(&self, app: &mut App) {
     app
-      .add_system(light_system)
       .add_system(action_input)
       .add_system(hot_bar_scroll_input)
       .add_system(hot_bar)

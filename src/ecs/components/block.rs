@@ -2,25 +2,18 @@ use crate::ecs::resources::block::BlockSprite;
 use bevy::prelude::*;
 
 #[derive(Copy, Clone, PartialEq, Debug)]
-#[repr(u16)]
+#[repr(u32)]
 pub enum BlockId {
   Air,
-  Reserved,
   Dirt,
   Grass,
   Cobble,
   Hoist,
-  Grid
 }
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub struct BlockMeta {
-  v: u16
-}
-
-#[derive(Copy, Clone, PartialEq, Debug)]
-pub struct BlockSparseId {
-  id: u16
+  v: u32
 }
 
 impl BlockId {
@@ -28,7 +21,6 @@ impl BlockId {
     use crate::ecs::resources::block::BlockSprite::*;
     match self {
       BlockId::Air => [Empty, Empty, Empty, Empty, Empty, Empty],
-      BlockId::Reserved => [Empty, Empty, Empty, Empty, Empty, Empty],
       BlockId::Dirt => [Dirt, Dirt, Dirt, Dirt, Dirt, Dirt],
       BlockId::Grass => [HalfGrass, HalfGrass, HalfGrass, HalfGrass, Grass, Dirt],
       BlockId::Cobble => [
@@ -40,7 +32,6 @@ impl BlockId {
         Cobblestone,
       ],
       BlockId::Hoist => [Wood, Wood, Wood, Wood, Wood, Wood],
-      BlockId::Grid => [Grid,Grid,Grid,Grid,Grid,Grid,],
     }
   }
 }
@@ -49,29 +40,31 @@ impl BlockId {
 pub struct Block {
   pub block: BlockId,
   pub meta: BlockMeta,
-  pub sparse: BlockSparseId,
-  pub reserved: u16
+  pub entity: Entity,
 }
 
 impl Block {
   pub fn new(block: BlockId) -> Self {
     Self {
       block,
-      meta: BlockMeta { v: 0},
-      sparse: BlockSparseId { id: 0},
-      reserved: 0
+      meta: BlockMeta { v: 0 },
+      entity: Entity::from_bits(0),
     }
   }
   pub fn visible(&self) -> bool {
     match self.block {
-      BlockId::Air | BlockId::Reserved => false,
+      BlockId::Air => false,
       _ => true
     }
   }
   pub fn passable(&self) -> bool {
     match self.block {
-      BlockId::Air | BlockId::Reserved => true,
+      BlockId::Air => true,
       _ => false
     }
   }
+}
+
+pub enum BlockData {
+  Displacement([f32; 3])
 }

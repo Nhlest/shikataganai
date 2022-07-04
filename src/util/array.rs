@@ -1,10 +1,28 @@
 use bevy::prelude::Vec3;
 use std::alloc::Layout;
+use std::array::IntoIter;
 use std::fmt::Debug;
 use std::ops::{Index, IndexMut};
 
 pub type DD = (i32, i32);
 pub type DDD = (i32, i32, i32);
+
+pub trait ImmediateNeighbours {
+  fn immeidate_neighbours(&self) -> IntoIter<Self, 6> where Self: Sized;
+}
+
+impl ImmediateNeighbours for DDD {
+  fn immeidate_neighbours(&self) -> IntoIter<Self, 6> {
+    [
+      (self.0 - 1, self.1, self.2),
+      (self.0 + 1, self.1, self.2),
+      (self.0, self.1 - 1, self.2),
+      (self.0, self.1 + 1, self.2),
+      (self.0, self.1, self.2 - 1),
+      (self.0, self.1, self.2 + 1),
+    ].into_iter()
+  }
+}
 
 pub fn to_ddd(v: Vec3) -> DDD {
   (v.x.floor() as i32, v.y.floor() as i32, v.z.floor() as i32)

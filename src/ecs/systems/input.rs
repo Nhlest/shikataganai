@@ -1,23 +1,19 @@
 use crate::ecs::components::block::{Block, BlockId};
 use crate::ecs::components::chunk::Chunk;
 use crate::ecs::plugins::camera::Selection;
-use crate::ecs::resources::chunk_map::{ChunkMap};
+use crate::ecs::resources::chunk_map::{BlockAccessor, BlockAccessorSpawner, BlockAccessorStatic, ChunkMap};
 use crate::ecs::resources::player::{HotBarItem, HotBarItems, SelectedHotBar};
-use crate::util::array::{DDD, from_ddd};
+use crate::util::array::{DDD};
 use bevy::input::mouse::MouseWheel;
 use bevy::prelude::*;
 use bevy::tasks::AsyncComputeTaskPool;
-use crate::ecs::plugins::animation::Animation;
 
 pub fn action_input(
   mouse: Res<Input<MouseButton>>,
   selection: Res<Option<Selection>>,
-  mut chunks: Query<&mut Chunk>,
-  mut chunk_map: ResMut<ChunkMap>,
   hotbar_items: Res<HotBarItems>,
   hotbar_selection: Res<SelectedHotBar>,
-  mut commands: Commands,
-  dispatcher: Res<AsyncComputeTaskPool>,
+  mut block_accessor: BlockAccessorStatic,
 ) {
   let hotbar_selection = &hotbar_items.items[hotbar_selection.0 as usize];
   match selection.into_inner() {
@@ -37,25 +33,25 @@ pub fn action_input(
         HotBarItem::PushPull => {
           if mouse.just_pressed(MouseButton::Left) {
             if let Some([target_positive_block, down_block]) =
-              chunk_map.get_many_mut(&mut commands, Some(&dispatcher), &mut chunks, [target_positive, down])
+              block_accessor.get_many_mut([target_positive, down])
             {
               if target_positive_block.block == BlockId::Air {
                 if down_block.block == BlockId::Hoist {
                   let _ = std::mem::replace(down_block, Block::new(BlockId::Air));
                 }
-                chunk_map.animate(source, target_positive, &mut commands, &mut chunks, BlockId::Air);
+                // chunk_map.animate(source, target_positive, &mut commands_dispatcher.commands, &mut chunks, BlockId::Air);
               }
             }
           }
           if mouse.just_pressed(MouseButton::Right) {
             if let Some([target_negative_block, down_block]) =
-              chunk_map.get_many_mut(&mut commands, Some(&dispatcher), &mut chunks, [target_negative, down])
+              block_accessor.get_many_mut([target_negative, down])
             {
               if target_negative_block.block == BlockId::Air {
                 if down_block.block == BlockId::Hoist {
                   let _ = std::mem::replace(down_block, Block::new(BlockId::Air));
                 }
-                chunk_map.animate(source, target_negative, &mut commands, &mut chunks, BlockId::Air);
+                // chunk_map.animate(source, target_negative, &mut commands_dispatcher.commands, &mut chunks, BlockId::Air);
               }
             }
           }
@@ -63,16 +59,16 @@ pub fn action_input(
         HotBarItem::HoistUnhoist => {
           if mouse.just_pressed(MouseButton::Left) {
             if let Some([source_block, up_block, down_block]) =
-              chunk_map.get_many_mut(&mut commands, Some(&dispatcher), &mut chunks, [source, up, down])
+              block_accessor.get_many_mut([source, up, down])
             {
               if down_block.block != BlockId::Hoist && up_block.block == BlockId::Air {
-                chunk_map.animate(source, up, &mut commands, &mut chunks, BlockId::Hoist);
+                // chunk_map.animate(source, up, &mut commands_dispatcher.commands, &mut chunks, BlockId::Hoist);
               }
             }
           }
           if mouse.just_pressed(MouseButton::Right) {
             if let Some([source, down]) =
-              chunk_map.get_many_mut(&mut commands, Some(&dispatcher), &mut chunks, [source, down])
+              block_accessor.get_many_mut([source, down])
             {
               if down.block == BlockId::Hoist {
                 let block = std::mem::replace(source, Block::new(BlockId::Air));
