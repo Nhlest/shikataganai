@@ -1,9 +1,9 @@
-use bevy::prelude::*;
 use crate::ecs::components::chunk::Chunk;
 use crate::ecs::plugins::voxel::{RelightType, RemeshEvent};
-use crate::ecs::resources::chunk_map::{ChunkMap, LightPropagationType};
+use crate::ecs::resources::chunk_map::ChunkMap;
 use crate::ecs::resources::light::LightLevel;
 use crate::util::array::ImmediateNeighbours;
+use bevy::prelude::*;
 
 pub fn relight_system(
   mut commands: Commands,

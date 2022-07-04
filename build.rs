@@ -1,7 +1,7 @@
 extern crate glsl_to_spirv;
 
-use std::error::Error;
 use glsl_to_spirv::ShaderType;
+use std::error::Error;
 
 fn main() -> Result<(), Box<dyn Error>> {
   // Tell the build script to only run again if we change our source shaders
@@ -15,13 +15,13 @@ fn main() -> Result<(), Box<dyn Error>> {
       let in_path = entry.path();
 
       // Support only vertex and fragment shaders currently
-      let shader_type = in_path.extension().and_then(|ext| {
-        match ext.to_string_lossy().as_ref() {
+      let shader_type = in_path
+        .extension()
+        .and_then(|ext| match ext.to_string_lossy().as_ref() {
           "vert" => Some(ShaderType::Vertex),
           "frag" => Some(ShaderType::Fragment),
           _ => None,
-        }
-      });
+        });
 
       if let Some(shader_type) = shader_type {
         use std::io::Read;
@@ -32,10 +32,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         compiled_file.read_to_end(&mut compiled_bytes)?;
 
         // Determine the output path based on the input name
-        let out_path = format!(
-          "assets/shader/{}.spv",
-          in_path.file_name().unwrap().to_string_lossy()
-        );
+        let out_path = format!("assets/shader/{}.spv", in_path.file_name().unwrap().to_string_lossy());
 
         std::fs::write(&out_path, &compiled_bytes)?;
       }

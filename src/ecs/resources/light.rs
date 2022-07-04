@@ -6,15 +6,9 @@ pub struct LightLevel {
 
 impl LightLevel {
   pub fn new(heaven: u8, hearth: u8) -> Self {
-    Self {
-      heaven,
-      hearth
-    }
+    Self { heaven, hearth }
   }
   pub fn dark() -> Self {
-    Self {
-      heaven: 0,
-      hearth: 0
-    }
+    Self { heaven: 0, hearth: 0 }
   }
 }

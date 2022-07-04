@@ -8,7 +8,9 @@ pub type DD = (i32, i32);
 pub type DDD = (i32, i32, i32);
 
 pub trait ImmediateNeighbours {
-  fn immeidate_neighbours(&self) -> IntoIter<Self, 6> where Self: Sized;
+  fn immeidate_neighbours(&self) -> IntoIter<Self, 6>
+  where
+    Self: Sized;
 }
 
 impl ImmediateNeighbours for DDD {
@@ -20,7 +22,8 @@ impl ImmediateNeighbours for DDD {
       (self.0, self.1 + 1, self.2),
       (self.0, self.1, self.2 - 1),
       (self.0, self.1, self.2 + 1),
-    ].into_iter()
+    ]
+    .into_iter()
   }
 }
 

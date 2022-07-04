@@ -1,12 +1,10 @@
-use crate::ecs::components::chunk::Chunk;
 use crate::ecs::plugins::settings::MouseSensitivity;
-use crate::ecs::resources::chunk_map::{BlockAccessor, BlockAccessorSpawner, ChunkMap};
+use crate::ecs::resources::chunk_map::{BlockAccessor, BlockAccessorSpawner};
 use crate::util::array::{to_ddd, DDD};
 use bevy::input::mouse::MouseMotion;
 use bevy::prelude::*;
 use bevy::render::camera::CameraProjection;
 use bevy::render::primitives::Frustum;
-use bevy::tasks::AsyncComputeTaskPool;
 use bevy_rapier3d::parry::query::Ray;
 use bevy_rapier3d::prelude::*;
 use num_traits::float::FloatConst;
@@ -108,7 +106,8 @@ fn movement_input_system(
     }
 
     fps_camera.phi += fps_camera.phi_a * time.delta().as_secs_f32();
-    fps_camera.theta = (fps_camera.theta + fps_camera.theta_a * time.delta().as_secs_f32()).clamp(0.05, f32::PI() - 0.05);
+    fps_camera.theta =
+      (fps_camera.theta + fps_camera.theta_a * time.delta().as_secs_f32()).clamp(0.05, f32::PI() - 0.05);
 
     fps_camera.phi_a *= 0.70;
     fps_camera.theta_a *= 0.70;
@@ -180,7 +179,8 @@ fn collision_movement_system(
           if !block.passable() {
             match iter.next() {
               None => {
-                block_accessor.commands
+                block_accessor
+                  .commands
                   .spawn()
                   .insert(RigidBody::Fixed)
                   .insert(Collider::cuboid(0.5, 0.5, 0.5))

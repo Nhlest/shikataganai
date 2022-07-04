@@ -13,7 +13,7 @@ pub enum BlockId {
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub struct BlockMeta {
-  v: u32
+  v: u32,
 }
 
 impl BlockId {
@@ -54,17 +54,13 @@ impl Block {
   pub fn visible(&self) -> bool {
     match self.block {
       BlockId::Air => false,
-      _ => true
+      _ => true,
     }
   }
   pub fn passable(&self) -> bool {
     match self.block {
       BlockId::Air => true,
-      _ => false
+      _ => false,
     }
   }
-}
-
-pub enum BlockData {
-  Displacement([f32; 3])
 }

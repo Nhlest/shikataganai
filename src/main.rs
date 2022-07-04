@@ -2,14 +2,13 @@
 #![feature(negative_impls)]
 #![feature(vec_into_raw_parts)]
 
+use crate::ecs::plugins::animation::AnimationPlugin;
 #[allow(unused_imports)]
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
+use bevy::prelude::App;
 use bevy::DefaultPlugins;
-use bevy::prelude::{App, Entity};
 use bevy_embedded_assets::EmbeddedAssetPlugin;
 use bevy_rapier3d::prelude::{NoUserData, RapierPhysicsPlugin};
-use crate::ecs::components::block::Block;
-use crate::ecs::plugins::animation::AnimationPlugin;
 
 use crate::ecs::plugins::camera::CameraPlugin;
 use crate::ecs::plugins::game::GamePlugin;

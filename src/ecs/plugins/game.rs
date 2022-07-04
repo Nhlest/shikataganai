@@ -1,5 +1,5 @@
 use crate::ecs::plugins::camera::MainMenuOpened;
-use crate::ecs::resources::chunk_map::{ChunkMap};
+use crate::ecs::resources::chunk_map::ChunkMap;
 use crate::ecs::resources::player::{HotBarItems, SelectedHotBar};
 use crate::ecs::systems::chunkgen::collect_async_chunks;
 use crate::ecs::systems::input::{action_input, hot_bar_scroll_input};

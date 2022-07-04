@@ -22,8 +22,8 @@ use bevy::render::texture::BevyDefault;
 use bevy::render::view::{ViewUniform, ViewUniformOffset, ViewUniforms};
 use bevy::render::RenderStage;
 use bevy::render::{RenderApp, RenderWorld};
-use bytemuck_derive::*;
 use bevy::utils::hashbrown::HashMap;
+use bytemuck_derive::*;
 use wgpu::util::BufferInitDescriptor;
 use wgpu::{
   BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindingResource, BufferUsages, DepthStencilState,
@@ -42,12 +42,12 @@ pub enum RelightType {
   LightSourceAdded,
   LightSourceRemoved,
   BlockAdded,
-  BlockRemoved
+  BlockRemoved,
 }
 
 pub enum RemeshEvent {
   Remesh(DD),
-  Relight(RelightType, DDD)
+  Relight(RelightType, DDD),
 }
 
 fn extract_chunks(
@@ -65,35 +65,43 @@ fn extract_chunks(
       let mut extracted_blocks = render_world.get_resource_mut::<ExtractedBlocks>().unwrap();
       let chunk_entity = chunk_map.map.get(ch).unwrap();
       let chunk = chunks.get(chunk_entity.entity).unwrap();
-      extracted_blocks.blocks.insert(*ch, BufferVec::new(BufferUsages::VERTEX));
-        chunk.grid.foreach(|(x, y, z), s| {
-          if !s.visible() {
-          } else {
-            for (ix, iy, iz) in [(-1, 0, 0), (1, 0, 0), (0, -1, 0), (0, 1, 0), (0, 0, -1), (0, 0, 1)] {
-              if !chunk.grid.in_bounds((x + ix, y + iy, z + iz))
-                || !chunk.grid[(x + ix, y + iy, z + iz)].visible()
-              {
-                let lighting = {
-                  if x % 2 == 0 {
-                    1
-                  } else {
-                    8
-                  }
-                };
-                extracted_blocks
-                  .blocks.get_mut(ch).unwrap()
-                  .push(SingleSide::new((x as f32, y as f32, z as f32), (ix, iy, iz), s.block.into_array_of_faces(), lighting));
-              }
+      extracted_blocks
+        .blocks
+        .insert(*ch, BufferVec::new(BufferUsages::VERTEX));
+      chunk.grid.foreach(|(x, y, z), s| {
+        if !s.visible() {
+        } else {
+          for (ix, iy, iz) in [(-1, 0, 0), (1, 0, 0), (0, -1, 0), (0, 1, 0), (0, 0, -1), (0, 0, 1)] {
+            if !chunk.grid.in_bounds((x + ix, y + iy, z + iz)) || !chunk.grid[(x + ix, y + iy, z + iz)].visible() {
+              let lighting = if chunk.light_map.in_bounds((x + ix, y + iy, z + iz)) {
+                let light_level = chunk.light_map[(x + ix, y + iy, z + iz)];
+                (light_level.heaven, light_level.hearth)
+              } else {
+                (0, 0)
+              };
+
+              extracted_blocks.blocks.get_mut(ch).unwrap().push(SingleSide::new(
+                (x as f32, y as f32, z as f32),
+                (ix, iy, iz),
+                s.block.into_array_of_faces(),
+                lighting,
+              ));
             }
           }
-        });
+        }
+      });
     }
   }
   render_world.insert_resource(updated);
 }
 
 impl SingleSide {
-  fn new((x, y, z): (f32, f32, f32), (ix, iy, iz): (i32, i32, i32), block: [BlockSprite; 6], lighting: u8) -> Self {
+  fn new(
+    (x, y, z): (f32, f32, f32),
+    (ix, iy, iz): (i32, i32, i32),
+    block: [BlockSprite; 6],
+    lighting: (u8, u8),
+  ) -> Self {
     let fx = x;
     let fy = y;
     let fz = z;
@@ -128,7 +136,7 @@ impl SingleSide {
           uv1 / 8.0 + block[side].into_uv().0[1],
         ],
         tile_side: [x.floor() as i32, y.floor() as i32, z.floor() as i32, side as i32],
-        meta: [lighting, 0, 0, 0]
+        meta: [lighting.0, lighting.1, 0, 0],
       },
     ))
   }
@@ -173,15 +181,22 @@ pub struct SingleVertex {
 #[derive(Copy, Clone, Pod, Zeroable)]
 struct SingleSide([SingleVertex; 6]);
 
-pub const VOXEL_SHADER_VERTEX_HANDLE: HandleUntyped = HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 2763343953151597899);
-pub const VOXEL_SHADER_FRAGMENT_HANDLE: HandleUntyped = HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 2763343953151597999);
+pub const VOXEL_SHADER_VERTEX_HANDLE: HandleUntyped =
+  HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 2763343953151597899);
+pub const VOXEL_SHADER_FRAGMENT_HANDLE: HandleUntyped =
+  HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 2763343953151597999);
 
 impl SpecializedRenderPipeline for VoxelPipeline {
   type Key = ();
 
   fn specialize(&self, _key: Self::Key) -> RenderPipelineDescriptor {
     let shader_defs = Vec::new();
-    let vertex_formats = vec![VertexFormat::Float32x3, VertexFormat::Float32x2, VertexFormat::Sint32x4, VertexFormat::Uint8x4];
+    let vertex_formats = vec![
+      VertexFormat::Float32x3,
+      VertexFormat::Float32x2,
+      VertexFormat::Sint32x4,
+      VertexFormat::Uint8x4,
+    ];
 
     let vertex_layout = VertexBufferLayout::from_vertex_formats(VertexStepMode::Vertex, vertex_formats);
 
@@ -336,7 +351,7 @@ impl FromWorld for TextureHandle {
 
 fn queue_chunks(
   mut commands: Commands,
-  mut extracted_blocks : ResMut<ExtractedBlocks>,
+  mut extracted_blocks: ResMut<ExtractedBlocks>,
   mut views: Query<&mut RenderPhase<Opaque3d>>,
   draw_functions: Res<DrawFunctions<Opaque3d>>,
   mut pipelines: ResMut<SpecializedRenderPipelines<VoxelPipeline>>,
@@ -350,7 +365,7 @@ fn queue_chunks(
   handle: Res<TextureHandle>,
   mut bind_group: ResMut<TextureBindGroup>,
   selection: Res<Option<Selection>>,
-  updated: Res<Vec<DD>>
+  updated: Res<Vec<DD>>,
 ) {
   if let Some(gpu_image) = gpu_images.get(&handle.0) {
     *bind_group = TextureBindGroup {
@@ -410,7 +425,7 @@ fn queue_chunks(
     let buf = buf.get_mut(i).unwrap();
     buf.write_buffer(&render_device, &render_queue);
   }
-  for (i, buf) in buf.iter_mut() {
+  for (_, buf) in buf.iter_mut() {
     // buf.write_buffer(&render_device, &render_queue);
     if !buf.is_empty() {
       let entity = commands
@@ -427,7 +442,6 @@ fn queue_chunks(
       }
     }
   }
-
 }
 
 type DrawChunkFull = (
@@ -553,39 +567,13 @@ impl<P: PhaseItem, const I: usize> RenderCommand<P> for SetSelectionBindGroup<I>
   }
 }
 
-pub struct ExtractedOverlays {
-  overlays: BufferVec<SingleSide>,
-}
-
 pub struct ExtractedBlocks {
   blocks: HashMap<DD, BufferVec<SingleSide>>,
 }
 
-pub struct ExtractedFreeEntities {
-  free_entities: BufferVec<SingleSide>,
-}
-
-impl Default for ExtractedOverlays {
-  fn default() -> Self {
-    Self {
-      overlays: BufferVec::new(BufferUsages::VERTEX),
-    }
-  }
-}
-
 impl Default for ExtractedBlocks {
   fn default() -> Self {
-    Self {
-      blocks: HashMap::new()
-    }
-  }
-}
-
-impl Default for ExtractedFreeEntities {
-  fn default() -> Self {
-    Self {
-      free_entities: BufferVec::new(BufferUsages::VERTEX),
-    }
+    Self { blocks: HashMap::new() }
   }
 }
 
@@ -597,8 +585,7 @@ impl Plugin for VoxelRendererPlugin {
     shaders.set_untracked(VOXEL_SHADER_VERTEX_HANDLE, voxel_shader_vertex);
     shaders.set_untracked(VOXEL_SHADER_FRAGMENT_HANDLE, voxel_shader_fragment);
 
-    app
-      .add_event::<RemeshEvent>();
+    app.add_event::<RemeshEvent>();
 
     let render_app = app.get_sub_app_mut(RenderApp).unwrap();
     render_app

@@ -1,9 +1,6 @@
-use bevy::prelude::*;
 use crate::ecs::components::block::Block;
-use crate::ecs::components::chunk::Chunk;
-use crate::ecs::plugins::voxel::RemeshEvent;
-use crate::ecs::resources::chunk_map::ChunkMap;
-use crate::util::array::{DDD, from_ddd};
+use crate::util::array::DDD;
+use bevy::prelude::*;
 
 pub struct AnimationPlugin;
 
@@ -25,7 +22,7 @@ pub struct Animation {
   from: DDD,
   to: DDD,
   t: f32,
-  speed: f32
+  speed: f32,
 }
 
 impl Animation {
@@ -36,7 +33,7 @@ impl Animation {
       from,
       to,
       t: 0.0,
-      speed
+      speed,
     }
   }
 }
