@@ -1,5 +1,6 @@
 use crate::ecs::components::block::{Block, BlockId};
 use crate::ecs::plugins::camera::Selection;
+use crate::ecs::plugins::voxel::{RelightEvent, RelightType};
 use crate::ecs::resources::chunk_map::{BlockAccessor, BlockAccessorStatic};
 use crate::ecs::resources::player::{HotBarItem, HotBarItems, SelectedHotBar};
 use crate::util::array::DDD;
@@ -12,6 +13,7 @@ pub fn action_input(
   hotbar_items: Res<HotBarItems>,
   hotbar_selection: Res<SelectedHotBar>,
   mut block_accessor: BlockAccessorStatic,
+  mut relight_events: EventWriter<RelightEvent>,
 ) {
   let hotbar_selection = &hotbar_items.items[hotbar_selection.0 as usize];
   match selection.into_inner() {
@@ -24,35 +26,40 @@ pub fn action_input(
         source.1 - target_negative.1,
         source.2 - target_negative.2,
       );
-      let target_positive = (source.0 + dx, source.1 + dy, source.2 + dz);
+      let _target_positive = (source.0 + dx, source.1 + dy, source.2 + dz);
       let up = (source.0, source.1 + 1, source.2);
       let down = (source.0, source.1 - 1, source.2);
       match hotbar_selection {
         HotBarItem::PushPull => {
           if mouse.just_pressed(MouseButton::Left) {
-            if let Some([target_positive_block, down_block]) = block_accessor.get_many_mut([target_positive, down]) {
-              if target_positive_block.block == BlockId::Air {
-                if down_block.block == BlockId::Hoist {
-                  let _ = std::mem::replace(down_block, Block::new(BlockId::Air));
-                }
-                // chunk_map.animate(source, target_positive, &mut commands_dispatcher.commands, &mut chunks, BlockId::Air);
-              }
+            if let Some([source_block]) = block_accessor.get_many_mut([source]) {
+              source_block.block = BlockId::Air;
+              relight_events.send(RelightEvent::Relight(RelightType::BlockRemoved, source));
             }
+            // if let Some([target_positive_block, down_block]) = block_accessor.get_many_mut([target_positive, down]) {
+            //   if target_positive_block.block == BlockId::Air {
+            //     if down_block.block == BlockId::Hoist {
+            //       let _ = std::mem::replace(down_block, Block::new(BlockId::Air));
+            //     }
+            //     // chunk_map.animate(source, target_positive, &mut commands_dispatcher.commands, &mut chunks, BlockId::Air);
+            //   }
+            // }
           }
           if mouse.just_pressed(MouseButton::Right) {
-            if let Some([target_negative_block, down_block]) = block_accessor.get_many_mut([target_negative, down]) {
-              if target_negative_block.block == BlockId::Air {
-                if down_block.block == BlockId::Hoist {
-                  let _ = std::mem::replace(down_block, Block::new(BlockId::Air));
-                }
-                // chunk_map.animate(source, target_negative, &mut commands_dispatcher.commands, &mut chunks, BlockId::Air);
-              }
-            }
+            // if let Some([target_negative_block, down_block]) = block_accessor.get_many_mut([target_negative, down]) {
+            //   if target_negative_block.block == BlockId::Air {
+            //     if down_block.block == BlockId::Hoist {
+            //       let _ = std::mem::replace(down_block, Block::new(BlockId::Air));
+            //     }
+            //     // chunk_map.animate(source, target_negative, &mut commands_dispatcher.commands, &mut chunks, BlockId::Air);
+            //   }
+            // }
           }
         }
         HotBarItem::HoistUnhoist => {
           if mouse.just_pressed(MouseButton::Left) {
-            if let Some([source_block, up_block, down_block]) = block_accessor.get_many_mut([source, up, down]) {
+            relight_events.send(RelightEvent::Relight(RelightType::LightSourceAdded, target_negative));
+            if let Some([_source_block, up_block, down_block]) = block_accessor.get_many_mut([source, up, down]) {
               if down_block.block != BlockId::Hoist && up_block.block == BlockId::Air {
                 // chunk_map.animate(source, up, &mut commands_dispatcher.commands, &mut chunks, BlockId::Hoist);
               }

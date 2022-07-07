@@ -1,30 +1,43 @@
-use crate::ecs::components::chunk::Chunk;
-use crate::ecs::plugins::voxel::{RelightType, RemeshEvent};
-use crate::ecs::resources::chunk_map::ChunkMap;
+use crate::ecs::plugins::voxel::{RelightEvent, RelightType, RemeshEvent};
+use crate::ecs::resources::chunk_map::BlockAccessor;
+use crate::ecs::resources::chunk_map::{BlockAccessorStatic, ChunkMap};
 use crate::ecs::resources::light::LightLevel;
 use crate::util::array::ImmediateNeighbours;
 use bevy::prelude::*;
+use bevy::utils::HashSet;
 
 pub fn relight_system(
-  mut commands: Commands,
-  mut chunk_map: ResMut<ChunkMap>,
-  mut chunks: Query<&mut Chunk>,
-  mut events: EventReader<RemeshEvent>,
+  mut remesh_events: EventWriter<RemeshEvent>,
+  mut relight_events: EventReader<RelightEvent>,
+  mut block_accessor: BlockAccessorStatic,
 ) {
-  for event in events.iter() {
-    if let RemeshEvent::Relight(r_type, ddd) = event {
+  let mut remesh = HashSet::new();
+  for event in relight_events.iter() {
+    if let RelightEvent::Relight(r_type, ddd) = event {
       match r_type {
-        RelightType::LightSourceAdded => {}
+        RelightType::LightSourceAdded => {
+          let l = block_accessor.get_light_level(*ddd).unwrap();
+          block_accessor.set_light_level(*ddd, LightLevel::new(l.heaven, 15));
+          remesh.insert(ChunkMap::get_chunk_coord(*ddd));
+          for i in ddd.immeidate_neighbours() {
+            block_accessor.propagate_light(i, &mut remesh);
+          }
+        }
         RelightType::LightSourceRemoved => {}
         RelightType::BlockAdded => {
-          // let light = chunk_map.replace_light_level(&mut chunks, *ddd, LightLevel::dark());
-          // for i in ddd.immeidate_neighbours() {
-          //   chunk_map.propagate_light(&mut chunks, i, LightPropagationType::Brighten)
-          // }
-          // ddd.immediate_neighbours()
+          block_accessor.set_light_level(*ddd, LightLevel::dark());
+          remesh.insert(ChunkMap::get_chunk_coord(*ddd));
+          for i in ddd.immeidate_neighbours() {
+            block_accessor.propagate_light(i, &mut remesh);
+          }
         }
-        RelightType::BlockRemoved => {}
+        RelightType::BlockRemoved => {
+          block_accessor.propagate_light(*ddd, &mut remesh);
+        }
       }
     }
   }
+  remesh
+    .iter()
+    .for_each(|dd| remesh_events.send(RemeshEvent::Remesh(*dd)));
 }

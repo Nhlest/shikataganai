@@ -24,17 +24,19 @@ use bevy::render::RenderStage;
 use bevy::render::{RenderApp, RenderWorld};
 use bevy::utils::hashbrown::HashMap;
 use bytemuck_derive::*;
+use itertools::Itertools;
 use wgpu::util::BufferInitDescriptor;
 use wgpu::{
   BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindingResource, BufferUsages, DepthStencilState,
   Face,
 };
 
-use crate::ecs::components::chunk::Chunk;
+use crate::ecs::components::block::Block;
 use crate::ecs::plugins::camera::Selection;
 use crate::ecs::resources::block::BlockSprite;
-use crate::ecs::resources::chunk_map::ChunkMap;
-use crate::util::array::{DD, DDD};
+use crate::ecs::resources::chunk_map::BlockAccessor;
+use crate::ecs::resources::chunk_map::BlockAccessorStatic;
+use crate::util::array::{ArrayIndex, ImmediateNeighbours, DD, DDD};
 
 pub struct VoxelRendererPlugin;
 
@@ -47,49 +49,61 @@ pub enum RelightType {
 
 pub enum RemeshEvent {
   Remesh(DD),
+}
+
+pub enum RelightEvent {
   Relight(RelightType, DDD),
 }
 
 fn extract_chunks(
   mut render_world: ResMut<RenderWorld>,
-  chunks: Query<&Chunk>,
-  chunk_map: ResMut<ChunkMap>,
+  mut block_accessor: BlockAccessorStatic,
   selection: Res<Option<Selection>>,
   mut remesh_events: EventReader<RemeshEvent>,
 ) {
   render_world.insert_resource(selection.clone());
   let mut updated = vec![];
-  for event in remesh_events.iter() {
-    if let RemeshEvent::Remesh(ch) = event {
-      updated.push(*ch);
-      let mut extracted_blocks = render_world.get_resource_mut::<ExtractedBlocks>().unwrap();
-      let chunk_entity = chunk_map.map.get(ch).unwrap();
-      let chunk = chunks.get(chunk_entity.entity).unwrap();
-      extracted_blocks
-        .blocks
-        .insert(*ch, BufferVec::new(BufferUsages::VERTEX));
-      chunk.grid.foreach(|(x, y, z), s| {
-        if !s.visible() {
-        } else {
-          for (ix, iy, iz) in [(-1, 0, 0), (1, 0, 0), (0, -1, 0), (0, 1, 0), (0, 0, -1), (0, 0, 1)] {
-            if !chunk.grid.in_bounds((x + ix, y + iy, z + iz)) || !chunk.grid[(x + ix, y + iy, z + iz)].visible() {
-              let lighting = if chunk.light_map.in_bounds((x + ix, y + iy, z + iz)) {
-                let light_level = chunk.light_map[(x + ix, y + iy, z + iz)];
-                (light_level.heaven, light_level.hearth)
-              } else {
-                (0, 0)
-              };
 
-              extracted_blocks.blocks.get_mut(ch).unwrap().push(SingleSide::new(
-                (x as f32, y as f32, z as f32),
-                (ix, iy, iz),
-                s.block.into_array_of_faces(),
-                lighting,
-              ));
-            }
+  for ch in remesh_events
+    .iter()
+    .filter_map(|p| if let RemeshEvent::Remesh(d) = p { Some(d) } else { None })
+    .unique()
+  {
+    if !block_accessor.chunk_map.map.contains_key(ch) {
+      continue;
+    }
+    updated.push(*ch);
+    let mut extracted_blocks = render_world.get_resource_mut::<ExtractedBlocks>().unwrap();
+    extracted_blocks
+      .blocks
+      .insert(*ch, BufferVec::new(BufferUsages::VERTEX));
+    let entity = block_accessor.chunk_map.map[ch].entity.unwrap();
+    let bounds = block_accessor.chunks.get(entity).unwrap().grid.bounds;
+    let mut i = bounds.0;
+    loop {
+      let block: Block = block_accessor.get_single(i).unwrap().clone();
+      if block.visible() {
+        for neighbour in i.immeidate_neighbours() {
+          if block_accessor.get_single(neighbour).map_or(true, |b| !b.visible()) {
+            let light_level = block_accessor.get_light_level(neighbour);
+            let lighting = match light_level {
+              Some(light_level) => (light_level.heaven, light_level.hearth),
+              None => (0, 0),
+            };
+
+            extracted_blocks.blocks.get_mut(ch).unwrap().push(SingleSide::new(
+              (i.0 as f32, i.1 as f32, i.2 as f32),
+              (neighbour.0 - i.0, neighbour.1 - i.1, neighbour.2 - i.2),
+              block.block.into_array_of_faces(),
+              lighting,
+            ));
           }
         }
-      });
+      }
+      i = match i.next(&bounds) {
+        None => break,
+        Some(i) => i,
+      }
     }
   }
   render_world.insert_resource(updated);
@@ -142,30 +156,11 @@ impl SingleSide {
   }
 }
 
-// fn extract_lights(mut render_world: ResMut<RenderWorld>, light: Res<LightMap>) {
-//   let ((x1, y1, _), (x2, y2, _)) = light.map.bounds;
-//   let x = x2 - x1 + 1;
-//   let y = y2 - y1 + 1;
-//   let size = light.map.size();
-//   let ptr = unsafe {
-//     let ptr = std::alloc::alloc(Layout::from_size_align(4 + 4 + size, 4).unwrap());
-//     let i = ptr as *mut i32;
-//     i.write(x);
-//     i.add(1).write(y);
-//     std::ptr::copy_nonoverlapping(light.map.data(), ptr.add(8), size);
-//     ptr
-//   };
-//   render_world.insert_resource(SizedLightMap {
-//     ptr: ptr,
-//     size: size + 8,
-//   });
-// }
-
 pub struct VoxelPipeline {
   view_layout: BindGroupLayout,
   texture_layout: BindGroupLayout,
-  lights_layout: BindGroupLayout,
   selection_layout: BindGroupLayout,
+  light_texture_layout: BindGroupLayout,
 }
 
 #[repr(C)]
@@ -220,8 +215,8 @@ impl SpecializedRenderPipeline for VoxelPipeline {
       layout: Some(vec![
         self.view_layout.clone(),
         self.texture_layout.clone(),
-        // self.lights_layout.clone(),
         self.selection_layout.clone(),
+        self.light_texture_layout.clone(),
       ]),
       primitive: PrimitiveState {
         front_face: FrontFace::Ccw,
@@ -287,19 +282,6 @@ impl FromWorld for VoxelPipeline {
         ],
         label: Some("chunk_view_layout"),
       }),
-      lights_layout: render_device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-        entries: &[BindGroupLayoutEntry {
-          binding: 0,
-          visibility: ShaderStages::VERTEX,
-          ty: BindingType::Buffer {
-            ty: BufferBindingType::Storage { read_only: true },
-            has_dynamic_offset: false,
-            min_binding_size: None,
-          },
-          count: None,
-        }],
-        label: Some("light_view_layout"),
-      }),
       selection_layout: render_device.create_bind_group_layout(&BindGroupLayoutDescriptor {
         entries: &[BindGroupLayoutEntry {
           binding: 0,
@@ -313,11 +295,33 @@ impl FromWorld for VoxelPipeline {
         }],
         label: Some("selection_layout"),
       }),
+      light_texture_layout: render_device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+        entries: &[
+          BindGroupLayoutEntry {
+            binding: 0,
+            visibility: ShaderStages::VERTEX,
+            ty: BindingType::Texture {
+              multisampled: false,
+              sample_type: TextureSampleType::Float { filterable: true },
+              view_dimension: TextureViewDimension::D2,
+            },
+            count: None,
+          },
+          BindGroupLayoutEntry {
+            binding: 1,
+            visibility: ShaderStages::VERTEX,
+            ty: BindingType::Sampler(SamplerBindingType::Filtering),
+            count: None,
+          },
+        ],
+        label: Some("light_texture_layout"),
+      }),
     }
   }
 }
 
 pub struct TextureHandle(Handle<Image>);
+pub struct LightTextureHandle(Handle<Image>);
 
 impl FromWorld for TextureHandle {
   fn from_world(world: &mut World) -> Self {
@@ -326,28 +330,12 @@ impl FromWorld for TextureHandle {
   }
 }
 
-// fn queue_lights(
-//   render_device: Res<RenderDevice>,
-//   light_map: Res<SizedLightMap>,
-//   mut light_bind_group: ResMut<LightBindGroup>,
-//   chunk_pipeline: Res<VoxelPipeline>,
-// ) {
-//   let buffer = render_device.create_buffer_with_data(&BufferInitDescriptor {
-//     label: Some("light buffer"),
-//     contents: light_map.as_slice(),
-//     usage: BufferUsages::STORAGE | BufferUsages::VERTEX,
-//   });
-//   *light_bind_group = LightBindGroup {
-//     bind_group: Some(render_device.create_bind_group(&BindGroupDescriptor {
-//       entries: &[BindGroupEntry {
-//         binding: 0,
-//         resource: BindingResource::Buffer(buffer.as_entire_buffer_binding()),
-//       }],
-//       label: Some("light_bind_group"),
-//       layout: &chunk_pipeline.lights_layout,
-//     })),
-//   };
-// }
+impl FromWorld for LightTextureHandle {
+  fn from_world(world: &mut World) -> Self {
+    let asset_server = world.resource_mut::<AssetServer>();
+    LightTextureHandle(asset_server.load("light.png"))
+  }
+}
 
 fn queue_chunks(
   mut commands: Commands,
@@ -362,8 +350,12 @@ fn queue_chunks(
   mut voxel_bind_group: ResMut<VoxelViewBindGroup>,
   mut selection_bind_group: ResMut<SelectionBindGroup>,
   gpu_images: Res<RenderAssets<Image>>,
-  handle: Res<TextureHandle>,
-  mut bind_group: ResMut<TextureBindGroup>,
+  (handle, light_texture_handle, mut bind_group, mut light_texture_bind_group): (
+    Res<TextureHandle>,
+    Res<LightTextureHandle>,
+    ResMut<TextureBindGroup>,
+    ResMut<LightTextureBindGroup>,
+  ),
   selection: Res<Option<Selection>>,
   updated: Res<Vec<DD>>,
 ) {
@@ -382,6 +374,24 @@ fn queue_chunks(
         ],
         label: Some("block_material_bind_group"),
         layout: &chunk_pipeline.texture_layout,
+      })),
+    };
+  }
+  if let Some(gpu_image) = gpu_images.get(&light_texture_handle.0) {
+    *light_texture_bind_group = LightTextureBindGroup {
+      bind_group: Some(render_device.create_bind_group(&BindGroupDescriptor {
+        entries: &[
+          BindGroupEntry {
+            binding: 0,
+            resource: BindingResource::TextureView(&gpu_image.texture_view),
+          },
+          BindGroupEntry {
+            binding: 1,
+            resource: BindingResource::Sampler(&gpu_image.sampler),
+          },
+        ],
+        label: Some("light_texture_bind_group"),
+        layout: &chunk_pipeline.light_texture_layout,
       })),
     };
   }
@@ -426,7 +436,6 @@ fn queue_chunks(
     buf.write_buffer(&render_device, &render_queue);
   }
   for (_, buf) in buf.iter_mut() {
-    // buf.write_buffer(&render_device, &render_queue);
     if !buf.is_empty() {
       let entity = commands
         .spawn()
@@ -448,8 +457,8 @@ type DrawChunkFull = (
   SetItemPipeline,
   SetVoxelViewBindGroup<0>,
   SetVoxelTextureBindGroup<1>,
-  // SetLightBindGroup<2>,
   SetSelectionBindGroup<2>,
+  SetLightTextureBindGroup<3>,
   DrawChunk,
 );
 
@@ -567,6 +576,30 @@ impl<P: PhaseItem, const I: usize> RenderCommand<P> for SetSelectionBindGroup<I>
   }
 }
 
+#[derive(Default)]
+pub struct LightTextureBindGroup {
+  bind_group: Option<BindGroup>,
+}
+
+pub struct SetLightTextureBindGroup<const I: usize>;
+impl<const I: usize> EntityRenderCommand for SetLightTextureBindGroup<I> {
+  type Param = SRes<LightTextureBindGroup>;
+
+  fn render<'w>(
+    _view: Entity,
+    _item: Entity,
+    light_texture_bind_group: SystemParamItem<'w, '_, Self::Param>,
+    pass: &mut TrackedRenderPass<'w>,
+  ) -> RenderCommandResult {
+    if let Some(light_texture_bind_group) = light_texture_bind_group.into_inner().bind_group.as_ref() {
+      pass.set_bind_group(I, light_texture_bind_group, &[]);
+      RenderCommandResult::Success
+    } else {
+      RenderCommandResult::Failure
+    }
+  }
+}
+
 pub struct ExtractedBlocks {
   blocks: HashMap<DD, BufferVec<SingleSide>>,
 }
@@ -586,6 +619,7 @@ impl Plugin for VoxelRendererPlugin {
     shaders.set_untracked(VOXEL_SHADER_FRAGMENT_HANDLE, voxel_shader_fragment);
 
     app.add_event::<RemeshEvent>();
+    app.add_event::<RelightEvent>();
 
     let render_app = app.get_sub_app_mut(RenderApp).unwrap();
     render_app
@@ -595,20 +629,13 @@ impl Plugin for VoxelRendererPlugin {
       .init_resource::<SelectionBindGroup>()
       .init_resource::<SpecializedRenderPipelines<VoxelPipeline>>()
       .init_resource::<TextureHandle>()
+      .init_resource::<LightTextureHandle>()
       .init_resource::<TextureBindGroup>()
+      .init_resource::<LightTextureBindGroup>()
       .init_resource::<LightBindGroup>()
       .add_system_to_stage(RenderStage::Extract, extract_chunks)
-      // .add_system_to_stage(RenderStage::Extract, extract_lights)
       .add_system_to_stage(RenderStage::Queue, queue_chunks)
-      // .add_system_to_stage(RenderStage::Queue, queue_lights)
-      .add_system_to_stage(RenderStage::Cleanup, cleanup)
       .add_render_command::<Opaque3d, DrawChunkFull>();
-  }
-}
-
-fn cleanup(q: Query<(Entity, &MeshBuffer)>, mut c: Commands) {
-  for i in q.iter() {
-    c.entity(i.0).despawn();
   }
 }
 

@@ -8,7 +8,7 @@ layout(set = 0, location = 3) in uvec4 meta;
 layout(location = 0) out vec2 uv_out;
 layout(location = 1) out int cube_selected;
 layout(location = 2) out int face_selected;
-layout(location = 3) out float brightness;
+layout(location = 3) out vec3 brightness;
 
 layout (set = 2, binding = 0) uniform Selection {
   ivec3 cube;
@@ -19,6 +19,9 @@ layout (set = 0, binding = 0) uniform View {
   mat4 view_proj;
   vec3 world_position;
 } view;
+
+layout(set = 3, binding = 0) uniform texture2D light_texture;
+layout(set = 3, binding = 1) uniform sampler light_sampler;
 
 void main() {
   gl_Position=view.view_proj * vec4(position, 1.0);
@@ -42,5 +45,6 @@ void main() {
 
   face_selected = position == selection.face ? 1 : 0;
   uv_out = uv;
-  brightness = (meta[0] * 16.0) / 256.0;
+
+  brightness = texture(sampler2D(light_texture, light_sampler), vec2(meta[1] / 16.0 + 0.5 / 16.0, meta[0] / 16.0 + 0.5 / 16.0)).rgb;
 }

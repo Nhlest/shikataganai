@@ -31,21 +31,19 @@ impl Chunk {
     chunk
   }
 
-  pub async fn generate(coord: DD) -> (Chunk, DD) {
+  pub async fn generate(coord: DD) -> Chunk {
     let from = (coord.0 * 16, 0, coord.1 * 16);
     let to = (coord.0 * 16 + 15, CHUNK_MAX_HEIGHT, coord.1 * 16 + 15);
-    (
-      Chunk::new(
-        (from, to),
-        |(_, y, _)| {
-          if y < 14 {
-            BlockId::Cobble
-          } else {
-            BlockId::Air
-          }
-        },
-      ),
-      coord,
-    )
+    Chunk::new((from, to), |(_, y, _)| {
+      if y < 30 {
+        BlockId::Cobble
+      } else if y < 35 {
+        BlockId::Dirt
+      } else if y < 36 {
+        BlockId::Grass
+      } else {
+        BlockId::Air
+      }
+    })
   }
 }

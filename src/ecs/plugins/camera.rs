@@ -55,7 +55,7 @@ impl Plugin for CameraPlugin {
       .world
       .spawn()
       .insert(RigidBody::Dynamic)
-      .insert(Transform::from_xyz(10.1, 20.0, 10.0))
+      .insert(Transform::from_xyz(10.1, 38.0, 10.0))
       .insert(GlobalTransform::default())
       .insert(LockedAxes::ROTATION_LOCKED)
       .insert(Player)

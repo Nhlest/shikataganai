@@ -5,17 +5,17 @@ use crate::util::array::{ImmediateNeighbours, DD, DDD};
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use bevy::tasks::{AsyncComputeTaskPool, Task};
-use bevy::utils::HashMap;
+use bevy::utils::{HashMap, HashSet};
 use duplicate::duplicate_item;
 use std::mem::MaybeUninit;
 
 pub struct ChunkMeta {
-  pub entity: Entity,
+  pub entity: Option<Entity>,
 }
 
 impl ChunkMeta {
-  pub fn new(entity: Entity) -> Self {
-    Self { entity }
+  pub fn generating() -> Self {
+    Self { entity: None }
   }
 }
 
@@ -23,6 +23,7 @@ impl ChunkMeta {
 pub struct BlockAccessorSpawner<'w, 's> {
   pub chunk_map: ResMut<'w, ChunkMap>,
   pub chunks: Query<'w, 's, &'static mut Chunk>,
+  pub tasks: Query<'w, 's, &'static mut ChunkTask>,
   pub commands: Commands<'w, 's>,
   pub dispatcher: Res<'w, AsyncComputeTaskPool>,
 }
@@ -42,7 +43,8 @@ impl<'w, 's> BlockAccessorInternal<'w, 's> for BlockAccessorStatic<'w, 's> {
     let chunk_coord = ChunkMap::get_chunk_coord(c);
     match self.chunk_map.map.get(&chunk_coord) {
       None => None,
-      Some(ChunkMeta { entity }) => Some(*entity),
+      Some(ChunkMeta { entity: None }) => None,
+      Some(ChunkMeta { entity: Some(entity) }) => Some(*entity),
     }
   }
 }
@@ -53,10 +55,15 @@ impl<'w, 's> BlockAccessorInternal<'w, 's> for BlockAccessorSpawner<'w, 's> {
     match self.chunk_map.map.get(&chunk_coord) {
       None => {
         let task = self.dispatcher.spawn(Chunk::generate(chunk_coord));
-        self.commands.spawn().insert(ChunkTask { task });
+        self.chunk_map.map.insert(chunk_coord, ChunkMeta::generating());
+        self.commands.spawn().insert(ChunkTask {
+          task,
+          coord: chunk_coord,
+        });
         None
       }
-      Some(ChunkMeta { entity }) => Some(*entity),
+      Some(ChunkMeta { entity: None }) => None,
+      Some(ChunkMeta { entity: Some(entity) }) => Some(*entity),
     }
   }
 }
@@ -67,7 +74,7 @@ pub trait BlockAccessor {
   fn get_many_mut<const N: usize>(&mut self, cs: [DDD; N]) -> Option<[&mut Block; N]>;
   fn get_light_level(&mut self, c: DDD) -> Option<LightLevel>;
   fn set_light_level(&mut self, c: DDD, light: LightLevel);
-  fn propagate_light(&mut self, c: DDD);
+  fn propagate_light(&mut self, c: DDD, remesh: &mut HashSet<DD>);
 }
 
 #[duplicate_item(T; [BlockAccessorSpawner]; [BlockAccessorStatic])]
@@ -122,6 +129,9 @@ impl<'w, 's> BlockAccessor for T<'w, 's> {
     )
   }
   fn get_light_level(&mut self, c: DDD) -> Option<LightLevel> {
+    if c.1 < 0 || c.1 > 255 {
+      return None;
+    }
     self
       .get_chunk_entity_or_queue(c)
       .map(|entity| {
@@ -138,35 +148,47 @@ impl<'w, 's> BlockAccessor for T<'w, 's> {
       }
     });
   }
-  fn propagate_light(&mut self, c: DDD) {
-    if let Some(current_light) = self.get_light_level(c) {
-      let mut new_heaven_light = None;
-      let mut new_hearth_light = None;
-      for heaven_check in c.immeidate_neighbours() {
-        if let Some(LightLevel { mut heaven, hearth }) = self.get_light_level(heaven_check) {
-          if heaven_check.1 - c.1 == 1 {
-            heaven += 1
-          }
-          if current_light.heaven < heaven - 1 {
-            new_heaven_light = Some(heaven - 1);
-          }
-          if current_light.hearth < hearth - 1 {
-            new_hearth_light = Some(hearth - 1);
+  fn propagate_light(&mut self, c: DDD, remesh: &mut HashSet<DD>) {
+    let mut queue = vec![c];
+    while !queue.is_empty() {
+      let c = queue.pop().unwrap();
+      if let Some(current_light) = self.get_light_level(c) {
+        let mut new_heaven_light = None;
+        let mut new_hearth_light = None;
+        for heaven_check in c.immeidate_neighbours() {
+          if let Some(LightLevel { mut heaven, hearth }) = self.get_light_level(heaven_check) {
+            if heaven_check.1 - c.1 == 1 && heaven == 15 {
+              heaven += 1
+            }
+            if current_light.heaven < heaven - 1 && heaven > 0 {
+              new_heaven_light = Some(if heaven - 1 > 16 { 0 } else { heaven - 1 });
+            }
+            if current_light.hearth < hearth - 1 && hearth > 0 {
+              new_hearth_light = Some(if hearth - 1 > 16 { 0 } else { hearth - 1 });
+            }
           }
         }
-      }
-      if new_heaven_light.is_none() && new_hearth_light.is_none() {
-        return;
-      }
-      self.set_light_level(
-        c,
-        LightLevel::new(
+        if new_heaven_light.is_none() && new_hearth_light.is_none() {
+          continue;
+        }
+        let new_light = LightLevel::new(
           new_heaven_light.unwrap_or(current_light.heaven),
           new_hearth_light.unwrap_or(current_light.hearth),
-        ),
-      );
-      for i in c.immeidate_neighbours() {
-        self.propagate_light(i);
+        );
+        self.set_light_level(c, new_light);
+        let chunk_coord = ChunkMap::get_chunk_coord(c);
+        remesh.insert(chunk_coord);
+        for i in c.immeidate_neighbours() {
+          if let Some(LightLevel { heaven, hearth }) = self.get_light_level(i) {
+            if (heaven >= new_light.heaven - 1 || new_light.heaven == 0)
+              && (hearth >= new_light.hearth - 1 || new_light.hearth == 0)
+            {
+              continue;
+            }
+          }
+          remesh.insert(ChunkMap::get_chunk_coord(i));
+          queue.push(i);
+        }
       }
     }
   }
@@ -184,7 +206,8 @@ impl FromWorld for ChunkMap {
 
 #[derive(Component)]
 pub struct ChunkTask {
-  pub task: Task<(Chunk, DD)>,
+  pub task: Task<Chunk>,
+  pub coord: DD,
 }
 
 impl ChunkMap {

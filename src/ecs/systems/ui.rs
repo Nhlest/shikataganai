@@ -95,7 +95,7 @@ pub fn main_menu(
   let active_window = window.get_primary_mut().unwrap();
   let ui = imgui.get_current_frame();
   imgui::Window::new("Main Menu")
-    .title_bar(false)
+    // .title_bar(false)
     .resizable(false)
     .scrollable(false)
     .scroll_bar(false)
@@ -104,7 +104,7 @@ pub fn main_menu(
         active_window.width() as f32 / 2.0 - 150.0,
         active_window.height() as f32 / 2.0 - 250.0,
       ],
-      Condition::Always,
+      Condition::FirstUseEver,
     )
     .size([300.0, 500.0], Condition::Always)
     .build(ui, || {

@@ -36,7 +36,7 @@ impl BlockId {
   }
 }
 
-#[derive(Debug, Component)]
+#[derive(Debug, Component, Copy, Clone)]
 pub struct Block {
   pub block: BlockId,
   pub meta: BlockMeta,

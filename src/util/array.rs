@@ -97,7 +97,7 @@ impl ArrayIndex for DDD {
 
   fn idx(&self, bounds: &Bounds<Self>) -> usize {
     #[cfg(debug_assertions)]
-    assert!(self.in_bounds(bounds), "Array index out of bounds");
+    assert!(self.in_bounds(bounds), "Array index out of bounds {self:?} {bounds:?}");
     let ((x1, y1, z1), (x2, y2, _)) = bounds;
     let (x, y, z) = self;
     let row = x2 - x1 + 1;
