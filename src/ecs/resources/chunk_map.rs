@@ -160,11 +160,14 @@ impl<'w, 's> BlockAccessor for T<'w, 's> {
             if heaven_check.1 - c.1 == 1 && heaven == 15 {
               heaven += 1
             }
-            if current_light.heaven < heaven - 1 && heaven > 0 {
-              new_heaven_light = Some(if heaven - 1 > 16 { 0 } else { heaven - 1 });
+            // TODO: fix this clusterfuck
+            let new = if heaven - 1 > 16 { 0 } else { heaven - 1 };
+            if current_light.heaven < heaven - 1 && heaven > 0 && new_heaven_light.map_or(true, |x| new > x) {
+              new_heaven_light = Some(new);
             }
-            if current_light.hearth < hearth - 1 && hearth > 0 {
-              new_hearth_light = Some(if hearth - 1 > 16 { 0 } else { hearth - 1 });
+            let new = if hearth - 1 > 16 { 0 } else { hearth - 1 };
+            if current_light.hearth < hearth - 1 && hearth > 0 && new_hearth_light.map_or(true, |x| new > x) {
+              new_hearth_light = Some(new);
             }
           }
         }
