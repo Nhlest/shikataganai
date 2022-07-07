@@ -102,11 +102,6 @@ impl FromWorld for LightTextureHandle {
   }
 }
 
-#[derive(Default)]
-pub struct VoxelViewBindGroup {
-  pub bind_group: Option<BindGroup>,
-}
-
 pub struct ExtractedBlocks {
   pub blocks: HashMap<DD, BufferVec<SingleSide>>,
 }
@@ -117,22 +112,22 @@ impl Default for ExtractedBlocks {
   }
 }
 
-#[derive(Default)]
-pub struct LightBindGroup {
+#[derive(Default, Deref)]
+pub struct VoxelViewBindGroup {
   pub bind_group: Option<BindGroup>,
 }
 
-#[derive(Default)]
-pub struct TextureBindGroup {
+#[derive(Default, Deref)]
+pub struct VoxelTextureBindGroup {
   pub bind_group: Option<BindGroup>,
 }
 
-#[derive(Default)]
+#[derive(Default, Deref)]
 pub struct SelectionBindGroup {
   pub bind_group: Option<BindGroup>,
 }
 
-#[derive(Default)]
+#[derive(Default, Deref)]
 pub struct LightTextureBindGroup {
   pub bind_group: Option<BindGroup>,
 }

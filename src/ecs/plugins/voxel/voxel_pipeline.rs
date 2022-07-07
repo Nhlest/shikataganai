@@ -7,18 +7,21 @@ use bevy::render::render_phase::{
   EntityRenderCommand, PhaseItem, RenderCommand, RenderCommandResult, SetItemPipeline, TrackedRenderPass,
 };
 use bevy::render::render_resource::{
-  BindGroupLayout, BindGroupLayoutEntry, BindingType, BlendState, BufferBindingType, ColorTargetState, ColorWrites,
-  CompareFunction, DepthStencilState, Face, FragmentState, FrontFace, MultisampleState, PolygonMode, PrimitiveState,
-  RenderPipelineDescriptor, SamplerBindingType, ShaderStages, ShaderType, SpecializedRenderPipeline, TextureFormat,
-  TextureSampleType, TextureViewDimension, VertexBufferLayout, VertexFormat, VertexState, VertexStepMode,
+  BindGroup, BindGroupLayout, BindGroupLayoutEntry, BindingType, BlendState, BufferBindingType, ColorTargetState,
+  ColorWrites, CompareFunction, DepthStencilState, Face, FragmentState, FrontFace, MultisampleState, PolygonMode,
+  PrimitiveState, RenderPipelineDescriptor, SamplerBindingType, ShaderStages, ShaderType, SpecializedRenderPipeline,
+  TextureFormat, TextureSampleType, TextureViewDimension, VertexBufferLayout, VertexFormat, VertexState,
+  VertexStepMode,
 };
 use bevy::render::renderer::RenderDevice;
 use bevy::render::texture::BevyDefault;
 use bevy::render::view::{ViewUniform, ViewUniformOffset};
+use std::marker::PhantomData;
+use std::ops::Deref;
 use wgpu::BindGroupLayoutDescriptor;
 
 use crate::ecs::plugins::voxel::{
-  LightBindGroup, LightTextureBindGroup, MeshBuffer, SelectionBindGroup, TextureBindGroup, VoxelViewBindGroup,
+  LightTextureBindGroup, MeshBuffer, SelectionBindGroup, VoxelTextureBindGroup, VoxelViewBindGroup,
 };
 
 pub struct VoxelPipeline {
@@ -91,7 +94,7 @@ impl SpecializedRenderPipeline for VoxelPipeline {
         mask: !0,
         alpha_to_coverage_enabled: false,
       },
-      label: Some("chunk_pipeline".into()),
+      label: Some("voxel_pipeline".into()),
     }
   }
 }
@@ -111,7 +114,7 @@ impl FromWorld for VoxelPipeline {
           },
           count: None,
         }],
-        label: Some("chunk_view_layout"),
+        label: Some("view_layout"),
       }),
       texture_layout: render_device.create_bind_group_layout(&BindGroupLayoutDescriptor {
         entries: &[
@@ -132,7 +135,7 @@ impl FromWorld for VoxelPipeline {
             count: None,
           },
         ],
-        label: Some("chunk_view_layout"),
+        label: Some("texture_layout"),
       }),
       selection_layout: render_device.create_bind_group_layout(&BindGroupLayoutDescriptor {
         entries: &[BindGroupLayoutEntry {
@@ -172,14 +175,37 @@ impl FromWorld for VoxelPipeline {
   }
 }
 
-pub type DrawChunkFull = (
+pub type DrawVoxelsFull = (
   SetItemPipeline,
   SetVoxelViewBindGroup<0>,
-  SetVoxelTextureBindGroup<1>,
-  SetSelectionBindGroup<2>,
-  SetLightTextureBindGroup<3>,
-  DrawChunk,
+  SetBindGroup<1, VoxelTextureBindGroup>,
+  SetBindGroup<2, SelectionBindGroup>,
+  SetBindGroup<3, LightTextureBindGroup>,
+  DrawVoxels,
 );
+
+pub struct SetBindGroup<const I: usize, T: Deref<Target = Option<BindGroup>> + Send + Sync + 'static> {
+  _phantom: PhantomData<T>,
+}
+impl<P: PhaseItem, const I: usize, T: Deref<Target = Option<BindGroup>> + Send + Sync + 'static> RenderCommand<P>
+  for SetBindGroup<I, T>
+{
+  type Param = SRes<T>;
+
+  fn render<'w>(
+    _view: Entity,
+    _item: &P,
+    bind_group: SystemParamItem<'w, '_, Self::Param>,
+    pass: &mut TrackedRenderPass<'w>,
+  ) -> RenderCommandResult {
+    if let Some(texture_bind_group) = bind_group.into_inner().deref().as_ref() {
+      pass.set_bind_group(I, texture_bind_group, &[]);
+      RenderCommandResult::Success
+    } else {
+      RenderCommandResult::Failure
+    }
+  }
+}
 
 pub struct SetVoxelViewBindGroup<const I: usize>;
 impl<P: PhaseItem, const I: usize> RenderCommand<P> for SetVoxelViewBindGroup<I> {
@@ -201,46 +227,8 @@ impl<P: PhaseItem, const I: usize> RenderCommand<P> for SetVoxelViewBindGroup<I>
   }
 }
 
-pub struct SetVoxelTextureBindGroup<const I: usize>;
-impl<const I: usize> EntityRenderCommand for SetVoxelTextureBindGroup<I> {
-  type Param = SRes<TextureBindGroup>;
-
-  fn render<'w>(
-    _view: Entity,
-    _item: Entity,
-    texture_bind_group: SystemParamItem<'w, '_, Self::Param>,
-    pass: &mut TrackedRenderPass<'w>,
-  ) -> RenderCommandResult {
-    if let Some(texture_bind_group) = texture_bind_group.into_inner().bind_group.as_ref() {
-      pass.set_bind_group(I, texture_bind_group, &[]);
-      RenderCommandResult::Success
-    } else {
-      RenderCommandResult::Failure
-    }
-  }
-}
-
-pub struct SetLightBindGroup<const I: usize>;
-impl<const I: usize> EntityRenderCommand for SetLightBindGroup<I> {
-  type Param = SRes<LightBindGroup>;
-
-  fn render<'w>(
-    _view: Entity,
-    _item: Entity,
-    light_bind_group: SystemParamItem<'w, '_, Self::Param>,
-    pass: &mut TrackedRenderPass<'w>,
-  ) -> RenderCommandResult {
-    if let Some(light_bind_group) = light_bind_group.into_inner().bind_group.as_ref() {
-      pass.set_bind_group(I, light_bind_group, &[]);
-      RenderCommandResult::Success
-    } else {
-      RenderCommandResult::Failure
-    }
-  }
-}
-
-pub struct DrawChunk;
-impl EntityRenderCommand for DrawChunk {
+pub struct DrawVoxels;
+impl EntityRenderCommand for DrawVoxels {
   type Param = SQuery<Read<MeshBuffer>>;
 
   fn render<'w>(
@@ -253,39 +241,5 @@ impl EntityRenderCommand for DrawChunk {
     pass.set_vertex_buffer(0, buf.slice(..));
     pass.draw(0..*verticies as u32 * 6, 0..1 as u32);
     RenderCommandResult::Success
-  }
-}
-
-pub struct SetSelectionBindGroup<const I: usize>;
-impl<P: PhaseItem, const I: usize> RenderCommand<P> for SetSelectionBindGroup<I> {
-  type Param = SRes<SelectionBindGroup>;
-
-  fn render<'w>(
-    _view: Entity,
-    _item: &P,
-    bind_group: SystemParamItem<'w, '_, Self::Param>,
-    pass: &mut TrackedRenderPass<'w>,
-  ) -> RenderCommandResult {
-    pass.set_bind_group(I, &bind_group.into_inner().bind_group.as_ref().unwrap(), &[]);
-    RenderCommandResult::Success
-  }
-}
-
-pub struct SetLightTextureBindGroup<const I: usize>;
-impl<const I: usize> EntityRenderCommand for SetLightTextureBindGroup<I> {
-  type Param = SRes<LightTextureBindGroup>;
-
-  fn render<'w>(
-    _view: Entity,
-    _item: Entity,
-    light_texture_bind_group: SystemParamItem<'w, '_, Self::Param>,
-    pass: &mut TrackedRenderPass<'w>,
-  ) -> RenderCommandResult {
-    if let Some(light_texture_bind_group) = light_texture_bind_group.into_inner().bind_group.as_ref() {
-      pass.set_bind_group(I, light_texture_bind_group, &[]);
-      RenderCommandResult::Success
-    } else {
-      RenderCommandResult::Failure
-    }
   }
 }

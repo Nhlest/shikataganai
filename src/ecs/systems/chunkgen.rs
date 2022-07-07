@@ -1,6 +1,7 @@
 use crate::ecs::plugins::voxel::RemeshEvent;
-use crate::ecs::resources::chunk_map::{ChunkMap, ChunkTask};
+use crate::ecs::resources::chunk_map::{ChunkMap};
 use bevy::prelude::*;
+use crate::ecs::components::chunk::ChunkTask;
 
 pub fn collect_async_chunks(
   mut chunk_map: ResMut<ChunkMap>,

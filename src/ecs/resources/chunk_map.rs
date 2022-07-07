@@ -1,10 +1,10 @@
 use crate::ecs::components::block::Block;
-use crate::ecs::components::chunk::Chunk;
+use crate::ecs::components::chunk::{Chunk, ChunkTask};
 use crate::ecs::resources::light::LightLevel;
 use crate::util::array::{ImmediateNeighbours, DD, DDD};
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
-use bevy::tasks::{AsyncComputeTaskPool, Task};
+use bevy::tasks::{AsyncComputeTaskPool};
 use bevy::utils::{HashMap, HashSet};
 use duplicate::duplicate_item;
 use std::mem::MaybeUninit;
@@ -205,12 +205,6 @@ impl FromWorld for ChunkMap {
   fn from_world(_world: &mut World) -> Self {
     Self { map: HashMap::new() }
   }
-}
-
-#[derive(Component)]
-pub struct ChunkTask {
-  pub task: Task<Chunk>,
-  pub coord: DD,
 }
 
 impl ChunkMap {

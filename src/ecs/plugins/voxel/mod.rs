@@ -2,13 +2,12 @@ pub mod mesh_pipeline;
 pub mod misc;
 pub mod systems;
 pub mod voxel_pipeline;
-
 pub use crate::ecs::plugins::voxel::mesh_pipeline::*;
 pub use crate::ecs::plugins::voxel::misc::*;
 pub use crate::ecs::plugins::voxel::systems::*;
 pub use crate::ecs::plugins::voxel::voxel_pipeline::*;
-use bevy::core_pipeline::Opaque3d;
 
+use bevy::core_pipeline::Opaque3d;
 use bevy::prelude::*;
 use bevy::render::render_phase::AddRenderCommand;
 use bevy::render::render_resource::SpecializedRenderPipelines;
@@ -32,16 +31,15 @@ impl Plugin for VoxelRendererPlugin {
     render_app
       .init_resource::<ExtractedBlocks>()
       .init_resource::<VoxelPipeline>()
-      .init_resource::<VoxelViewBindGroup>()
-      .init_resource::<SelectionBindGroup>()
       .init_resource::<SpecializedRenderPipelines<VoxelPipeline>>()
       .init_resource::<TextureHandle>()
       .init_resource::<LightTextureHandle>()
-      .init_resource::<TextureBindGroup>()
+      .init_resource::<VoxelViewBindGroup>()
+      .init_resource::<SelectionBindGroup>()
+      .init_resource::<VoxelTextureBindGroup>()
       .init_resource::<LightTextureBindGroup>()
-      .init_resource::<LightBindGroup>()
       .add_system_to_stage(RenderStage::Extract, extract_chunks)
       .add_system_to_stage(RenderStage::Queue, queue_chunks)
-      .add_render_command::<Opaque3d, DrawChunkFull>();
+      .add_render_command::<Opaque3d, DrawVoxelsFull>();
   }
 }

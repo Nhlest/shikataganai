@@ -1,10 +1,17 @@
 use crate::ecs::components::block::{Block, BlockId};
 use crate::ecs::resources::light::LightLevel;
 use bevy::prelude::*;
+use bevy::tasks::Task;
 
 use crate::util::array::{Array, Array3d, Bounds, DD, DDD};
 
 const CHUNK_MAX_HEIGHT: i32 = 255;
+
+#[derive(Component)]
+pub struct ChunkTask {
+  pub task: Task<Chunk>,
+  pub coord: DD,
+}
 
 #[derive(Component)]
 pub struct Chunk {

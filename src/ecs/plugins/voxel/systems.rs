@@ -13,8 +13,8 @@ use wgpu::{BindGroupDescriptor, BindGroupEntry, BindingResource};
 use crate::ecs::components::block::Block;
 use crate::ecs::plugins::camera::Selection;
 use crate::ecs::plugins::voxel::{
-  DrawChunkFull, ExtractedBlocks, LightTextureBindGroup, LightTextureHandle, MeshBuffer, RemeshEvent,
-  SelectionBindGroup, SingleSide, TextureBindGroup, TextureHandle, VoxelPipeline, VoxelViewBindGroup,
+  DrawVoxelsFull, ExtractedBlocks, LightTextureBindGroup, LightTextureHandle, MeshBuffer, RemeshEvent,
+  SelectionBindGroup, SingleSide, TextureHandle, VoxelPipeline, VoxelTextureBindGroup, VoxelViewBindGroup,
 };
 use crate::ecs::resources::chunk_map::BlockAccessor;
 use crate::ecs::resources::chunk_map::BlockAccessorStatic;
@@ -90,14 +90,14 @@ pub fn queue_chunks(
   (handle, light_texture_handle, mut bind_group, mut light_texture_bind_group): (
     Res<TextureHandle>,
     Res<LightTextureHandle>,
-    ResMut<TextureBindGroup>,
+    ResMut<VoxelTextureBindGroup>,
     ResMut<LightTextureBindGroup>,
   ),
   selection: Res<Option<Selection>>,
   updated: Res<Vec<DD>>,
 ) {
   if let Some(gpu_image) = gpu_images.get(&handle.0) {
-    *bind_group = TextureBindGroup {
+    *bind_group = VoxelTextureBindGroup {
       bind_group: Some(render_device.create_bind_group(&BindGroupDescriptor {
         entries: &[
           BindGroupEntry {
@@ -163,7 +163,7 @@ pub fn queue_chunks(
     layout: &chunk_pipeline.selection_layout,
   }));
 
-  let draw_function = draw_functions.read().get_id::<DrawChunkFull>().unwrap();
+  let draw_function = draw_functions.read().get_id::<DrawVoxelsFull>().unwrap();
 
   let pipeline = pipelines.specialize(&mut pipeline_cache, &chunk_pipeline, ());
 
