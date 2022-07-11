@@ -23,7 +23,6 @@ impl ChunkMeta {
 pub struct BlockAccessorSpawner<'w, 's> {
   pub chunk_map: ResMut<'w, ChunkMap>,
   pub chunks: Query<'w, 's, &'static mut Chunk>,
-  pub tasks: Query<'w, 's, &'static mut ChunkTask>,
   pub commands: Commands<'w, 's>,
   pub dispatcher: Res<'w, AsyncComputeTaskPool>,
 }
@@ -152,6 +151,11 @@ impl<'w, 's> BlockAccessor for T<'w, 's> {
     let mut queue = vec![c];
     while !queue.is_empty() {
       let c = queue.pop().unwrap();
+      if self.get_single(c).map_or(false, |e|e.visible()) {
+        self.set_light_level(c, LightLevel::dark());
+        remesh.insert(ChunkMap::get_chunk_coord(c));
+        continue;
+      }
       if let Some(current_light) = self.get_light_level(c) {
         let mut new_heaven_light = None;
         let mut new_hearth_light = None;

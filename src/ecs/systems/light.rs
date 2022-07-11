@@ -19,6 +19,7 @@ pub fn relight_system(
           let l = block_accessor.get_light_level(*ddd).unwrap();
           block_accessor.set_light_level(*ddd, LightLevel::new(l.heaven, 15));
           remesh.insert(ChunkMap::get_chunk_coord(*ddd));
+          block_accessor.propagate_light(*ddd, &mut remesh);
           for i in ddd.immeidate_neighbours() {
             block_accessor.propagate_light(i, &mut remesh);
           }
@@ -27,12 +28,17 @@ pub fn relight_system(
         RelightType::BlockAdded => {
           block_accessor.set_light_level(*ddd, LightLevel::dark());
           remesh.insert(ChunkMap::get_chunk_coord(*ddd));
+          block_accessor.propagate_light(*ddd, &mut remesh);
           for i in ddd.immeidate_neighbours() {
             block_accessor.propagate_light(i, &mut remesh);
           }
         }
         RelightType::BlockRemoved => {
+          remesh.insert(ChunkMap::get_chunk_coord(*ddd));
           block_accessor.propagate_light(*ddd, &mut remesh);
+          for i in ddd.immeidate_neighbours() {
+            block_accessor.propagate_light(i, &mut remesh);
+          }
         }
       }
     }

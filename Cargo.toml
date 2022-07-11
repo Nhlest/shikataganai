@@ -11,16 +11,22 @@ image = "*"
 imgui = "*"
 winit = "*"
 serde = "*"
+strum = "*"
 bytemuck = "*"
 imgui-sys = "*"
 duplicate = "*"
 itertools = "*"
 num-traits = "*"
 imgui-wgpu = "*"
+strum_macros = "*"
 futures-lite = "*"
 bytemuck_derive = "*"
 bevy_framepace = { git = "https://github.com/aevyrie/bevy_framepace", branch = "main" }
 imgui-winit-support = { version = "*", default-features = false, features = [ "winit-26" ] }
+base64 = "*"
+percent-encoding = "*"
+anyhow = "*"
+gltf = "*"
 
 [features]
 default = []

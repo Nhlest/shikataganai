@@ -1,5 +1,11 @@
+use std::marker::PhantomData;
+use std::ops::Deref;
+use bevy::ecs::system::lifetimeless::{Read, SQuery, SRes};
+use bevy::ecs::system::SystemParamItem;
 use bevy::prelude::*;
+use bevy::render::render_phase::{PhaseItem, RenderCommand, RenderCommandResult, TrackedRenderPass};
 use bevy::render::render_resource::{BindGroup, Buffer, BufferVec};
+use bevy::render::view::ViewUniformOffset;
 use bevy::utils::hashbrown::HashMap;
 use bytemuck_derive::*;
 
@@ -113,12 +119,22 @@ impl Default for ExtractedBlocks {
 }
 
 #[derive(Default, Deref)]
+pub struct MeshViewBindGroup {
+  pub bind_group: Option<BindGroup>,
+}
+
+#[derive(Default, Deref)]
 pub struct VoxelViewBindGroup {
   pub bind_group: Option<BindGroup>,
 }
 
 #[derive(Default, Deref)]
 pub struct VoxelTextureBindGroup {
+  pub bind_group: Option<BindGroup>,
+}
+
+#[derive(Default, Deref)]
+pub struct MeshTextureBindGroup {
   pub bind_group: Option<BindGroup>,
 }
 
@@ -133,7 +149,10 @@ pub struct LightTextureBindGroup {
 }
 
 #[derive(Component)]
-pub struct MeshBuffer(pub Buffer, pub usize);
+pub struct ChunkMeshBuffer(pub Buffer, pub usize);
+
+#[derive(Component)]
+pub struct MeshBuffer(pub Buffer, pub Buffer, pub usize);
 
 #[repr(C)]
 #[derive(Copy, Clone, Pod, Zeroable)]
@@ -300,3 +319,56 @@ pub const VERTEX: [[Vertex; 6]; 6] = [
     },
   ],
 ];
+
+pub struct SetBindGroup<const I: usize, T: Deref<Target = Option<BindGroup>> + Send + Sync + 'static> {
+  _phantom: PhantomData<T>,
+}
+impl<P: PhaseItem, const I: usize, T: Deref<Target = Option<BindGroup>> + Send + Sync + 'static> RenderCommand<P>
+for SetBindGroup<I, T>
+{
+  type Param = SRes<T>;
+
+  fn render<'w>(
+    _view: Entity,
+    _item: &P,
+    bind_group: SystemParamItem<'w, '_, Self::Param>,
+    pass: &mut TrackedRenderPass<'w>,
+  ) -> RenderCommandResult {
+    if let Some(texture_bind_group) = bind_group.into_inner().deref().as_ref() {
+      pass.set_bind_group(I, texture_bind_group, &[]);
+      RenderCommandResult::Success
+    } else {
+      dbg!(11);
+      RenderCommandResult::Failure
+    }
+  }
+}
+
+pub struct SetViewBindGroup<const I: usize, T: Deref<Target = Option<BindGroup>> + Send + Sync + 'static> {
+  _phantom: PhantomData<T>,
+}
+
+impl<P: PhaseItem, const I: usize, T: Deref<Target = Option<BindGroup>> + Send + Sync + 'static> RenderCommand<P> for SetViewBindGroup<I, T> {
+  type Param = (SRes<T>, SQuery<Read<ViewUniformOffset>>);
+
+  fn render<'w>(
+    view: Entity,
+    _item: &P,
+    (bind_group, view_query): SystemParamItem<'w, '_, Self::Param>,
+    pass: &mut TrackedRenderPass<'w>,
+  ) -> RenderCommandResult {
+    let view_uniform = view_query.get(view).unwrap();
+    if let Some(b) = &bind_group.into_inner().deref().as_ref() {
+      pass.set_bind_group(
+        I,
+        b,
+        &[view_uniform.offset],
+      );
+      RenderCommandResult::Success
+    } else {
+      dbg!(12);
+      RenderCommandResult::Failure
+    }
+  }
+}
+

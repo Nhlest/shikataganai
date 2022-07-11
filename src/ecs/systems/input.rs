@@ -6,6 +6,9 @@ use crate::ecs::resources::player::{HotBarItem, HotBarItems, SelectedHotBar};
 use crate::util::array::DDD;
 use bevy::input::mouse::MouseWheel;
 use bevy::prelude::*;
+use bevy_rapier3d::na::Isometry;
+use bevy_rapier3d::prelude::{Collider, InteractionGroups, RapierContext};
+use bevy_rapier3d::rapier::prelude::ColliderSet;
 
 pub fn action_input(
   mouse: Res<Input<MouseButton>>,
@@ -14,6 +17,7 @@ pub fn action_input(
   hotbar_selection: Res<SelectedHotBar>,
   mut block_accessor: BlockAccessorStatic,
   mut relight_events: EventWriter<RelightEvent>,
+  rapier_context: Res<RapierContext>
 ) {
   let hotbar_selection = &hotbar_items.items[hotbar_selection.0 as usize];
   match selection.into_inner() {
@@ -46,14 +50,17 @@ pub fn action_input(
             // }
           }
           if mouse.just_pressed(MouseButton::Right) {
-            // if let Some([target_negative_block, down_block]) = block_accessor.get_many_mut([target_negative, down]) {
-            //   if target_negative_block.block == BlockId::Air {
-            //     if down_block.block == BlockId::Hoist {
-            //       let _ = std::mem::replace(down_block, Block::new(BlockId::Air));
-            //     }
-            //     // chunk_map.animate(source, target_negative, &mut commands_dispatcher.commands, &mut chunks, BlockId::Air);
-            //   }
-            // }
+            if let Some([target_negative_block]) = block_accessor.get_many_mut([target_negative]) {
+              let shape = Collider::cuboid(0.45, 0.45, 0.45);
+              let shape_pos = Vec3::new(target_negative.0 as f32 + 0.5, target_negative.1 as f32 + 0.5, target_negative.2 as f32 + 0.5);
+              let shape_rot = Quat::IDENTITY;
+              let groups = InteractionGroups::new(0b10, 0b01);
+              let filter = None;
+              if rapier_context.intersection_with_shape(shape_pos, shape_rot, &shape, groups, filter).is_none() {
+                target_negative_block.block = BlockId::Cobble;
+                relight_events.send(RelightEvent::Relight(RelightType::BlockAdded, target_negative));
+              }
+            }
           }
         }
         HotBarItem::HoistUnhoist => {

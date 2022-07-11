@@ -1,6 +1,6 @@
 pub const UI_SPRITE_SHEET_WIDTH: usize = 4;
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug, Hash)]
+#[derive(Copy, Clone, Debug)]
 pub enum UiSprite {
   PushPull,
   HoistUnhoist,

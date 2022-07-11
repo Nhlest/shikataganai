@@ -1,5 +1,6 @@
 use bevy::core_pipeline::Opaque3d;
 use bevy::prelude::*;
+use bevy::render::mesh::{GpuBufferInfo, GpuMesh};
 use bevy::render::render_asset::RenderAssets;
 use bevy::render::render_phase::{DrawFunctions, RenderPhase};
 use bevy::render::render_resource::{BufferUsages, BufferVec, PipelineCache, SpecializedRenderPipelines};
@@ -12,21 +13,19 @@ use wgpu::{BindGroupDescriptor, BindGroupEntry, BindingResource};
 
 use crate::ecs::components::block::Block;
 use crate::ecs::plugins::camera::Selection;
-use crate::ecs::plugins::voxel::{
-  DrawVoxelsFull, ExtractedBlocks, LightTextureBindGroup, LightTextureHandle, MeshBuffer, RemeshEvent,
-  SelectionBindGroup, SingleSide, TextureHandle, VoxelPipeline, VoxelTextureBindGroup, VoxelViewBindGroup,
-};
+use crate::ecs::plugins::voxel::{DrawMeshFull, DrawVoxelsFull, ExtractedBlocks, LightTextureBindGroup, LightTextureHandle, ChunkMeshBuffer, MeshPipeline, MeshTextureBindGroup, RemeshEvent, SelectionBindGroup, SingleSide, TextureHandle, VoxelPipeline, VoxelTextureBindGroup, VoxelViewBindGroup, MeshBuffer, MeshViewBindGroup};
 use crate::ecs::resources::chunk_map::BlockAccessor;
 use crate::ecs::resources::chunk_map::BlockAccessorStatic;
 use crate::util::array::{ArrayIndex, ImmediateNeighbours, DD};
 
 pub fn extract_chunks(
   mut render_world: ResMut<RenderWorld>,
+  mut commands: Commands,
   mut block_accessor: BlockAccessorStatic,
   selection: Res<Option<Selection>>,
   mut remesh_events: EventReader<RemeshEvent>,
 ) {
-  render_world.insert_resource(selection.clone());
+  commands.insert_resource(selection.clone());
   let mut updated = vec![];
 
   for ch in remesh_events
@@ -71,7 +70,7 @@ pub fn extract_chunks(
       }
     }
   }
-  render_world.insert_resource(updated);
+  commands.insert_resource(updated);
 }
 
 pub fn queue_chunks(
@@ -176,7 +175,7 @@ pub fn queue_chunks(
     if !buf.is_empty() {
       let entity = commands
         .spawn()
-        .insert(MeshBuffer(buf.buffer().unwrap().clone(), buf.len()))
+        .insert(ChunkMeshBuffer(buf.buffer().unwrap().clone(), buf.len()))
         .id();
       for mut view in views.iter_mut() {
         view.add(Opaque3d {
@@ -185,6 +184,99 @@ pub fn queue_chunks(
           pipeline,
           entity,
         });
+      }
+    }
+  }
+}
+
+pub fn extract_meshes(
+  mut render_world: ResMut<RenderWorld>,
+  mut meshes: Query<(&Handle<Mesh>, &Transform)>,
+  mesh_assets: Res<Assets<Mesh>>,
+) {
+  for meshes in meshes.iter() {
+    let a = mesh_assets.get(meshes.0.clone());
+    render_world.spawn().insert(meshes.0.clone());
+    // match
+    // let mesh: &Mesh = mesh_assets.get(meshes.0).unwrap();
+    // mesh.get_vertex_buffer_data()
+  }
+  // render_world.insert_resource(updated);
+}
+
+pub fn queue_meshes(
+  mut commands: Commands,
+  mut views: Query<&mut RenderPhase<Opaque3d>>,
+  draw_functions: Res<DrawFunctions<Opaque3d>>,
+  mut pipelines: ResMut<SpecializedRenderPipelines<MeshPipeline>>,
+  mut pipeline_cache: ResMut<PipelineCache>,
+  chunk_pipeline: Res<MeshPipeline>,
+  (render_device, render_queue): (Res<RenderDevice>, Res<RenderQueue>),
+  view_uniforms: Res<ViewUniforms>,
+  mut view_bind_group: ResMut<MeshViewBindGroup>,
+  gpu_images: Res<RenderAssets<Image>>,
+  (handle, mut bind_group): (
+    Res<TextureHandle>,
+    ResMut<MeshTextureBindGroup>,
+  ),
+  qq: Res<RenderAssets<Mesh>>,
+  q : Query<(&Handle<Mesh>)>
+) {
+  if let Some(gpu_image) = gpu_images.get(&handle.0) {
+    *bind_group = MeshTextureBindGroup {
+      bind_group: Some(render_device.create_bind_group(&BindGroupDescriptor {
+        entries: &[
+          BindGroupEntry {
+            binding: 0,
+            resource: BindingResource::TextureView(&gpu_image.texture_view),
+          },
+          BindGroupEntry {
+            binding: 1,
+            resource: BindingResource::Sampler(&gpu_image.sampler),
+          },
+        ],
+        label: Some("block_material_bind_group"),
+        layout: &chunk_pipeline.texture_layout,
+      })),
+    };
+  }
+  //
+  // // TODO: make it generic
+  if let Some(view_binding) = view_uniforms.uniforms.binding() {
+    view_bind_group.bind_group = Some(render_device.create_bind_group(&BindGroupDescriptor {
+      entries: &[BindGroupEntry {
+        binding: 0,
+        resource: view_binding,
+      }],
+      label: Some("view_bind_group"),
+      layout: &chunk_pipeline.view_layout,
+    }));
+  }
+  //
+  let draw_function = draw_functions.read().get_id::<DrawMeshFull>().unwrap();
+  //
+  let pipeline = pipelines.specialize(&mut pipeline_cache, &chunk_pipeline, ());
+
+  // buf.write_buffer(&render_device, &render_queue);
+
+  for i in q.iter() {
+    if let Some(i) = qq.get(i) {
+      match &i.buffer_info {
+        GpuBufferInfo::Indexed { buffer, count, index_format } => {
+          let entity = commands
+            .spawn()
+            .insert(MeshBuffer(i.vertex_buffer.clone(), buffer.clone(), *count as usize))
+            .id();
+          for mut view in views.iter_mut() {
+            view.add(Opaque3d {
+              distance: -0.2,
+              draw_function,
+              pipeline,
+              entity,
+            });
+          }
+        }
+        GpuBufferInfo::NonIndexed { .. } => {}
       }
     }
   }
