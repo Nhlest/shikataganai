@@ -8,8 +8,8 @@ use crate::ecs::plugins::animation::AnimationPlugin;
 #[allow(unused_imports)]
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::prelude::{App, Mesh};
-use bevy::DefaultPlugins;
 use bevy::render::render_asset::RenderAssetPlugin;
+use bevy::DefaultPlugins;
 use bevy_embedded_assets::EmbeddedAssetPlugin;
 use bevy_rapier3d::prelude::{NoUserData, RapierPhysicsPlugin};
 
@@ -18,7 +18,7 @@ use crate::ecs::plugins::game::GamePlugin;
 use crate::ecs::plugins::imgui::{ImguiPlugin, ImguiState};
 use crate::ecs::plugins::preamble::Preamble;
 use crate::ecs::plugins::settings::SettingsPlugin;
-use crate::ecs::plugins::voxel::{MeshRendererPlugin, ShikataganaiRendererPlugins, VoxelRendererPlugin};
+use crate::ecs::plugins::voxel::ShikataganaiRendererPlugins;
 
 mod ecs;
 mod util;

@@ -1,5 +1,5 @@
 use crate::ecs::plugins::camera::Selection;
-use crate::ecs::plugins::settings::{FullScreen, MouseSensitivity, Resolution, Settings, VSync};
+use crate::ecs::plugins::settings::{AmbientOcclusion, FullScreen, MouseSensitivity, Resolution, Settings, VSync};
 use bevy::app::AppExit;
 use bevy::prelude::*;
 use bevy::winit::WinitWindows;
@@ -36,6 +36,7 @@ fn exit(
   resolution: Res<Resolution>,
   vsync: Res<VSync>,
   fullscreen: Res<FullScreen>,
+  ambient_occlusion: Res<AmbientOcclusion>,
 ) {
   if events.iter().next().is_some() || w.windows.is_empty() {
     let mut file = OpenOptions::new()
@@ -51,6 +52,7 @@ fn exit(
       width: resolution.width,
       vsync: vsync.0,
       fullscreen: fullscreen.0,
+      ambient_occlusion: ambient_occlusion.0,
     })
     .unwrap();
 

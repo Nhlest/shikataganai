@@ -7,8 +7,30 @@ use std::ops::{Index, IndexMut};
 pub type DD = (i32, i32);
 pub type DDD = (i32, i32, i32);
 
+#[inline]
+pub fn neg_ddd(a: DDD) -> DDD {
+  (-a.0, -a.1, -a.2)
+}
+
+#[inline]
+pub fn add_ddd(a: DDD, b: DDD) -> DDD {
+  (a.0 + b.0, a.1 + b.1, a.2 + b.2)
+}
+
+#[inline]
+pub fn sub_ddd(a: DDD, b: DDD) -> DDD {
+  (a.0 - b.0, a.1 - b.1, a.2 - b.2)
+}
+
 pub trait ImmediateNeighbours {
   fn immeidate_neighbours(&self) -> IntoIter<Self, 6>
+  where
+    Self: Sized;
+}
+
+pub trait FullNeighbours {
+  type It: Iterator<Item = Self>;
+  fn full_neighbours(&self) -> Self::It
   where
     Self: Sized;
 }
@@ -24,6 +46,40 @@ impl ImmediateNeighbours for DDD {
       (self.0, self.1, self.2 + 1),
     ]
     .into_iter()
+  }
+}
+
+pub struct FullNeighoursIter<T> {
+  base: T,
+  offset: Option<T>,
+}
+
+impl Iterator for FullNeighoursIter<DDD> {
+  type Item = DDD;
+
+  fn next(&mut self) -> Option<Self::Item> {
+    match self.offset {
+      None => None,
+      Some(offset) => {
+        let next = add_ddd(self.base, offset);
+        self.offset = offset.next(&((-1, -1, -1), (1, 1, 1)));
+        Some(next)
+      }
+    }
+  }
+}
+
+impl FullNeighbours for DDD {
+  type It = FullNeighoursIter<DDD>;
+
+  fn full_neighbours(&self) -> Self::It
+  where
+    Self: Sized,
+  {
+    FullNeighoursIter {
+      base: *self,
+      offset: Some((-1, -1, -1)),
+    }
   }
 }
 

@@ -4,7 +4,7 @@ use crate::ecs::resources::light::LightLevel;
 use crate::util::array::{ImmediateNeighbours, DD, DDD};
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
-use bevy::tasks::{AsyncComputeTaskPool};
+use bevy::tasks::AsyncComputeTaskPool;
 use bevy::utils::{HashMap, HashSet};
 use duplicate::duplicate_item;
 use std::mem::MaybeUninit;
@@ -151,7 +151,7 @@ impl<'w, 's> BlockAccessor for T<'w, 's> {
     let mut queue = vec![c];
     while !queue.is_empty() {
       let c = queue.pop().unwrap();
-      if self.get_single(c).map_or(false, |e|e.visible()) {
+      if self.get_single(c).map_or(false, |e| e.visible()) {
         self.set_light_level(c, LightLevel::dark());
         remesh.insert(ChunkMap::get_chunk_coord(c));
         continue;

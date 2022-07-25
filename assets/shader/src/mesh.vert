@@ -10,7 +10,11 @@ layout (set = 0, binding = 0) uniform View {
   vec3 world_position;
 } view;
 
+layout (set = 2, binding = 0) uniform Position {
+  mat4 position;
+} mesh_position;
+
 void main() {
-  gl_Position=view.view_proj * vec4(position + vec3(5.0, 37.5, 12.0), 1.0);
+  gl_Position=view.view_proj * mesh_position.position * vec4(position, 1.0);
   uv_out = uv;
 }

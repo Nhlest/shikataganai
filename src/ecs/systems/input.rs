@@ -3,12 +3,10 @@ use crate::ecs::plugins::camera::Selection;
 use crate::ecs::plugins::voxel::{RelightEvent, RelightType};
 use crate::ecs::resources::chunk_map::{BlockAccessor, BlockAccessorStatic};
 use crate::ecs::resources::player::{HotBarItem, HotBarItems, SelectedHotBar};
-use crate::util::array::DDD;
+use crate::util::array::{add_ddd, DDD};
 use bevy::input::mouse::MouseWheel;
 use bevy::prelude::*;
-use bevy_rapier3d::na::Isometry;
 use bevy_rapier3d::prelude::{Collider, InteractionGroups, RapierContext};
-use bevy_rapier3d::rapier::prelude::ColliderSet;
 
 pub fn action_input(
   mouse: Res<Input<MouseButton>>,
@@ -17,7 +15,7 @@ pub fn action_input(
   hotbar_selection: Res<SelectedHotBar>,
   mut block_accessor: BlockAccessorStatic,
   mut relight_events: EventWriter<RelightEvent>,
-  rapier_context: Res<RapierContext>
+  rapier_context: Res<RapierContext>,
 ) {
   let hotbar_selection = &hotbar_items.items[hotbar_selection.0 as usize];
   match selection.into_inner() {
@@ -30,7 +28,7 @@ pub fn action_input(
         source.1 - target_negative.1,
         source.2 - target_negative.2,
       );
-      let _target_positive = (source.0 + dx, source.1 + dy, source.2 + dz);
+      let _target_positive = add_ddd(source, (dx, dy, dz));
       let up = (source.0, source.1 + 1, source.2);
       let down = (source.0, source.1 - 1, source.2);
       match hotbar_selection {
@@ -38,6 +36,7 @@ pub fn action_input(
           if mouse.just_pressed(MouseButton::Left) {
             if let Some([source_block]) = block_accessor.get_many_mut([source]) {
               source_block.block = BlockId::Air;
+              //TODO: remesh neighbouring chunks
               relight_events.send(RelightEvent::Relight(RelightType::BlockRemoved, source));
             }
             // if let Some([target_positive_block, down_block]) = block_accessor.get_many_mut([target_positive, down]) {
@@ -52,11 +51,18 @@ pub fn action_input(
           if mouse.just_pressed(MouseButton::Right) {
             if let Some([target_negative_block]) = block_accessor.get_many_mut([target_negative]) {
               let shape = Collider::cuboid(0.45, 0.45, 0.45);
-              let shape_pos = Vec3::new(target_negative.0 as f32 + 0.5, target_negative.1 as f32 + 0.5, target_negative.2 as f32 + 0.5);
+              let shape_pos = Vec3::new(
+                target_negative.0 as f32 + 0.5,
+                target_negative.1 as f32 + 0.5,
+                target_negative.2 as f32 + 0.5,
+              );
               let shape_rot = Quat::IDENTITY;
               let groups = InteractionGroups::new(0b10, 0b01);
               let filter = None;
-              if rapier_context.intersection_with_shape(shape_pos, shape_rot, &shape, groups, filter).is_none() {
+              if rapier_context
+                .intersection_with_shape(shape_pos, shape_rot, &shape, groups, filter)
+                .is_none()
+              {
                 target_negative_block.block = BlockId::Cobble;
                 relight_events.send(RelightEvent::Relight(RelightType::BlockAdded, target_negative));
               }

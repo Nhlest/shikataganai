@@ -1,16 +1,21 @@
-use std::marker::PhantomData;
-use std::ops::Deref;
 use bevy::ecs::system::lifetimeless::{Read, SQuery, SRes};
 use bevy::ecs::system::SystemParamItem;
 use bevy::prelude::*;
-use bevy::render::render_phase::{PhaseItem, RenderCommand, RenderCommandResult, TrackedRenderPass};
+use bevy::render::render_component::DynamicUniformIndex;
+use bevy::render::render_phase::{
+  EntityRenderCommand, PhaseItem, RenderCommand, RenderCommandResult, TrackedRenderPass,
+};
+use bevy::render::render_resource::ShaderType;
 use bevy::render::render_resource::{BindGroup, Buffer, BufferVec};
 use bevy::render::view::ViewUniformOffset;
 use bevy::utils::hashbrown::HashMap;
 use bytemuck_derive::*;
+use std::marker::PhantomData;
+use std::ops::Deref;
 
 use crate::ecs::resources::block::BlockSprite;
-use crate::util::array::{DD, DDD};
+use crate::ecs::resources::chunk_map::{BlockAccessor, BlockAccessorStatic};
+use crate::util::array::{add_ddd, DD, DDD};
 
 pub enum RelightType {
   LightSourceAdded,
@@ -44,12 +49,45 @@ pub struct SingleVertex {
 #[derive(Copy, Clone, Pod, Zeroable)]
 pub struct SingleSide([SingleVertex; 6]);
 
+fn occluded(neighbours: &mut BlockAccessorStatic, c: DDD, vx: f32, vy: f32, vz: f32, sx: i32, sy: i32, sz: i32) -> u8 {
+  let edgex = ((vx * 2.0) - 1.0).round() as i32;
+  let edgey = ((vy * 2.0) - 1.0).round() as i32;
+  let edgez = ((vz * 2.0) - 1.0).round() as i32;
+
+  let (left, center, right) = if sx != 0 {
+    ((sx, edgey, 0), (sx, edgey, edgez), (sx, 0, edgez))
+  } else if sy != 0 {
+    ((edgex, sy, 0), (edgex, sy, edgez), (0, sy, edgez))
+  } else {
+    ((edgex, 0, sz), (edgex, edgey, sz), (0, edgey, sz))
+  };
+
+  let left = neighbours
+    .get_single(add_ddd(left, c))
+    .map_or(0, |x| if x.visible() { 1 } else { 0 });
+  let center = neighbours
+    .get_single(add_ddd(center, c))
+    .map_or(0, |x| if x.visible() { 1 } else { 0 });
+  let right = neighbours
+    .get_single(add_ddd(right, c))
+    .map_or(0, |x| if x.visible() { 1 } else { 0 });
+
+  let result = left + center + right;
+  if result == 2 && center == 0 {
+    3
+  } else {
+    result
+  }
+}
+
 impl SingleSide {
   pub fn new(
     (x, y, z): (f32, f32, f32),
     (ix, iy, iz): (i32, i32, i32),
     block: [BlockSprite; 6],
     lighting: (u8, u8),
+    neighbours: &mut BlockAccessorStatic,
+    ambient_occlusion: bool,
   ) -> Self {
     let fx = x;
     let fy = y;
@@ -85,7 +123,25 @@ impl SingleSide {
           uv1 / 8.0 + block[side].into_uv().0[1],
         ],
         tile_side: [x.floor() as i32, y.floor() as i32, z.floor() as i32, side as i32],
-        meta: [lighting.0, lighting.1, 0, 0],
+        meta: [
+          lighting.0,
+          lighting.1,
+          if ambient_occlusion {
+            occluded(
+              neighbours,
+              (x.round() as i32, y.round() as i32, z.round() as i32),
+              vx,
+              vy,
+              vz,
+              ix,
+              iy,
+              iz,
+            )
+          } else {
+            0
+          },
+          0,
+        ],
       },
     ))
   }
@@ -135,6 +191,11 @@ pub struct VoxelTextureBindGroup {
 
 #[derive(Default, Deref)]
 pub struct MeshTextureBindGroup {
+  pub bind_group: Option<BindGroup>,
+}
+
+#[derive(Default, Deref)]
+pub struct MeshPositionBindGroup {
   pub bind_group: Option<BindGroup>,
 }
 
@@ -320,11 +381,39 @@ pub const VERTEX: [[Vertex; 6]; 6] = [
   ],
 ];
 
+#[derive(Component, ShaderType, Clone)]
+pub struct PositionUniform {
+  pub transform: Mat4,
+}
+
+pub struct SetMeshPositionBindGroup<const I: usize>;
+impl<const I: usize> EntityRenderCommand for SetMeshPositionBindGroup<I> {
+  type Param = (
+    SRes<MeshPositionBindGroup>,
+    SQuery<Read<DynamicUniformIndex<PositionUniform>>>,
+  );
+  #[inline]
+  fn render<'w>(
+    _view: Entity,
+    item: Entity,
+    (mesh_bind_group, mesh_query): SystemParamItem<'w, '_, Self::Param>,
+    pass: &mut TrackedRenderPass<'w>,
+  ) -> RenderCommandResult {
+    let mesh_index = mesh_query.get(item).unwrap();
+    pass.set_bind_group(
+      I,
+      &mesh_bind_group.into_inner().as_ref().unwrap(),
+      &[mesh_index.index()],
+    );
+    RenderCommandResult::Success
+  }
+}
+
 pub struct SetBindGroup<const I: usize, T: Deref<Target = Option<BindGroup>> + Send + Sync + 'static> {
   _phantom: PhantomData<T>,
 }
 impl<P: PhaseItem, const I: usize, T: Deref<Target = Option<BindGroup>> + Send + Sync + 'static> RenderCommand<P>
-for SetBindGroup<I, T>
+  for SetBindGroup<I, T>
 {
   type Param = SRes<T>;
 
@@ -338,7 +427,6 @@ for SetBindGroup<I, T>
       pass.set_bind_group(I, texture_bind_group, &[]);
       RenderCommandResult::Success
     } else {
-      dbg!(11);
       RenderCommandResult::Failure
     }
   }
@@ -348,7 +436,9 @@ pub struct SetViewBindGroup<const I: usize, T: Deref<Target = Option<BindGroup>>
   _phantom: PhantomData<T>,
 }
 
-impl<P: PhaseItem, const I: usize, T: Deref<Target = Option<BindGroup>> + Send + Sync + 'static> RenderCommand<P> for SetViewBindGroup<I, T> {
+impl<P: PhaseItem, const I: usize, T: Deref<Target = Option<BindGroup>> + Send + Sync + 'static> RenderCommand<P>
+  for SetViewBindGroup<I, T>
+{
   type Param = (SRes<T>, SQuery<Read<ViewUniformOffset>>);
 
   fn render<'w>(
@@ -359,16 +449,10 @@ impl<P: PhaseItem, const I: usize, T: Deref<Target = Option<BindGroup>> + Send +
   ) -> RenderCommandResult {
     let view_uniform = view_query.get(view).unwrap();
     if let Some(b) = &bind_group.into_inner().deref().as_ref() {
-      pass.set_bind_group(
-        I,
-        b,
-        &[view_uniform.offset],
-      );
+      pass.set_bind_group(I, b, &[view_uniform.offset]);
       RenderCommandResult::Success
     } else {
-      dbg!(12);
       RenderCommandResult::Failure
     }
   }
 }
-

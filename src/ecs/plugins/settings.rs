@@ -14,6 +14,7 @@ pub struct Settings {
   pub width: f32,
   pub vsync: bool,
   pub fullscreen: bool,
+  pub ambient_occlusion: bool,
 }
 
 impl Default for Settings {
@@ -24,6 +25,7 @@ impl Default for Settings {
       width: 1920.0,
       vsync: true,
       fullscreen: false,
+      ambient_occlusion: true,
     }
   }
 }
@@ -37,6 +39,7 @@ pub struct Resolution {
 
 pub struct VSync(pub bool);
 pub struct FullScreen(pub bool);
+pub struct AmbientOcclusion(pub bool);
 
 impl VSync {
   pub fn as_present_mode(&self) -> PresentMode {
@@ -75,5 +78,6 @@ impl Plugin for SettingsPlugin {
     });
     app.insert_resource(VSync(toml.vsync));
     app.insert_resource(FullScreen(toml.fullscreen));
+    app.insert_resource(AmbientOcclusion(toml.ambient_occlusion));
   }
 }

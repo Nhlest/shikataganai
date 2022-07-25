@@ -18,8 +18,6 @@ pub struct Player;
 pub struct FPSCamera {
   phi: f32,
   theta: f32,
-  phi_a: f32,
-  theta_a: f32,
 }
 
 impl Plugin for CameraPlugin {
@@ -27,8 +25,6 @@ impl Plugin for CameraPlugin {
     let fps_camera = FPSCamera {
       phi: 0.0,
       theta: f32::FRAC_PI_2(),
-      phi_a: 0.0,
-      theta_a: 0.0,
     };
     let camera = {
       let perspective_projection = PerspectiveProjection {
@@ -101,16 +97,10 @@ fn movement_input_system(
 
   if window.cursor_locked() {
     for MouseMotion { delta } in mouse_events.iter() {
-      fps_camera.phi_a += delta.x * mouse_sensitivity.0 * 0.04;
-      fps_camera.theta_a = fps_camera.theta_a + delta.y * mouse_sensitivity.0 * 0.04;
+      fps_camera.phi += delta.x * mouse_sensitivity.0 * time.delta().as_secs_f32() * 0.25;
+      fps_camera.theta = (fps_camera.theta + delta.y * mouse_sensitivity.0 * time.delta().as_secs_f32() * 0.25)
+        .clamp(0.05, f32::PI() - 0.05);
     }
-
-    fps_camera.phi += fps_camera.phi_a * time.delta().as_secs_f32();
-    fps_camera.theta =
-      (fps_camera.theta + fps_camera.theta_a * time.delta().as_secs_f32()).clamp(0.05, f32::PI() - 0.05);
-
-    fps_camera.phi_a *= 0.70;
-    fps_camera.theta_a *= 0.70;
 
     if key_events.pressed(KeyCode::W) {
       let mut fwd = transform.forward();

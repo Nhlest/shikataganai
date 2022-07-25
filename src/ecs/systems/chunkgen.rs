@@ -1,7 +1,7 @@
-use crate::ecs::plugins::voxel::RemeshEvent;
-use crate::ecs::resources::chunk_map::{ChunkMap};
-use bevy::prelude::*;
 use crate::ecs::components::chunk::ChunkTask;
+use crate::ecs::plugins::voxel::RemeshEvent;
+use crate::ecs::resources::chunk_map::ChunkMap;
+use bevy::prelude::*;
 
 pub fn collect_async_chunks(
   mut chunk_map: ResMut<ChunkMap>,
@@ -15,7 +15,11 @@ pub fn collect_async_chunks(
       let mut meta = chunk_map.map.get_mut(&task.coord).unwrap();
       meta.entity = Some(e);
       commands.entity(e).remove::<ChunkTask>();
-      remesh.send(RemeshEvent::Remesh(task.coord));
+      for i in task.coord.0 - 1..=task.coord.0 + 1 {
+        for j in task.coord.1 - 1..=task.coord.1 + 1 {
+          remesh.send(RemeshEvent::Remesh((i, j)));
+        }
+      }
     }
   }
 }

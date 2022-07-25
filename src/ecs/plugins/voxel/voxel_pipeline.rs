@@ -1,32 +1,30 @@
-use bevy::ecs::system::lifetimeless::{Read, SQuery, SRes};
+use bevy::ecs::system::lifetimeless::{Read, SQuery};
 use bevy::ecs::system::SystemParamItem;
 use bevy::prelude::*;
 use bevy::reflect::TypeUuid;
 use bevy::render::mesh::PrimitiveTopology;
-use bevy::render::render_phase::{
-  EntityRenderCommand, PhaseItem, RenderCommand, RenderCommandResult, SetItemPipeline, TrackedRenderPass,
-};
+use bevy::render::render_phase::{EntityRenderCommand, RenderCommandResult, SetItemPipeline, TrackedRenderPass};
 use bevy::render::render_resource::{
-  BindGroup, BindGroupLayout, BindGroupLayoutEntry, BindingType, BlendState, BufferBindingType, ColorTargetState,
-  ColorWrites, CompareFunction, DepthStencilState, Face, FragmentState, FrontFace, MultisampleState, PolygonMode,
-  PrimitiveState, RenderPipelineDescriptor, SamplerBindingType, ShaderStages, ShaderType, SpecializedRenderPipeline,
-  TextureFormat, TextureSampleType, TextureViewDimension, VertexBufferLayout, VertexFormat, VertexState,
-  VertexStepMode,
+  BindGroupLayout, BindGroupLayoutEntry, BindingType, BlendState, BufferBindingType, ColorTargetState, ColorWrites,
+  CompareFunction, DepthStencilState, Face, FragmentState, FrontFace, MultisampleState, PolygonMode, PrimitiveState,
+  RenderPipelineDescriptor, SamplerBindingType, ShaderStages, ShaderType, SpecializedRenderPipeline, TextureFormat,
+  TextureSampleType, TextureViewDimension, VertexBufferLayout, VertexFormat, VertexState, VertexStepMode,
 };
 use bevy::render::renderer::RenderDevice;
 use bevy::render::texture::BevyDefault;
-use bevy::render::view::{ViewUniform, ViewUniformOffset};
-use std::marker::PhantomData;
-use std::ops::Deref;
+use bevy::render::view::ViewUniform;
 use wgpu::BindGroupLayoutDescriptor;
 
 use bevy::core_pipeline::Opaque3d;
-use bevy::prelude::*;
 use bevy::render::render_phase::AddRenderCommand;
 use bevy::render::render_resource::SpecializedRenderPipelines;
 use bevy::render::{RenderApp, RenderStage};
 
-use crate::ecs::plugins::voxel::{extract_chunks, ExtractedBlocks, LightTextureBindGroup, LightTextureHandle, ChunkMeshBuffer, queue_chunks, RelightEvent, RemeshEvent, SelectionBindGroup, SetBindGroup, SetViewBindGroup, TextureHandle, VoxelTextureBindGroup, VoxelViewBindGroup};
+use crate::ecs::plugins::voxel::{
+  extract_chunks, queue_chunks, ChunkMeshBuffer, ExtractedBlocks, LightTextureBindGroup, LightTextureHandle,
+  RelightEvent, RemeshEvent, SelectionBindGroup, SetBindGroup, SetViewBindGroup, TextureHandle, VoxelTextureBindGroup,
+  VoxelViewBindGroup,
+};
 
 pub struct VoxelPipeline {
   pub view_layout: BindGroupLayout,

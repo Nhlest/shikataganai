@@ -1,6 +1,6 @@
 use crate::ecs::plugins::camera::MainMenuOpened;
 use crate::ecs::plugins::imgui::{BigFont, GUITextureAtlas};
-use crate::ecs::plugins::settings::{FullScreen, MouseSensitivity, Resolution, VSync};
+use crate::ecs::plugins::settings::{AmbientOcclusion, FullScreen, MouseSensitivity, Resolution, VSync};
 use crate::ecs::resources::player::{HotBarItems, SelectedHotBar};
 use crate::ecs::resources::ui::UiSprite;
 use crate::ImguiState;
@@ -88,6 +88,7 @@ pub fn main_menu(
   mut resolution: ResMut<Resolution>,
   mut vsync: ResMut<VSync>,
   mut fullscreen: ResMut<FullScreen>,
+  mut ambient_occlusion: ResMut<AmbientOcclusion>,
 ) {
   if !main_menu_opened.0 {
     return;
@@ -193,6 +194,7 @@ pub fn main_menu(
       if ui.checkbox("Fullscreen", &mut fullscreen.as_mut().0) {
         window.get_primary_mut().unwrap().set_mode(fullscreen.as_mode());
       }
+      ui.checkbox("Ambient Occlusion", &mut ambient_occlusion.as_mut().0);
       let w = ui.calc_text_size("Close");
       ui.set_cursor_pos([((x2 - x1) - w[0]) / 2.0, ui.cursor_pos()[1]]);
       if ui.button("Close") {
