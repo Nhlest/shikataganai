@@ -3,6 +3,7 @@
 #![feature(vec_into_raw_parts)]
 #![feature(box_syntax)]
 #![feature(slice_as_chunks)]
+#![feature(array_methods)]
 
 use crate::ecs::plugins::animation::AnimationPlugin;
 #[allow(unused_imports)]

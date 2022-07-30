@@ -17,7 +17,7 @@ imgui-sys = "*"
 duplicate = "*"
 itertools = "*"
 num-traits = "*"
-imgui-wgpu = "*"
+imgui-wgpu = { git = "https://github.com/Nhlest/imgui-wgpu-rs", branch = "master" }
 strum_macros = "*"
 futures-lite = "*"
 bytemuck_derive = "*"
@@ -46,7 +46,7 @@ features = ["simd-stable", "dim3"]
 git = "https://github.com/bevyengine/bevy"
 branch = "main"
 default-features = false
-features = ["bevy_winit", "png", "jpeg", "bevy_render", "bevy_core_pipeline"]
+features = ["bevy_winit", "png", "bevy_render", "bevy_core_pipeline"]
 
 [build-dependencies]
 glsl-to-spirv = "0.1.5"

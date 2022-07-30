@@ -1,7 +1,7 @@
 use crate::ecs::plugins::camera::MainMenuOpened;
 use crate::ecs::plugins::imgui::{BigFont, GUITextureAtlas};
 use crate::ecs::plugins::settings::{AmbientOcclusion, FullScreen, MouseSensitivity, Resolution, VSync};
-use crate::ecs::resources::player::{HotBarItems, SelectedHotBar};
+use crate::ecs::resources::player::{PlayerInventory, SelectedHotBar};
 use crate::ecs::resources::ui::UiSprite;
 use crate::ImguiState;
 use bevy::app::AppExit;
@@ -13,7 +13,7 @@ pub fn hot_bar(
   window: Res<Windows>,
   texture: Res<GUITextureAtlas>,
   selected_hotbar: Res<SelectedHotBar>,
-  hotbar_items: Res<HotBarItems>,
+  hotbar_items: Res<PlayerInventory>,
 ) {
   let active_window = window.get_primary().unwrap();
   let ui = imgui.get_current_frame();
@@ -45,10 +45,10 @@ pub fn hot_bar(
           .border_col([0.0, 0.0, 0.0, 1.0])
           .build(&ui);
         ui.set_cursor_pos(c);
-        let sprite = item.sprite();
+        // let sprite = item.sprite();
         imgui::Image::new(texture.0, [95.0, 95.0])
-          .uv0(sprite.into_uv().0)
-          .uv1(sprite.into_uv().1)
+          .uv0([1.0 / 8.0, 0.0])
+          .uv1([2.0 / 8.0, 1.0 / 8.0])
           .border_col([0.0, 0.0, 0.0, 1.0])
           .build(&ui);
         ui.same_line();

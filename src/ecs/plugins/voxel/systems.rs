@@ -9,6 +9,7 @@ use bevy::render::renderer::{RenderDevice, RenderQueue};
 use bevy::render::view::ViewUniforms;
 use bevy::render::RenderWorld;
 use itertools::Itertools;
+use num_traits::real::Real;
 use wgpu::util::BufferInitDescriptor;
 use wgpu::{BindGroupDescriptor, BindGroupEntry, BindingResource};
 
@@ -48,6 +49,7 @@ pub fn extract_chunks(
     extracted_blocks
       .blocks
       .insert(*ch, BufferVec::new(BufferUsages::VERTEX));
+    let extracted_blocks = extracted_blocks.blocks.get_mut(ch).unwrap();
     let entity = block_accessor.chunk_map.map[ch].entity.unwrap();
     let bounds = block_accessor.chunks.get(entity).unwrap().grid.bounds;
     let mut i = bounds.0;
@@ -62,7 +64,7 @@ pub fn extract_chunks(
               None => (0, 0),
             };
 
-            extracted_blocks.blocks.get_mut(ch).unwrap().push(SingleSide::new(
+            extracted_blocks.push(SingleSide::new(
               (i.0 as f32, i.1 as f32, i.2 as f32),
               sub_ddd(neighbour, i),
               block.block.into_array_of_faces(),

@@ -1,23 +1,24 @@
 use std::io::Cursor;
+use std::mem::MaybeUninit;
 use std::sync::{Arc, Mutex};
 
 use bevy::core_pipeline::node::MAIN_PASS_DRIVER;
-use bevy::input::mouse::{MouseButtonInput, MouseWheel};
 use bevy::input::{ButtonState, InputSystem};
+use bevy::input::mouse::{MouseButtonInput, MouseWheel};
 use bevy::prelude::*;
-use bevy::render::render_graph::{Node, NodeRunError, RenderGraph, RenderGraphContext};
+use bevy::render::render_graph::{Node, NodeRunError, RenderGraph, RenderGraphContext, SlotInfo, SlotType};
+use bevy::render::RenderApp;
 use bevy::render::renderer::{RenderContext, RenderDevice, RenderQueue};
 use bevy::render::view::ExtractedWindows;
-use bevy::render::RenderApp;
 use bevy::window::{WindowResized, WindowScaleFactorChanged};
 use bevy::winit::WinitWindows;
 use image::GenericImageView;
 use imgui::{Context, FontId, FontSource, TextureId, Ui};
-use imgui_wgpu::Texture as ImguiTexture;
+use imgui_wgpu::{Texture as ImguiTexture, Texture};
 use imgui_wgpu::{Renderer, RendererConfig, TextureConfig};
 use imgui_winit_support::WinitPlatform;
+use wgpu::{BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor, BindingResource, TextureDimension, TextureUsages};
 use wgpu::TextureFormat::Bgra8UnormSrgb;
-use wgpu::{TextureDimension, TextureUsages};
 use winit::dpi::{LogicalSize, PhysicalPosition, PhysicalSize};
 use winit::event::*;
 
@@ -35,6 +36,9 @@ impl !Sync for ImguiState {}
 
 pub struct SmallFont(pub FontId);
 pub struct BigFont(pub FontId);
+
+pub const IMGUI_PASS: &'static str = "Imgui Pass";
+pub const TEXTURE_NODE_INPUT_SLOT: &'static str = "Texture Slot Input";
 
 impl ImguiState {
   pub fn get_current_frame<'a>(&self) -> &'a mut Ui<'static> {
@@ -240,7 +244,9 @@ impl Plugin for ImguiPlugin {
     );
 
     texture.write(queue, diffuse_rgba.as_ref(), texture_size.width, texture_size.height);
-    app.insert_resource(GUITextureAtlas(renderer.textures.insert(texture)));
+    let tex_id = renderer.textures.insert(texture);
+    app.insert_resource(GUITextureAtlas(tex_id));
+    app.get_sub_app_mut(RenderApp).unwrap().insert_resource(GUITextureAtlas(tex_id));
 
     app.insert_non_send_resource(SmallFont(smol_font));
     app.insert_non_send_resource(BigFont(big_font));
@@ -255,9 +261,9 @@ impl Plugin for ImguiPlugin {
 
     if let Ok(render_app) = app.get_sub_app_mut(RenderApp) {
       let mut render_graph = render_app.world.get_resource_mut::<RenderGraph>().unwrap();
-      render_graph.add_node("Imgui Pass", ImguiNode::new(renderer));
+      render_graph.add_node(IMGUI_PASS, ImguiNode::new(renderer));
 
-      render_graph.add_node_edge(MAIN_PASS_DRIVER, "Imgui Pass").unwrap();
+      render_graph.add_node_edge(MAIN_PASS_DRIVER, IMGUI_PASS).unwrap();
     }
   }
 }
@@ -277,14 +283,57 @@ impl ImguiNode {
 impl Node for ImguiNode {
   fn update(&mut self, _world: &mut World) {}
 
+  fn input(&self) -> Vec<SlotInfo> {
+    vec![
+      SlotInfo {
+        name: TEXTURE_NODE_INPUT_SLOT.into(),
+        slot_type: SlotType::TextureView
+      }
+    ]
+  }
+
   fn run(
     &self,
-    _graph: &mut RenderGraphContext,
+    graph: &mut RenderGraphContext,
     render_context: &mut RenderContext,
     world: &World,
   ) -> Result<(), NodeRunError> {
+    let inventory_texture = graph.get_input_texture(TEXTURE_NODE_INPUT_SLOT).unwrap();
+
     let q = self.renderer.clone();
     let mut renderer = q.lock().unwrap();
+
+    let tex_id = world.resource::<GUITextureAtlas>().0;
+
+    let sampler = render_context.render_device.wgpu_device().create_sampler(
+      &wgpu::SamplerDescriptor {
+        address_mode_u: wgpu::AddressMode::ClampToEdge,
+        address_mode_v: wgpu::AddressMode::ClampToEdge,
+        address_mode_w: wgpu::AddressMode::ClampToEdge,
+        mag_filter: wgpu::FilterMode::Nearest,
+        min_filter: wgpu::FilterMode::Nearest,
+        mipmap_filter: wgpu::FilterMode::Nearest,
+        ..Default::default()
+      }
+    );
+
+    let mut bind_group = render_context.render_device.wgpu_device().create_bind_group(&BindGroupDescriptor {
+      label: Some("Inventory Texture Bind Group"),
+      layout: &renderer.texture_layout,
+      entries: &[
+        BindGroupEntry {
+          binding: 0,
+          resource: BindingResource::TextureView(&inventory_texture),
+        },
+        BindGroupEntry {
+          binding: 1,
+          resource: BindingResource::Sampler(&sampler),
+        },
+      ],
+    });
+
+    let tex = renderer.textures.get_mut(tex_id).unwrap();
+    tex.bind_group = bind_group;
 
     for (_, extracted_window) in &world.get_resource::<ExtractedWindows>().unwrap().windows {
       // TODO: save window id

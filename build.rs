@@ -5,10 +5,12 @@ use std::error::Error;
 
 fn main() -> Result<(), Box<dyn Error>> {
   // Tell the build script to only run again if we change our source shaders
-  println!("cargo:rerun-if-changed=assets/shader/src");
+  println!("cargo:rerun-if-changed=shaders/src");
+
+  let _ = std::fs::create_dir("shaders/output");
 
   // Create destination path if necessary
-  for entry in std::fs::read_dir("assets/shader/src")? {
+  for entry in std::fs::read_dir("shaders/src")? {
     let entry = entry?;
 
     if entry.file_type()?.is_file() {
@@ -32,7 +34,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         compiled_file.read_to_end(&mut compiled_bytes)?;
 
         // Determine the output path based on the input name
-        let out_path = format!("assets/shader/{}.spv", in_path.file_name().unwrap().to_string_lossy());
+        let out_path = format!("shaders/output/{}.spv", in_path.file_name().unwrap().to_string_lossy());
 
         std::fs::write(&out_path, &compiled_bytes)?;
       }

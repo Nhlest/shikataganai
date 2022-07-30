@@ -56,5 +56,4 @@ void main() {
 
   brightness = brightness_mod * texture(sampler2D(light_texture, light_sampler), vec2(meta[1] / 16.0 + 0.5 / 16.0, meta[0] / 16.0 + 0.5 / 16.0)).rgb;
   occlusion = 1.0 - float(meta[2]) / 4.0;
-  occlusion = 1.0 - cos((occlusion * 3.1415926) / 2.0);
 }

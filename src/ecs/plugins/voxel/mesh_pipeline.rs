@@ -181,7 +181,6 @@ impl SpecializedRenderPipeline for MeshPipeline {
   type Key = ();
 
   fn specialize(&self, _key: Self::Key) -> RenderPipelineDescriptor {
-    let shader_defs = Vec::new();
     let vertex_formats = vec![VertexFormat::Float32x3, VertexFormat::Float32x2];
 
     let vertex_layout = VertexBufferLayout::from_vertex_formats(VertexStepMode::Vertex, vertex_formats);
@@ -190,12 +189,12 @@ impl SpecializedRenderPipeline for MeshPipeline {
       vertex: VertexState {
         shader: MESH_SHADER_VERTEX_HANDLE.typed::<Shader>(),
         entry_point: "main".into(),
-        shader_defs: shader_defs.clone(),
+        shader_defs: vec![],
         buffers: vec![vertex_layout],
       },
       fragment: Some(FragmentState {
         shader: MESH_SHADER_FRAGMENT_HANDLE.typed::<Shader>(),
-        shader_defs,
+        shader_defs: vec![],
         entry_point: "main".into(),
         targets: vec![ColorTargetState {
           format: TextureFormat::bevy_default(),
@@ -383,8 +382,8 @@ fn spawn_mesh(
 impl Plugin for MeshRendererPlugin {
   fn build(&self, app: &mut App) {
     let mut shaders = app.world.resource_mut::<Assets<Shader>>();
-    let mesh_shader_vertex = Shader::from_spirv(include_bytes!("../../../../assets/shader/mesh.vert.spv").as_slice());
-    let mesh_shader_fragment = Shader::from_spirv(include_bytes!("../../../../assets/shader/mesh.frag.spv").as_slice());
+    let mesh_shader_vertex = Shader::from_spirv(include_bytes!("../../../../shaders/output/mesh.vert.spv").as_slice());
+    let mesh_shader_fragment = Shader::from_spirv(include_bytes!("../../../../shaders/output/mesh.frag.spv").as_slice());
     shaders.set_untracked(MESH_SHADER_VERTEX_HANDLE, mesh_shader_vertex);
     shaders.set_untracked(MESH_SHADER_FRAGMENT_HANDLE, mesh_shader_fragment);
 
