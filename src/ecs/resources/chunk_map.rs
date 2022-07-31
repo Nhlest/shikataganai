@@ -126,7 +126,8 @@ impl<'w, 's> BlockAccessor for T<'w, 's> {
     }
     self
       .get_chunk_entity_or_queue(c)
-      .map(move |entity| &self.chunks.get(entity).unwrap().grid[c])
+      .map(move |entity| self.chunks.get(entity).map(|ch| &ch.grid[c]).ok())
+      .flatten()
   }
   fn get_mut(&mut self, c: DDD) -> Option<&mut Block> {
     if c.1 < 0 || c.1 > 255 {

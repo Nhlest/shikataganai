@@ -445,8 +445,8 @@ checksum = "d92d5679e89602a18682a37846573dcd1979410179e14204280460ba9fb8713a"
 
 [[package]]
 name = "bevy_rapier3d"
-version = "0.15.0"
-source = "git+https://github.com/devil-ira/bevy_rapier?branch=update-to-bevy-0.8#ebf616aa2c96162627bf31411cb2cd4cef145727"
+version = "0.16.0"
+source = "git+https://github.com/dimforge/bevy_rapier#f0809f556fb2e97eba3fd1a07d50ab522e2f57df"
 dependencies = [
  "bevy",
  "bitflags",

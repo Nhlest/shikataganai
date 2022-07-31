@@ -69,8 +69,8 @@ impl Plugin for CameraPlugin {
     app
       .add_system(movement_input_system)
       .add_system(cursor_grab_system)
-      .add_system_to_stage(CoreStage::PreUpdate, collision_movement_system)
-      .add_system_to_stage(CoreStage::Update, block_pick);
+      .add_system_to_stage(CoreStage::PreUpdate, block_pick)
+      .add_system_to_stage(CoreStage::Update, collision_movement_system);
   }
 }
 
@@ -154,6 +154,7 @@ fn collision_movement_system(
   };
 
   let mut query = queries.p1();
+
   let mut iter = query.iter_mut();
 
   for ix in -3..=3 {
@@ -163,6 +164,7 @@ fn collision_movement_system(
         let c = to_ddd(c);
         if let Some(block) = block_accessor.get_single(c) {
           if !block.passable() {
+            // TODO: Blocks unexpectedly jump around rearranging themselves between those 2 systems.
             match iter.next() {
               None => {
                 block_accessor
