@@ -3,13 +3,11 @@ use crate::ecs::plugins::voxel::{
   PositionUniform, SetBindGroup, SetMeshPositionBindGroup, SetViewBindGroup,
 };
 use bevy::asset::{AssetLoader, BoxedFuture, LoadContext, LoadedAsset};
-use bevy::core_pipeline::Opaque3d;
 use bevy::ecs::system::lifetimeless::{Read, SQuery};
 use bevy::ecs::system::SystemParamItem;
 use bevy::prelude::*;
 use bevy::reflect::TypeUuid;
 use bevy::render::mesh::{Indices, MeshVertexAttribute, PrimitiveTopology, VertexAttributeValues};
-use bevy::render::render_component::UniformComponentPlugin;
 use bevy::render::render_phase::{
   AddRenderCommand, EntityRenderCommand, RenderCommandResult, SetItemPipeline, TrackedRenderPass,
 };
@@ -30,6 +28,8 @@ use bevy_rapier3d::prelude::*;
 use gltf::buffer::Source;
 use gltf::Gltf;
 use std::path::Path;
+use bevy::core_pipeline::core_3d::Opaque3d;
+use bevy::render::extract_component::UniformComponentPlugin;
 use strum_macros::EnumIter;
 use wgpu::{BindGroupLayoutDescriptor, IndexFormat};
 
@@ -196,11 +196,11 @@ impl SpecializedRenderPipeline for MeshPipeline {
         shader: MESH_SHADER_FRAGMENT_HANDLE.typed::<Shader>(),
         shader_defs: vec![],
         entry_point: "main".into(),
-        targets: vec![ColorTargetState {
+        targets: vec![Some(ColorTargetState {
           format: TextureFormat::bevy_default(),
           blend: Some(BlendState::ALPHA_BLENDING),
           write_mask: ColorWrites::ALL,
-        }],
+        })],
       }),
       layout: Some(vec![
         self.view_layout.clone(),

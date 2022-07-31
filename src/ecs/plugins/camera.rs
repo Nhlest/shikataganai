@@ -3,7 +3,7 @@ use crate::ecs::resources::chunk_map::{BlockAccessor, BlockAccessorSpawner};
 use crate::util::array::{to_ddd, DDD};
 use bevy::input::mouse::MouseMotion;
 use bevy::prelude::*;
-use bevy::render::camera::CameraProjection;
+use bevy::render::camera::{CameraProjection, Projection};
 use bevy::render::primitives::Frustum;
 use bevy_rapier3d::parry::query::Ray;
 use bevy_rapier3d::prelude::*;
@@ -36,15 +36,10 @@ impl Plugin for CameraPlugin {
       let view_projection = perspective_projection.get_projection_matrix();
       let frustum =
         Frustum::from_view_projection(&view_projection, &Vec3::ZERO, &Vec3::Z, perspective_projection.far());
-      PerspectiveCameraBundle {
-        camera: Camera {
-          projection_matrix: perspective_projection.get_projection_matrix(),
-          target: Default::default(),
-          depth_calculation: Default::default(),
-        },
-        perspective_projection,
+      Camera3dBundle {
+        projection: Projection::Perspective(perspective_projection),
         frustum,
-        ..default()
+        .. default()
       }
     };
     app

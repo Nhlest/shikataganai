@@ -1,3 +1,4 @@
+use bevy::core_pipeline::core_3d::Opaque3d;
 use bevy::ecs::system::lifetimeless::{Read, SQuery};
 use bevy::ecs::system::SystemParamItem;
 use bevy::prelude::*;
@@ -15,7 +16,6 @@ use bevy::render::texture::BevyDefault;
 use bevy::render::view::ViewUniform;
 use wgpu::BindGroupLayoutDescriptor;
 
-use bevy::core_pipeline::Opaque3d;
 use bevy::render::render_phase::AddRenderCommand;
 use bevy::render::render_resource::SpecializedRenderPipelines;
 use bevy::render::{RenderApp, RenderStage};
@@ -63,11 +63,11 @@ impl SpecializedRenderPipeline for VoxelPipeline {
         shader: VOXEL_SHADER_FRAGMENT_HANDLE.typed::<Shader>(),
         shader_defs,
         entry_point: "main".into(),
-        targets: vec![ColorTargetState {
+        targets: vec![Some(ColorTargetState {
           format: TextureFormat::bevy_default(),
           blend: Some(BlendState::ALPHA_BLENDING),
           write_mask: ColorWrites::ALL,
-        }],
+        })],
       }),
       layout: Some(vec![
         self.view_layout.clone(),

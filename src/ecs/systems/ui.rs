@@ -17,6 +17,8 @@ pub fn hot_bar(
 ) {
   let active_window = window.get_primary().unwrap();
   let ui = imgui.get_current_frame();
+  let x1 = active_window.width() / 2.0 - 2.0;
+  let y1 = active_window.height() / 2.0 - 2.0;
   imgui::Window::new("HotBar")
     .title_bar(false)
     .resizable(false)
@@ -31,6 +33,7 @@ pub fn hot_bar(
     )
     .size([1080.0, 100.0], Condition::Always)
     .build(ui, || {
+      ui.get_background_draw_list().add_rect([x1, y1], [x1 + 4.0, y1 + 4.0], [0.1, 0.1, 0.1, 1.0]).build();
       let _a = ui.push_style_var(StyleVar::ItemSpacing([2.5, 2.5]));
       for (i, item) in hotbar_items.items.iter().enumerate() {
         let c = ui.cursor_pos();
@@ -57,26 +60,6 @@ pub fn hot_bar(
     .unwrap();
 }
 
-pub fn cursor(imgui: NonSendMut<ImguiState>, window: Res<Windows>) {
-  let active_window = window.get_primary().unwrap();
-  let ui = imgui.get_current_frame();
-  let _a = ui.push_style_var(StyleVar::WindowPadding([0.0, 0.0]));
-  let _b = ui.push_style_var(StyleVar::WindowMinSize([0.0, 0.0]));
-  let _c = ui.push_style_var(StyleVar::WindowBorderSize(0.0));
-  imgui::Window::new("Cursor")
-    .title_bar(false)
-    .resizable(false)
-    .scrollable(false)
-    .scroll_bar(false)
-    .position(
-      [active_window.width() / 2.0 - 2.0, active_window.height() / 2.0 - 2.0],
-      Condition::Always,
-    )
-    .size([4.0, 4.0], Condition::Always)
-    .build(ui, || {})
-    .unwrap();
-}
-
 pub fn main_menu(
   imgui: NonSendMut<ImguiState>,
   mut window: ResMut<Windows>,
@@ -95,6 +78,7 @@ pub fn main_menu(
   }
   let active_window = window.get_primary_mut().unwrap();
   let ui = imgui.get_current_frame();
+
   imgui::Window::new("Main Menu")
     // .title_bar(false)
     .resizable(false)

@@ -5,6 +5,7 @@ use bevy::prelude::*;
 use bevy::winit::WinitWindows;
 use std::fs::OpenOptions;
 use std::io::Write;
+use bevy::render::texture::ImageSettings;
 
 pub struct Preamble;
 
@@ -23,6 +24,7 @@ impl Plugin for Preamble {
         mode: fullscreen.as_mode(),
         ..default()
       })
+      .insert_resource(ImageSettings::default_nearest())
       .insert_resource(Msaa { samples: 1 })
       .init_resource::<Option<Selection>>()
       .add_system_to_stage(CoreStage::Last, exit);

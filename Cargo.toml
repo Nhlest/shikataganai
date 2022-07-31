@@ -7,49 +7,49 @@ edition = "2021"
 rand = "*"
 wgpu = "*"
 toml = "*"
+gltf = "*"
 image = "*"
 imgui = "*"
 winit = "*"
 serde = "*"
 strum = "*"
+base64 = "*"
+anyhow = "*"
 bytemuck = "*"
 imgui-sys = "*"
 duplicate = "*"
 itertools = "*"
 num-traits = "*"
-imgui-wgpu = { git = "https://github.com/Nhlest/imgui-wgpu-rs", branch = "master" }
 strum_macros = "*"
 futures-lite = "*"
 bytemuck_derive = "*"
-bevy_framepace = { git = "https://github.com/aevyrie/bevy_framepace", branch = "main" }
-imgui-winit-support = { version = "*", default-features = false, features = [ "winit-26" ] }
-base64 = "*"
 percent-encoding = "*"
-anyhow = "*"
-gltf = "*"
+imgui-wgpu = { git = "https://github.com/Nhlest/imgui-wgpu-rs", branch = "master" }
+imgui-winit-support = { version = "*", default-features = false, features = [ "winit-26" ] }
 
-[features]
-default = []
-trace = ["bevy/trace", "bevy/trace_tracy"]
+bevy_embedded_assets = "0.4"
+#bevy_framepace = { git = "https://github.com/aevyrie/bevy_framepace", branch = "main" }
 
-[dependencies.bevy_embedded_assets]
-git = "https://github.com/Nhlest/bevy_embedded_assets"
-branch = "main"
+# Dependencies
+#[dependencies.nalgebra]
+#git = "https://github.com/dimforge/nalgebra"
+#branch = "dev"
 
-[dependencies.bevy_rapier3d]
-git = "https://github.com/Nhlest/bevy_rapier"
-branch = "master"
-default-features = false
-features = ["simd-stable", "dim3"]
+#[dependencies.bevy_rapier3d]
+#git = "https://github.com/Nhlest/bevy_rapier"
+#branch = "master"
+#default-features = false
+#features = ["simd-stable", "dim3"]
 
 [dependencies.bevy]
-git = "https://github.com/bevyengine/bevy"
-branch = "main"
+version = "0.8"
 default-features = false
-features = ["bevy_winit", "png", "bevy_render", "bevy_core_pipeline"]
+features = ["x11", "bevy_winit", "png", "bevy_render", "bevy_core_pipeline"]
 
 [build-dependencies]
 glsl-to-spirv = "0.1.5"
+
+# Profile
 
 [profile.release]
 strip = true
@@ -63,3 +63,9 @@ overflow-checks = false
 strip = true
 opt-level = 3
 overflow-checks = false
+
+# Features
+
+[features]
+default = []
+trace = ["bevy/trace", "bevy/trace_tracy"]

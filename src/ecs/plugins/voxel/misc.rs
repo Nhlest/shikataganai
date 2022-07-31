@@ -1,7 +1,6 @@
 use bevy::ecs::system::lifetimeless::{Read, SQuery, SRes};
 use bevy::ecs::system::SystemParamItem;
 use bevy::prelude::*;
-use bevy::render::render_component::DynamicUniformIndex;
 use bevy::render::render_phase::{
   EntityRenderCommand, PhaseItem, RenderCommand, RenderCommandResult, TrackedRenderPass,
 };
@@ -12,9 +11,10 @@ use bevy::utils::hashbrown::HashMap;
 use bytemuck_derive::*;
 use std::marker::PhantomData;
 use std::ops::Deref;
+use bevy::render::extract_component::DynamicUniformIndex;
 
 use crate::ecs::resources::block::BlockSprite;
-use crate::ecs::resources::chunk_map::{BlockAccessor, BlockAccessorStatic};
+use crate::ecs::resources::chunk_map::{BlockAccessor, BlockAccessorReadOnly, BlockAccessorStatic};
 use crate::util::array::{add_ddd, DD, DDD};
 
 pub enum RelightType {
@@ -49,7 +49,7 @@ pub struct SingleVertex {
 #[derive(Copy, Clone, Pod, Zeroable)]
 pub struct SingleSide([SingleVertex; 6]);
 
-fn occluded(neighbours: &mut BlockAccessorStatic, c: DDD, vx: f32, vy: f32, vz: f32, sx: i32, sy: i32, sz: i32) -> u8 {
+fn occluded(neighbours: &BlockAccessorReadOnly, c: DDD, vx: f32, vy: f32, vz: f32, sx: i32, sy: i32, sz: i32) -> u8 {
   let edgex = ((vx * 2.0) - 1.0).round() as i32;
   let edgey = ((vy * 2.0) - 1.0).round() as i32;
   let edgez = ((vz * 2.0) - 1.0).round() as i32;
@@ -86,7 +86,7 @@ impl SingleSide {
     (ix, iy, iz): (i32, i32, i32),
     block: [BlockSprite; 6],
     lighting: (u8, u8),
-    neighbours: &mut BlockAccessorStatic,
+    neighbours: &BlockAccessorReadOnly,
     ambient_occlusion: bool,
   ) -> Self {
     let fx = x;

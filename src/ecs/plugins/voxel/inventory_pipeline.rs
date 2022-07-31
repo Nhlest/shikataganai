@@ -83,11 +83,11 @@ impl InventoryNode {
           shader: INVENTORY_SHADER_FRAGMENT_HANDLE.typed::<Shader>(),
           shader_defs: vec![],
           entry_point: "main".into(),
-          targets: vec![ColorTargetState {
+          targets: vec![Some(ColorTargetState {
             format: TextureFormat::bevy_default(),
             blend: Some(BlendState::ALPHA_BLENDING),
             write_mask: ColorWrites::ALL,
-          }],
+          })],
         }),
         layout: Some(vec![view_layout.clone(), texture_layout.clone()]),
         primitive: PrimitiveState {
@@ -221,7 +221,7 @@ impl Node for InventoryNode {
         let mut pass = render_context.command_encoder.begin_render_pass(&RenderPassDescriptor {
           label: Some("offscreen_pass"),
           color_attachments: &[
-            RenderPassColorAttachment {
+            Some(RenderPassColorAttachment {
               view: &view,
               resolve_target: None,
               ops: Operations {
@@ -233,7 +233,7 @@ impl Node for InventoryNode {
                 }),
                 store: true
               }
-            }
+            })
           ],
           depth_stencil_attachment: None
         });

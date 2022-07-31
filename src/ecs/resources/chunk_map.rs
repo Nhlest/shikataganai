@@ -2,7 +2,7 @@ use crate::ecs::components::block::Block;
 use crate::ecs::components::chunk::{Chunk, ChunkTask};
 use crate::ecs::resources::light::LightLevel;
 use crate::util::array::{ImmediateNeighbours, DD, DDD};
-use bevy::ecs::system::SystemParam;
+use bevy::ecs::system::{ReadOnlySystemParamFetch, SystemMeta, SystemParam, SystemParamFetch};
 use bevy::prelude::*;
 use bevy::tasks::AsyncComputeTaskPool;
 use bevy::utils::{HashMap, HashSet};
@@ -24,13 +24,19 @@ pub struct BlockAccessorSpawner<'w, 's> {
   pub chunk_map: ResMut<'w, ChunkMap>,
   pub chunks: Query<'w, 's, &'static mut Chunk>,
   pub commands: Commands<'w, 's>,
-  pub dispatcher: Res<'w, AsyncComputeTaskPool>,
+  // pub dispatcher: Res<'w, AsyncComputeTaskPool>,
 }
 
 #[derive(SystemParam)]
 pub struct BlockAccessorStatic<'w, 's> {
   pub chunk_map: ResMut<'w, ChunkMap>,
   pub chunks: Query<'w, 's, &'static mut Chunk>,
+}
+
+#[derive(SystemParam)]
+pub struct BlockAccessorReadOnly<'w, 's> {
+  pub chunk_map: Res<'w, ChunkMap>,
+  pub chunks: Query<'w, 's, &'static Chunk>,
 }
 
 pub trait BlockAccessorInternal<'w, 's> {
@@ -50,10 +56,12 @@ impl<'w, 's> BlockAccessorInternal<'w, 's> for BlockAccessorStatic<'w, 's> {
 
 impl<'w, 's> BlockAccessorInternal<'w, 's> for BlockAccessorSpawner<'w, 's> {
   fn get_chunk_entity_or_queue(&mut self, c: DDD) -> Option<Entity> {
+    let dispatcher = AsyncComputeTaskPool::get();
+
     let chunk_coord = ChunkMap::get_chunk_coord(c);
     match self.chunk_map.map.get(&chunk_coord) {
       None => {
-        let task = self.dispatcher.spawn(Chunk::generate(chunk_coord));
+        let task = dispatcher.spawn(Chunk::generate(chunk_coord));
         self.chunk_map.map.insert(chunk_coord, ChunkMeta::generating());
         self.commands.spawn().insert(ChunkTask {
           task,
@@ -74,6 +82,39 @@ pub trait BlockAccessor {
   fn get_light_level(&mut self, c: DDD) -> Option<LightLevel>;
   fn set_light_level(&mut self, c: DDD, light: LightLevel);
   fn propagate_light(&mut self, c: DDD, remesh: &mut HashSet<DD>);
+}
+
+impl<'w, 's> BlockAccessorReadOnly<'w, 's> {
+  pub fn get_chunk_entity_or_queue(&self, c: DDD) -> Option<Entity> {
+    let chunk_coord = ChunkMap::get_chunk_coord(c);
+    match self.chunk_map.map.get(&chunk_coord) {
+      None => None,
+      Some(ChunkMeta { entity: None }) => None,
+      Some(ChunkMeta { entity: Some(entity) }) => Some(*entity),
+    }
+  }
+
+  pub fn get_single(&self, c: DDD) -> Option<&Block> {
+    if c.1 < 0 || c.1 > 255 {
+      return None;
+    }
+    self
+      .get_chunk_entity_or_queue(c)
+      .map(move |entity| &self.chunks.get(entity).unwrap().grid[c])
+  }
+
+  pub fn get_light_level(&self, c: DDD) -> Option<LightLevel> {
+    if c.1 < 0 || c.1 > 255 {
+      return None;
+    }
+    self
+      .get_chunk_entity_or_queue(c)
+      .map(|entity| {
+        let chunk = self.chunks.get(entity).unwrap();
+        (!chunk.grid[c].visible()).then_some(chunk.light_map[c])
+      })
+      .flatten()
+  }
 }
 
 #[duplicate_item(T; [BlockAccessorSpawner]; [BlockAccessorStatic])]

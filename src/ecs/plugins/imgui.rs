@@ -1,8 +1,10 @@
 use std::io::Cursor;
 use std::mem::MaybeUninit;
 use std::sync::{Arc, Mutex};
+use bevy::core_pipeline::core_3d;
+use bevy::core_pipeline::core_3d::graph::node::MAIN_PASS;
 
-use bevy::core_pipeline::node::MAIN_PASS_DRIVER;
+// use bevy::core_pipeline::node::MAIN_PASS_DRIVER;
 use bevy::input::{ButtonState, InputSystem};
 use bevy::input::mouse::{MouseButtonInput, MouseWheel};
 use bevy::prelude::*;
@@ -262,8 +264,6 @@ impl Plugin for ImguiPlugin {
     if let Ok(render_app) = app.get_sub_app_mut(RenderApp) {
       let mut render_graph = render_app.world.get_resource_mut::<RenderGraph>().unwrap();
       render_graph.add_node(IMGUI_PASS, ImguiNode::new(renderer));
-
-      render_graph.add_node_edge(MAIN_PASS_DRIVER, IMGUI_PASS).unwrap();
     }
   }
 }
@@ -344,14 +344,14 @@ impl Node for ImguiNode {
         .command_encoder
         .begin_render_pass(&wgpu::RenderPassDescriptor {
           label: None,
-          color_attachments: &[wgpu::RenderPassColorAttachment {
+          color_attachments: &[Some(wgpu::RenderPassColorAttachment {
             view: &swap_chain_texture,
             resolve_target: None,
             ops: wgpu::Operations {
               load: wgpu::LoadOp::Load,
               store: true,
             },
-          }],
+          })],
           depth_stencil_attachment: None,
         });
 

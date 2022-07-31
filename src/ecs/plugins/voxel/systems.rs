@@ -1,19 +1,21 @@
-use bevy::core_pipeline::Opaque3d;
+use bevy::core_pipeline::core_3d::Opaque3d;
+use bevy::ecs::system::lifetimeless::SResMut;
 use bevy::prelude::*;
+use bevy::render::Extract;
+use bevy::render::extract_component::ComponentUniforms;
 use bevy::render::mesh::GpuBufferInfo;
 use bevy::render::render_asset::RenderAssets;
-use bevy::render::render_component::ComponentUniforms;
 use bevy::render::render_phase::{DrawFunctions, RenderPhase};
 use bevy::render::render_resource::{BufferUsages, BufferVec, PipelineCache, SpecializedRenderPipelines};
 use bevy::render::renderer::{RenderDevice, RenderQueue};
 use bevy::render::view::ViewUniforms;
-use bevy::render::RenderWorld;
 use itertools::Itertools;
 use num_traits::real::Real;
 use wgpu::util::BufferInitDescriptor;
 use wgpu::{BindGroupDescriptor, BindGroupEntry, BindingResource};
 
 use crate::ecs::components::block::Block;
+use crate::ecs::components::chunk::Chunk;
 use crate::ecs::plugins::camera::Selection;
 use crate::ecs::plugins::settings::AmbientOcclusion;
 use crate::ecs::plugins::voxel::{
@@ -21,20 +23,20 @@ use crate::ecs::plugins::voxel::{
   MeshBuffer, MeshPipeline, MeshPositionBindGroup, MeshTextureBindGroup, MeshViewBindGroup, PositionUniform,
   RemeshEvent, SelectionBindGroup, SingleSide, TextureHandle, VoxelPipeline, VoxelTextureBindGroup, VoxelViewBindGroup,
 };
-use crate::ecs::resources::chunk_map::BlockAccessor;
+use crate::ecs::resources::chunk_map::{BlockAccessor, BlockAccessorReadOnly, ChunkMap};
 use crate::ecs::resources::chunk_map::BlockAccessorStatic;
 use crate::util::array::{sub_ddd, ArrayIndex, ImmediateNeighbours, DD};
 
 pub fn extract_chunks(
-  mut render_world: ResMut<RenderWorld>,
   mut commands: Commands,
-  mut block_accessor: BlockAccessorStatic,
-  selection: Res<Option<Selection>>,
-  mut remesh_events: EventReader<RemeshEvent>,
-  ambient_occlusion: Res<AmbientOcclusion>,
+  block_accessor: Extract<BlockAccessorReadOnly>,
+  selection: Extract<Res<Option<Selection>>>,
+  mut remesh_events: Extract<EventReader<RemeshEvent>>,
+  ambient_occlusion: Extract<Res<AmbientOcclusion>>,
+  mut extracted_blocks: ResMut<ExtractedBlocks>
 ) {
   commands.insert_resource(selection.clone());
-  let mut updated = vec![];
+  let mut updated : Vec<DD> = vec![];
 
   for ch in remesh_events
     .iter()
@@ -45,7 +47,6 @@ pub fn extract_chunks(
       continue;
     }
     updated.push(*ch);
-    let mut extracted_blocks = render_world.get_resource_mut::<ExtractedBlocks>().unwrap();
     extracted_blocks
       .blocks
       .insert(*ch, BufferVec::new(BufferUsages::VERTEX));
@@ -69,7 +70,7 @@ pub fn extract_chunks(
               sub_ddd(neighbour, i),
               block.block.into_array_of_faces(),
               lighting,
-              &mut block_accessor,
+              &block_accessor,
               ambient_occlusion.0,
             ));
           }
@@ -200,9 +201,9 @@ pub fn queue_chunks(
   }
 }
 
-pub fn extract_meshes(mut render_world: ResMut<RenderWorld>, meshes: Query<(&Handle<Mesh>, &Transform)>) {
+pub fn extract_meshes(mut commands: Commands, meshes: Extract<Query<(&Handle<Mesh>, &Transform)>>) {
   for meshes in meshes.iter() {
-    render_world
+    commands
       .spawn()
       .insert(PositionUniform {
         transform: Mat4::from_translation(meshes.1.translation),
