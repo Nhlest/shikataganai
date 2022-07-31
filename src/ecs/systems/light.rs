@@ -15,16 +15,16 @@ pub fn relight_system(
   for event in relight_events.iter() {
     if let RelightEvent::Relight(r_type, ddd) = event {
       match r_type {
-        RelightType::LightSourceAdded => {
-          let l = block_accessor.get_light_level(*ddd).unwrap();
-          block_accessor.set_light_level(*ddd, LightLevel::new(l.heaven, 15));
-          remesh.insert(ChunkMap::get_chunk_coord(*ddd));
-          block_accessor.propagate_light(*ddd, &mut remesh);
-          for i in ddd.immeidate_neighbours() {
-            block_accessor.propagate_light(i, &mut remesh);
-          }
-        }
-        RelightType::LightSourceRemoved => {}
+        // RelightType::LightSourceAdded => {
+        //   let l = block_accessor.get_light_level(*ddd).unwrap();
+        //   block_accessor.set_light_level(*ddd, LightLevel::new(l.heaven, 15));
+        //   remesh.insert(ChunkMap::get_chunk_coord(*ddd));
+        //   block_accessor.propagate_light(*ddd, &mut remesh);
+        //   for i in ddd.immeidate_neighbours() {
+        //     block_accessor.propagate_light(i, &mut remesh);
+        //   }
+        // }
+        // RelightType::LightSourceRemoved => {}
         RelightType::BlockAdded => {
           block_accessor.set_light_level(*ddd, LightLevel::dark());
           remesh.insert(ChunkMap::get_chunk_coord(*ddd));

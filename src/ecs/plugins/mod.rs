@@ -1,4 +1,3 @@
-pub mod animation;
 pub mod camera;
 pub mod game;
 #[allow(dead_code)]

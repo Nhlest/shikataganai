@@ -3,10 +3,12 @@ use crate::ecs::plugins::voxel::{
   PositionUniform, SetBindGroup, SetMeshPositionBindGroup, SetViewBindGroup,
 };
 use bevy::asset::{AssetLoader, BoxedFuture, LoadContext, LoadedAsset};
+use bevy::core_pipeline::core_3d::Opaque3d;
 use bevy::ecs::system::lifetimeless::{Read, SQuery};
 use bevy::ecs::system::SystemParamItem;
 use bevy::prelude::*;
 use bevy::reflect::TypeUuid;
+use bevy::render::extract_component::UniformComponentPlugin;
 use bevy::render::mesh::{Indices, MeshVertexAttribute, PrimitiveTopology, VertexAttributeValues};
 use bevy::render::render_phase::{
   AddRenderCommand, EntityRenderCommand, RenderCommandResult, SetItemPipeline, TrackedRenderPass,
@@ -28,8 +30,6 @@ use bevy_rapier3d::prelude::*;
 use gltf::buffer::Source;
 use gltf::Gltf;
 use std::path::Path;
-use bevy::core_pipeline::core_3d::Opaque3d;
-use bevy::render::extract_component::UniformComponentPlugin;
 use strum_macros::EnumIter;
 use wgpu::{BindGroupLayoutDescriptor, IndexFormat};
 
@@ -383,7 +383,8 @@ impl Plugin for MeshRendererPlugin {
   fn build(&self, app: &mut App) {
     let mut shaders = app.world.resource_mut::<Assets<Shader>>();
     let mesh_shader_vertex = Shader::from_spirv(include_bytes!("../../../../shaders/output/mesh.vert.spv").as_slice());
-    let mesh_shader_fragment = Shader::from_spirv(include_bytes!("../../../../shaders/output/mesh.frag.spv").as_slice());
+    let mesh_shader_fragment =
+      Shader::from_spirv(include_bytes!("../../../../shaders/output/mesh.frag.spv").as_slice());
     shaders.set_untracked(MESH_SHADER_VERTEX_HANDLE, mesh_shader_vertex);
     shaders.set_untracked(MESH_SHADER_FRAGMENT_HANDLE, mesh_shader_fragment);
 

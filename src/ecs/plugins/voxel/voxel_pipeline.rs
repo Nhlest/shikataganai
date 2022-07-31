@@ -208,7 +208,8 @@ pub struct VoxelRendererPlugin;
 impl Plugin for VoxelRendererPlugin {
   fn build(&self, app: &mut App) {
     let mut shaders = app.world.resource_mut::<Assets<Shader>>();
-    let voxel_shader_vertex = Shader::from_spirv(include_bytes!("../../../../shaders/output/voxel.vert.spv").as_slice());
+    let voxel_shader_vertex =
+      Shader::from_spirv(include_bytes!("../../../../shaders/output/voxel.vert.spv").as_slice());
     let voxel_shader_fragment =
       Shader::from_spirv(include_bytes!("../../../../shaders/output/voxel.frag.spv").as_slice());
     shaders.set_untracked(VOXEL_SHADER_VERTEX_HANDLE, voxel_shader_vertex);

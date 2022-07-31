@@ -1,8 +1,4 @@
-use bevy::prelude::*;
-use crate::ecs::resources::player::PlayerInventory;
+// use crate::ecs::resources::player::PlayerInventory;
+// use bevy::prelude::*;
 
-pub fn queue_inventory_sprites(
-  inventory: Res<PlayerInventory>,
-) {
-
-}
+// pub fn queue_inventory_sprites(inventory: Res<PlayerInventory>) {}

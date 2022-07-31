@@ -1,11 +1,12 @@
-use crate::ecs::components::block::{Block, BlockId};
+use crate::ecs::components::block::BlockId;
 use crate::ecs::plugins::camera::Selection;
 use crate::ecs::plugins::voxel::{RelightEvent, RelightType};
 use crate::ecs::resources::chunk_map::{BlockAccessor, BlockAccessorStatic};
 use crate::ecs::resources::player::{PlayerInventory, SelectedHotBar};
-use crate::util::array::{add_ddd, DDD};
+use crate::util::array::DDD;
 use bevy::input::mouse::MouseWheel;
 use bevy::prelude::*;
+use bevy_rapier3d::pipeline::QueryFilter;
 use bevy_rapier3d::prelude::{Collider, InteractionGroups, RapierContext};
 
 pub fn action_input(
@@ -17,17 +18,17 @@ pub fn action_input(
   mut relight_events: EventWriter<RelightEvent>,
   rapier_context: Res<RapierContext>,
 ) {
-  let hotbar_selection = &hotbar_items.items[hotbar_selection.0 as usize];
+  let _hotbar_selection = &hotbar_items.items[hotbar_selection.0 as usize];
   match selection.into_inner() {
     None => {}
     Some(Selection { cube, face }) => {
       let source: DDD = *cube;
       let target_negative = *face;
-      let (dx, dy, dz) = (
-        source.0 - target_negative.0,
-        source.1 - target_negative.1,
-        source.2 - target_negative.2,
-      );
+      // let (dx, dy, dz) = (
+      //   source.0 - target_negative.0,
+      //   source.1 - target_negative.1,
+      //   source.2 - target_negative.2,
+      // );
       // let _target_positive = add_ddd(source, (dx, dy, dz));
       // let up = (source.0, source.1 + 1, source.2);
       // let down = (source.0, source.1 - 1, source.2);
@@ -47,10 +48,19 @@ pub fn action_input(
             target_negative.2 as f32 + 0.5,
           );
           let shape_rot = Quat::IDENTITY;
-          let groups = InteractionGroups::new(0b10, 0b01);
-          let filter = None;
           if rapier_context
-            .intersection_with_shape(shape_pos, shape_rot, &shape, groups, filter)
+            .intersection_with_shape(
+              shape_pos,
+              shape_rot,
+              &shape,
+              QueryFilter {
+                flags: Default::default(),
+                groups: Some(InteractionGroups::new(0b10, 0b01)),
+                exclude_collider: None,
+                exclude_rigid_body: None,
+                predicate: None,
+              },
+            )
             .is_none()
           {
             target_negative_block.block = BlockId::Cobble;

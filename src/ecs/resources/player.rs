@@ -1,4 +1,3 @@
-use crate::ecs::resources::ui::UiSprite;
 use crate::ecs::components::block_or_item::BlockOrItem;
 
 #[derive(Default)]
@@ -11,11 +10,7 @@ pub struct PlayerInventory {
 impl Default for PlayerInventory {
   fn default() -> Self {
     Self {
-      items: vec![
-        BlockOrItem::Empty,
-        BlockOrItem::Empty,
-        BlockOrItem::Empty
-      ],
+      items: vec![BlockOrItem::Empty, BlockOrItem::Empty, BlockOrItem::Empty],
     }
   }
 }

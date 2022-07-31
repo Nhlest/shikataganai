@@ -5,7 +5,6 @@
 #![feature(slice_as_chunks)]
 #![feature(array_methods)]
 
-use crate::ecs::plugins::animation::AnimationPlugin;
 #[allow(unused_imports)]
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::prelude::{App, Mesh};
@@ -34,7 +33,6 @@ fn main() {
     .add_plugin(RenderAssetPlugin::<Mesh>::default())
     .add_plugin(CameraPlugin)
     .add_plugin(GamePlugin)
-    .add_plugin(AnimationPlugin)
     .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
     .add_plugin(ImguiPlugin)
     .add_plugins(ShikataganaiRendererPlugins)

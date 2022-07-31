@@ -2,10 +2,10 @@ use crate::ecs::plugins::camera::Selection;
 use crate::ecs::plugins::settings::{AmbientOcclusion, FullScreen, MouseSensitivity, Resolution, Settings, VSync};
 use bevy::app::AppExit;
 use bevy::prelude::*;
+use bevy::render::texture::ImageSettings;
 use bevy::winit::WinitWindows;
 use std::fs::OpenOptions;
 use std::io::Write;
-use bevy::render::texture::ImageSettings;
 
 pub struct Preamble;
 

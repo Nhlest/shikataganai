@@ -1,7 +1,5 @@
 use bevy::core_pipeline::core_3d::Opaque3d;
-use bevy::ecs::system::lifetimeless::SResMut;
 use bevy::prelude::*;
-use bevy::render::Extract;
 use bevy::render::extract_component::ComponentUniforms;
 use bevy::render::mesh::GpuBufferInfo;
 use bevy::render::render_asset::RenderAssets;
@@ -9,13 +7,12 @@ use bevy::render::render_phase::{DrawFunctions, RenderPhase};
 use bevy::render::render_resource::{BufferUsages, BufferVec, PipelineCache, SpecializedRenderPipelines};
 use bevy::render::renderer::{RenderDevice, RenderQueue};
 use bevy::render::view::ViewUniforms;
+use bevy::render::Extract;
 use itertools::Itertools;
-use num_traits::real::Real;
 use wgpu::util::BufferInitDescriptor;
 use wgpu::{BindGroupDescriptor, BindGroupEntry, BindingResource};
 
 use crate::ecs::components::block::Block;
-use crate::ecs::components::chunk::Chunk;
 use crate::ecs::plugins::camera::Selection;
 use crate::ecs::plugins::settings::AmbientOcclusion;
 use crate::ecs::plugins::voxel::{
@@ -23,8 +20,7 @@ use crate::ecs::plugins::voxel::{
   MeshBuffer, MeshPipeline, MeshPositionBindGroup, MeshTextureBindGroup, MeshViewBindGroup, PositionUniform,
   RemeshEvent, SelectionBindGroup, SingleSide, TextureHandle, VoxelPipeline, VoxelTextureBindGroup, VoxelViewBindGroup,
 };
-use crate::ecs::resources::chunk_map::{BlockAccessor, BlockAccessorReadOnly, ChunkMap};
-use crate::ecs::resources::chunk_map::BlockAccessorStatic;
+use crate::ecs::resources::chunk_map::BlockAccessorReadOnly;
 use crate::util::array::{sub_ddd, ArrayIndex, ImmediateNeighbours, DD};
 
 pub fn extract_chunks(
@@ -33,10 +29,10 @@ pub fn extract_chunks(
   selection: Extract<Res<Option<Selection>>>,
   mut remesh_events: Extract<EventReader<RemeshEvent>>,
   ambient_occlusion: Extract<Res<AmbientOcclusion>>,
-  mut extracted_blocks: ResMut<ExtractedBlocks>
+  mut extracted_blocks: ResMut<ExtractedBlocks>,
 ) {
   commands.insert_resource(selection.clone());
-  let mut updated : Vec<DD> = vec![];
+  let mut updated: Vec<DD> = vec![];
 
   for ch in remesh_events
     .iter()

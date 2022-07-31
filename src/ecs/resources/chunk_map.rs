@@ -2,7 +2,7 @@ use crate::ecs::components::block::Block;
 use crate::ecs::components::chunk::{Chunk, ChunkTask};
 use crate::ecs::resources::light::LightLevel;
 use crate::util::array::{ImmediateNeighbours, DD, DDD};
-use bevy::ecs::system::{ReadOnlySystemParamFetch, SystemMeta, SystemParam, SystemParamFetch};
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use bevy::tasks::AsyncComputeTaskPool;
 use bevy::utils::{HashMap, HashSet};

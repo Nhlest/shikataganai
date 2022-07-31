@@ -1,8 +1,7 @@
 use crate::ecs::plugins::camera::MainMenuOpened;
 use crate::ecs::plugins::imgui::{BigFont, GUITextureAtlas};
 use crate::ecs::plugins::settings::{AmbientOcclusion, FullScreen, MouseSensitivity, Resolution, VSync};
-use crate::ecs::resources::player::{PlayerInventory, SelectedHotBar};
-use crate::ecs::resources::ui::UiSprite;
+use crate::ecs::resources::player::PlayerInventory;
 use crate::ImguiState;
 use bevy::app::AppExit;
 use bevy::prelude::*;
@@ -12,7 +11,7 @@ pub fn hot_bar(
   imgui: NonSendMut<ImguiState>,
   window: Res<Windows>,
   texture: Res<GUITextureAtlas>,
-  selected_hotbar: Res<SelectedHotBar>,
+  // selected_hotbar: Res<SelectedHotBar>,
   hotbar_items: Res<PlayerInventory>,
 ) {
   let active_window = window.get_primary().unwrap();
@@ -33,21 +32,23 @@ pub fn hot_bar(
     )
     .size([1080.0, 100.0], Condition::Always)
     .build(ui, || {
-      ui.get_background_draw_list().add_rect([x1, y1], [x1 + 4.0, y1 + 4.0], [0.1, 0.1, 0.1, 1.0]).build();
+      ui.get_background_draw_list()
+        .add_rect([x1, y1], [x1 + 4.0, y1 + 4.0], [0.1, 0.1, 0.1, 1.0])
+        .build();
       let _a = ui.push_style_var(StyleVar::ItemSpacing([2.5, 2.5]));
-      for (i, item) in hotbar_items.items.iter().enumerate() {
-        let c = ui.cursor_pos();
-        let sprite = if i as i32 == selected_hotbar.0 {
-          UiSprite::BlueSquare
-        } else {
-          UiSprite::RedSquare
-        };
-        imgui::Image::new(texture.0, [95.0, 95.0])
-          .uv0(sprite.into_uv().0)
-          .uv1(sprite.into_uv().1)
-          .border_col([0.0, 0.0, 0.0, 1.0])
-          .build(&ui);
-        ui.set_cursor_pos(c);
+      for (_i, _item) in hotbar_items.items.iter().enumerate() {
+        // let c = ui.cursor_pos();
+        // let sprite = if i as i32 == selected_hotbar.0 {
+        //   UiSprite::BlueSquare
+        // } else {
+        //   UiSprite::RedSquare
+        // };
+        // imgui::Image::new(texture.0, [95.0, 95.0])
+        //   .uv0(sprite.into_uv().0)
+        //   .uv1(sprite.into_uv().1)
+        //   .border_col([0.0, 0.0, 0.0, 1.0])
+        //   .build(&ui);
+        // ui.set_cursor_pos(c);
         // let sprite = item.sprite();
         imgui::Image::new(texture.0, [95.0, 95.0])
           .uv0([1.0 / 8.0, 0.0])

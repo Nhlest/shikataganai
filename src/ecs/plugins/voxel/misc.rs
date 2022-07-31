@@ -1,6 +1,7 @@
 use bevy::ecs::system::lifetimeless::{Read, SQuery, SRes};
 use bevy::ecs::system::SystemParamItem;
 use bevy::prelude::*;
+use bevy::render::extract_component::DynamicUniformIndex;
 use bevy::render::render_phase::{
   EntityRenderCommand, PhaseItem, RenderCommand, RenderCommandResult, TrackedRenderPass,
 };
@@ -11,15 +12,14 @@ use bevy::utils::hashbrown::HashMap;
 use bytemuck_derive::*;
 use std::marker::PhantomData;
 use std::ops::Deref;
-use bevy::render::extract_component::DynamicUniformIndex;
 
 use crate::ecs::resources::block::BlockSprite;
-use crate::ecs::resources::chunk_map::{BlockAccessor, BlockAccessorReadOnly, BlockAccessorStatic};
+use crate::ecs::resources::chunk_map::BlockAccessorReadOnly;
 use crate::util::array::{add_ddd, DD, DDD};
 
 pub enum RelightType {
-  LightSourceAdded,
-  LightSourceRemoved,
+  // LightSourceAdded,
+  // LightSourceRemoved,
   BlockAdded,
   BlockRemoved,
 }
@@ -112,7 +112,7 @@ impl SingleSide {
       }
     };
     let mut triangles = VERTEX[side];
-    let mut make_face = |triangles: [Vertex; 6]| {
+    let make_face = |triangles: [Vertex; 6]| {
       SingleSide(triangles.map(
         |Vertex {
            pos: [vx, vy, vz],

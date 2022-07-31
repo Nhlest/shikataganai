@@ -7,6 +7,7 @@ use bevy::render::camera::{CameraProjection, Projection};
 use bevy::render::primitives::Frustum;
 use bevy_rapier3d::parry::query::Ray;
 use bevy_rapier3d::prelude::*;
+use bevy_rapier3d::rapier::pipeline::QueryFilter;
 use num_traits::float::FloatConst;
 
 pub struct CameraPlugin;
@@ -39,7 +40,7 @@ impl Plugin for CameraPlugin {
       Camera3dBundle {
         projection: Projection::Perspective(perspective_projection),
         frustum,
-        .. default()
+        ..default()
       }
     };
     app
@@ -243,16 +244,22 @@ fn block_pick(
 ) {
   *selection = None;
   let transform = camera.single();
-  let origin = transform.translation;
+  let origin = transform.translation();
   let direction = transform.forward();
 
   if let Some((entity, intersection)) = rapier_context.query_pipeline.cast_ray_and_get_normal(
+    &rapier_context.bodies,
     &rapier_context.colliders,
     &Ray::new(origin.into(), direction.into()),
     5.0,
     false,
-    InteractionGroups::new(0b01, 0b10),
-    None,
+    QueryFilter {
+      flags: Default::default(),
+      groups: Some(InteractionGroups::new(0b01, 0b10)),
+      exclude_collider: None,
+      exclude_rigid_body: None,
+      predicate: None,
+    },
   ) {
     let c = rapier_context.colliders.get(entity).unwrap();
     let e = Entity::from_bits(c.user_data as u64);

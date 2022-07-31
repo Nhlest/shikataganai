@@ -35,11 +35,11 @@ bevy_embedded_assets = "0.4"
 #git = "https://github.com/dimforge/nalgebra"
 #branch = "dev"
 
-#[dependencies.bevy_rapier3d]
-#git = "https://github.com/Nhlest/bevy_rapier"
-#branch = "master"
-#default-features = false
-#features = ["simd-stable", "dim3"]
+[dependencies.bevy_rapier3d]
+git = "https://github.com/devil-ira/bevy_rapier"
+branch = "update-to-bevy-0.8"
+default-features = false
+features = ["simd-stable", "dim3"]
 
 [dependencies.bevy]
 version = "0.8"

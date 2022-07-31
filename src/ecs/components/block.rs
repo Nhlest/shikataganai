@@ -8,7 +8,6 @@ pub enum BlockId {
   Dirt,
   Grass,
   Cobble,
-  Hoist,
 }
 
 #[derive(Copy, Clone, PartialEq, Debug)]
@@ -31,7 +30,6 @@ impl BlockId {
         Cobblestone,
         Cobblestone,
       ],
-      BlockId::Hoist => [Wood, Wood, Wood, Wood, Wood, Wood],
     }
   }
 }
