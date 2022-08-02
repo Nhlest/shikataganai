@@ -19,8 +19,8 @@ use crate::ecs::plugins::game::GamePlugin;
 use crate::ecs::plugins::imgui::{ImguiPlugin, ImguiState};
 use crate::ecs::plugins::preamble::Preamble;
 use crate::ecs::plugins::settings::SettingsPlugin;
+use crate::ecs::plugins::console::ConsolePlugin;
 use crate::ecs::plugins::rendering::ShikataganaiRendererPlugins;
-
 mod ecs;
 mod util;
 
@@ -37,6 +37,7 @@ fn main() {
     .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
     .add_plugin(ImguiPlugin)
     .add_plugins(ShikataganaiRendererPlugins)
+    .add_plugin(ConsolePlugin)
     // .add_plugin(bevy_framepace::FramepacePlugin::default())
     // .add_plugin(RapierDebugRenderPlugin::default())
     // .add_plugin(LogDiagnosticsPlugin::default())

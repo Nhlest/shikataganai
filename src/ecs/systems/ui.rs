@@ -1,4 +1,4 @@
-use crate::ecs::plugins::camera::MainMenuOpened;
+use crate::ecs::systems::input::MainMenuOpened;
 use crate::ecs::plugins::imgui::{BigFont, GUITextureAtlas};
 use crate::ecs::plugins::settings::{AmbientOcclusion, FullScreen, MouseSensitivity, Resolution, VSync};
 use crate::ecs::resources::player::PlayerInventory;
@@ -54,7 +54,7 @@ pub fn main_menu(
   mut settings_menu_opened: Local<bool>,
   mut app_exit: EventWriter<AppExit>,
   big_font: NonSend<BigFont>,
-  mut mouse_sensetivity: ResMut<MouseSensitivity>,
+  mut mouse_sensitivity: ResMut<MouseSensitivity>,
   mut resolution: ResMut<Resolution>,
   mut vsync: ResMut<VSync>,
   mut fullscreen: ResMut<FullScreen>,
@@ -123,7 +123,7 @@ pub fn main_menu(
       let [x1, _] = ui.window_content_region_min();
       let [x2, _] = ui.window_content_region_max();
 
-      imgui::Slider::new("Sensitivity", 0.0, 2.0).build(ui, &mut mouse_sensetivity.as_mut().0);
+      imgui::Slider::new("Sensitivity", 0.0, 2.0).build(ui, &mut mouse_sensitivity.as_mut().0);
       let selected = format!("{}x{}", resolution.width as i32, resolution.height as i32);
       let tok = imgui::ComboBox::new("Resolution")
         .preview_mode(ComboBoxPreviewMode::Full)

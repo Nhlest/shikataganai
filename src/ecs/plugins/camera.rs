@@ -10,6 +10,10 @@ use bevy_rapier3d::prelude::*;
 use bevy_rapier3d::rapier::pipeline::QueryFilter;
 use num_traits::float::FloatConst;
 
+use crate::ecs::plugins::console::ConsoleCommandEvents;
+
+use super::console;
+
 pub struct CameraPlugin;
 
 #[derive(Component)]
@@ -68,7 +72,6 @@ impl Plugin for CameraPlugin {
       });
     app
       .add_system(movement_input_system)
-      .add_system(cursor_grab_system)
       .add_system_to_stage(CoreStage::PreUpdate, block_pick)
       .add_system_to_stage(CoreStage::Update, collision_movement_system);
   }
@@ -84,6 +87,7 @@ fn movement_input_system(
   mut stationary_frames: Local<i32>,
   mouse_sensitivity: Res<MouseSensitivity>,
   time: Res<Time>,
+  mut console_events : EventReader<ConsoleCommandEvents>,
 ) {
   let window = windows.get_primary_mut().unwrap();
   let mut movement = Vec3::default();
@@ -130,10 +134,11 @@ fn movement_input_system(
   } else {
     *stationary_frames = 0; // TODO: potential for a double jump here;
   }
-
   let y = camera_velocity.linvel.y;
   camera_velocity.linvel.y = 0.0;
-  camera_velocity.linvel = movement * 5.0;
+  
+  let player_speed :f32 = 5.0;
+  camera_velocity.linvel = movement * player_speed;
   camera_velocity.linvel.y = y;
 }
 
@@ -209,27 +214,6 @@ fn collision_movement_system(
 
   let mut camera_t = transforms.get_mut(entity_camera).unwrap();
   camera_t.look_at(looking_at, Vec3::new(0.0, 1.0, 0.0));
-}
-
-pub struct MainMenuOpened(pub bool);
-
-fn cursor_grab_system(
-  mut windows: ResMut<Windows>,
-  key: Res<Input<KeyCode>>,
-  mut main_menu_opened: ResMut<MainMenuOpened>,
-) {
-  let window = windows.get_primary_mut().unwrap();
-
-  if key.just_pressed(KeyCode::Escape) {
-    if main_menu_opened.0 {
-      window.set_cursor_lock_mode(true);
-      window.set_cursor_visibility(false);
-    } else {
-      window.set_cursor_lock_mode(false);
-      window.set_cursor_visibility(true);
-    }
-    main_menu_opened.0 = !main_menu_opened.0;
-  }
 }
 
 #[derive(Clone, Debug, Default)]

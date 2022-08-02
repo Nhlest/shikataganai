@@ -8,6 +8,7 @@ use bevy::input::mouse::MouseWheel;
 use bevy::prelude::*;
 use bevy_rapier3d::pipeline::QueryFilter;
 use bevy_rapier3d::prelude::{Collider, InteractionGroups, RapierContext};
+use tracing::field::debug;
 
 pub fn action_input(
   mouse: Res<Input<MouseButton>>,
@@ -91,5 +92,32 @@ pub fn hot_bar_scroll_input(
   }
   if keys.just_pressed(KeyCode::Key3) {
     selected_hotbar.0 = 2;
+  }
+}
+pub struct MainMenuOpened(pub bool);
+pub struct ConsoleMenuOpened(pub bool);
+
+pub fn handle_menu_system(
+  mut windows: ResMut<Windows>,
+  key: Res<Input<KeyCode>>,
+  mut main_menu_opened: ResMut<MainMenuOpened>,
+  mut debug_menu_opened: ResMut<ConsoleMenuOpened>,
+) {
+  let window = windows.get_primary_mut().unwrap();
+
+  if key.just_pressed(KeyCode::Escape) {
+    if main_menu_opened.0 {
+      window.set_cursor_lock_mode(true);
+      window.set_cursor_visibility(false);
+    } else {
+      window.set_cursor_lock_mode(false);
+      window.set_cursor_visibility(true);
+    }
+    main_menu_opened.0 = !main_menu_opened.0;
+  }
+  if key.just_pressed(KeyCode::Grave){
+    window.set_cursor_lock_mode(debug_menu_opened.0);
+    window.set_cursor_visibility(!debug_menu_opened.0);
+    debug_menu_opened.0 = !debug_menu_opened.0;
   }
 }

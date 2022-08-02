@@ -1,4 +1,6 @@
-use crate::ecs::plugins::camera::MainMenuOpened;
+use crate::ecs::systems::input::MainMenuOpened;
+use crate::ecs::systems::input::ConsoleMenuOpened;
+use crate::ecs::systems::input::handle_menu_system;
 use crate::ecs::resources::chunk_map::ChunkMap;
 use crate::ecs::resources::player::{PlayerInventory, SelectedHotBar};
 use crate::ecs::systems::chunkgen::collect_async_chunks;
@@ -17,8 +19,10 @@ impl Plugin for GamePlugin {
       .add_system(hot_bar)
       .add_system(main_menu.exclusive_system())
       .add_system(collect_async_chunks)
+      .add_system(handle_menu_system)
       .add_system_to_stage(CoreStage::PostUpdate, relight_system)
       .insert_resource(MainMenuOpened(true))
+      .insert_resource(ConsoleMenuOpened(false))
       .init_resource::<SelectedHotBar>()
       .init_resource::<PlayerInventory>()
       .init_resource::<ChunkMap>();

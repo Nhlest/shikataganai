@@ -26,6 +26,7 @@ bytemuck_derive = "*"
 percent-encoding = "*"
 imgui-wgpu = { git = "https://github.com/Nhlest/imgui-wgpu-rs", branch = "master" }
 imgui-winit-support = { version = "*", default-features = false, features = [ "winit-26" ] }
+tracing = "*"
 
 bevy_embedded_assets = "0.4"
 #bevy_framepace = { git = "https://github.com/aevyrie/bevy_framepace", branch = "main" }
