@@ -1,14 +1,11 @@
-use bevy::core_pipeline::core_3d::Opaque3d;
-use bevy::ecs::system::lifetimeless::{Read, SQuery};
-use bevy::ecs::system::SystemParamItem;
+use crate::ecs::plugins::rendering::voxel_pipeline::{VOXEL_SHADER_FRAGMENT_HANDLE, VOXEL_SHADER_VERTEX_HANDLE};
 use bevy::prelude::*;
-use bevy::reflect::TypeUuid;
 use bevy::render::mesh::PrimitiveTopology;
-use bevy::render::render_phase::{EntityRenderCommand, RenderCommandResult, SetItemPipeline, TrackedRenderPass};
+use bevy::render::render_resource::ShaderType;
 use bevy::render::render_resource::{
   BindGroupLayout, BindGroupLayoutEntry, BindingType, BlendState, BufferBindingType, ColorTargetState, ColorWrites,
   CompareFunction, DepthStencilState, Face, FragmentState, FrontFace, MultisampleState, PolygonMode, PrimitiveState,
-  RenderPipelineDescriptor, SamplerBindingType, ShaderStages, ShaderType, SpecializedRenderPipeline, TextureFormat,
+  RenderPipelineDescriptor, SamplerBindingType, ShaderStages, SpecializedRenderPipeline, TextureFormat,
   TextureSampleType, TextureViewDimension, VertexBufferLayout, VertexFormat, VertexState, VertexStepMode,
 };
 use bevy::render::renderer::RenderDevice;
@@ -16,27 +13,12 @@ use bevy::render::texture::BevyDefault;
 use bevy::render::view::ViewUniform;
 use wgpu::BindGroupLayoutDescriptor;
 
-use bevy::render::render_phase::AddRenderCommand;
-use bevy::render::render_resource::SpecializedRenderPipelines;
-use bevy::render::{RenderApp, RenderStage};
-
-use crate::ecs::plugins::voxel::{
-  extract_chunks, queue_chunks, ChunkMeshBuffer, ExtractedBlocks, LightTextureBindGroup, LightTextureHandle,
-  RelightEvent, RemeshEvent, SelectionBindGroup, SetBindGroup, SetViewBindGroup, TextureHandle, VoxelTextureBindGroup,
-  VoxelViewBindGroup,
-};
-
 pub struct VoxelPipeline {
   pub view_layout: BindGroupLayout,
   pub texture_layout: BindGroupLayout,
   pub selection_layout: BindGroupLayout,
   pub light_texture_layout: BindGroupLayout,
 }
-
-pub const VOXEL_SHADER_VERTEX_HANDLE: HandleUntyped =
-  HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 2763343953151597899);
-pub const VOXEL_SHADER_FRAGMENT_HANDLE: HandleUntyped =
-  HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 2763343953151597999);
 
 impl SpecializedRenderPipeline for VoxelPipeline {
   type Key = ();
@@ -174,63 +156,5 @@ impl FromWorld for VoxelPipeline {
         label: Some("light_texture_layout"),
       }),
     }
-  }
-}
-
-pub type DrawVoxelsFull = (
-  SetItemPipeline,
-  SetViewBindGroup<0, VoxelViewBindGroup>,
-  SetBindGroup<1, VoxelTextureBindGroup>,
-  SetBindGroup<2, SelectionBindGroup>,
-  SetBindGroup<3, LightTextureBindGroup>,
-  DrawVoxels,
-);
-
-pub struct DrawVoxels;
-impl EntityRenderCommand for DrawVoxels {
-  type Param = SQuery<Read<ChunkMeshBuffer>>;
-
-  fn render<'w>(
-    _view: Entity,
-    item: Entity,
-    param: SystemParamItem<'w, '_, Self::Param>,
-    pass: &mut TrackedRenderPass<'w>,
-  ) -> RenderCommandResult {
-    let ChunkMeshBuffer(buf, verticies) = param.get_inner(item).unwrap();
-    pass.set_vertex_buffer(0, buf.slice(..));
-    pass.draw(0..*verticies as u32 * 6, 0..1 as u32);
-    RenderCommandResult::Success
-  }
-}
-
-pub struct VoxelRendererPlugin;
-
-impl Plugin for VoxelRendererPlugin {
-  fn build(&self, app: &mut App) {
-    let mut shaders = app.world.resource_mut::<Assets<Shader>>();
-    let voxel_shader_vertex =
-      Shader::from_spirv(include_bytes!("../../../../shaders/output/voxel.vert.spv").as_slice());
-    let voxel_shader_fragment =
-      Shader::from_spirv(include_bytes!("../../../../shaders/output/voxel.frag.spv").as_slice());
-    shaders.set_untracked(VOXEL_SHADER_VERTEX_HANDLE, voxel_shader_vertex);
-    shaders.set_untracked(VOXEL_SHADER_FRAGMENT_HANDLE, voxel_shader_fragment);
-
-    app.add_event::<RemeshEvent>();
-    app.add_event::<RelightEvent>();
-
-    let render_app = app.get_sub_app_mut(RenderApp).unwrap();
-    render_app
-      .init_resource::<ExtractedBlocks>()
-      .init_resource::<VoxelPipeline>()
-      .init_resource::<SpecializedRenderPipelines<VoxelPipeline>>()
-      .init_resource::<TextureHandle>()
-      .init_resource::<LightTextureHandle>()
-      .init_resource::<VoxelViewBindGroup>()
-      .init_resource::<SelectionBindGroup>()
-      .init_resource::<VoxelTextureBindGroup>()
-      .init_resource::<LightTextureBindGroup>()
-      .add_system_to_stage(RenderStage::Extract, extract_chunks)
-      .add_system_to_stage(RenderStage::Queue, queue_chunks)
-      .add_render_command::<Opaque3d, DrawVoxelsFull>();
   }
 }

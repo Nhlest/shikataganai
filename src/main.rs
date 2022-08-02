@@ -4,6 +4,7 @@
 #![feature(box_syntax)]
 #![feature(slice_as_chunks)]
 #![feature(array_methods)]
+#![allow(irrefutable_let_patterns)]
 
 #[allow(unused_imports)]
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
@@ -18,7 +19,7 @@ use crate::ecs::plugins::game::GamePlugin;
 use crate::ecs::plugins::imgui::{ImguiPlugin, ImguiState};
 use crate::ecs::plugins::preamble::Preamble;
 use crate::ecs::plugins::settings::SettingsPlugin;
-use crate::ecs::plugins::voxel::ShikataganaiRendererPlugins;
+use crate::ecs::plugins::rendering::ShikataganaiRendererPlugins;
 
 mod ecs;
 mod util;

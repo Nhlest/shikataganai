@@ -11,7 +11,6 @@ pub fn hot_bar(
   imgui: NonSendMut<ImguiState>,
   window: Res<Windows>,
   texture: Res<GUITextureAtlas>,
-  // selected_hotbar: Res<SelectedHotBar>,
   hotbar_items: Res<PlayerInventory>,
 ) {
   let active_window = window.get_primary().unwrap();
@@ -37,19 +36,6 @@ pub fn hot_bar(
         .build();
       let _a = ui.push_style_var(StyleVar::ItemSpacing([2.5, 2.5]));
       for (_i, _item) in hotbar_items.items.iter().enumerate() {
-        // let c = ui.cursor_pos();
-        // let sprite = if i as i32 == selected_hotbar.0 {
-        //   UiSprite::BlueSquare
-        // } else {
-        //   UiSprite::RedSquare
-        // };
-        // imgui::Image::new(texture.0, [95.0, 95.0])
-        //   .uv0(sprite.into_uv().0)
-        //   .uv1(sprite.into_uv().1)
-        //   .border_col([0.0, 0.0, 0.0, 1.0])
-        //   .build(&ui);
-        // ui.set_cursor_pos(c);
-        // let sprite = item.sprite();
         imgui::Image::new(texture.0, [95.0, 95.0])
           .uv0([1.0 / 8.0, 0.0])
           .uv1([2.0 / 8.0, 1.0 / 8.0])

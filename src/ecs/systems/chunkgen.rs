@@ -1,5 +1,5 @@
 use crate::ecs::components::chunk::ChunkTask;
-use crate::ecs::plugins::voxel::RemeshEvent;
+use crate::ecs::plugins::rendering::voxel_pipeline::meshing::RemeshEvent;
 use crate::ecs::resources::chunk_map::ChunkMap;
 use bevy::prelude::*;
 

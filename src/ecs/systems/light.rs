@@ -1,4 +1,4 @@
-use crate::ecs::plugins::voxel::{RelightEvent, RelightType, RemeshEvent};
+use crate::ecs::plugins::rendering::voxel_pipeline::meshing::{RelightEvent, RelightType, RemeshEvent};
 use crate::ecs::resources::chunk_map::BlockAccessor;
 use crate::ecs::resources::chunk_map::{BlockAccessorStatic, ChunkMap};
 use crate::ecs::resources::light::LightLevel;

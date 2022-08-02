@@ -4,4 +4,4 @@ pub mod game;
 pub mod imgui;
 pub mod preamble;
 pub mod settings;
-pub mod voxel;
+pub mod rendering;

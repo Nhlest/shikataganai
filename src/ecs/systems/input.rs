@@ -1,6 +1,6 @@
 use crate::ecs::components::block::BlockId;
 use crate::ecs::plugins::camera::Selection;
-use crate::ecs::plugins::voxel::{RelightEvent, RelightType};
+use crate::ecs::plugins::rendering::voxel_pipeline::meshing::{RelightEvent, RelightType};
 use crate::ecs::resources::chunk_map::{BlockAccessor, BlockAccessorStatic};
 use crate::ecs::resources::player::{PlayerInventory, SelectedHotBar};
 use crate::util::array::DDD;
@@ -12,13 +12,13 @@ use bevy_rapier3d::prelude::{Collider, InteractionGroups, RapierContext};
 pub fn action_input(
   mouse: Res<Input<MouseButton>>,
   selection: Res<Option<Selection>>,
-  hotbar_items: Res<PlayerInventory>,
-  hotbar_selection: Res<SelectedHotBar>,
+  // hotbar_items: Res<PlayerInventory>,
+  // hotbar_selection: Res<SelectedHotBar>,
   mut block_accessor: BlockAccessorStatic,
   mut relight_events: EventWriter<RelightEvent>,
   rapier_context: Res<RapierContext>,
 ) {
-  let _hotbar_selection = &hotbar_items.items[hotbar_selection.0 as usize];
+  // let hotbar_selection = &hotbar_items.items[hotbar_selection.0 as usize];
   match selection.into_inner() {
     None => {}
     Some(Selection { cube, face }) => {

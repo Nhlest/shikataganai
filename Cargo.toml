@@ -10,7 +10,7 @@ toml = "*"
 gltf = "*"
 image = "*"
 imgui = "*"
-winit = "*"
+winit = "0.26.1"
 serde = "*"
 strum = "*"
 base64 = "*"
@@ -30,13 +30,7 @@ imgui-winit-support = { version = "*", default-features = false, features = [ "w
 bevy_embedded_assets = "0.4"
 #bevy_framepace = { git = "https://github.com/aevyrie/bevy_framepace", branch = "main" }
 
-# Dependencies
-#[dependencies.nalgebra]
-#git = "https://github.com/dimforge/nalgebra"
-#branch = "dev"
-
 [dependencies.bevy_rapier3d]
-git = "https://github.com/dimforge/bevy_rapier"
 version = "0.16.0"
 default-features = false
 features = ["simd-stable", "dim3"]
