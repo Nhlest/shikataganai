@@ -12,8 +12,6 @@ use num_traits::float::FloatConst;
 
 use crate::ecs::plugins::console::ConsoleCommandEvents;
 
-use super::console;
-
 pub struct CameraPlugin;
 
 #[derive(Component)]
@@ -71,9 +69,24 @@ impl Plugin for CameraPlugin {
         c.spawn().insert(fps_camera).insert_bundle(camera);
       });
     app
+      .insert_resource(PlayerSpeed(5.0))
       .add_system(movement_input_system)
       .add_system_to_stage(CoreStage::PreUpdate, block_pick)
-      .add_system_to_stage(CoreStage::Update, collision_movement_system);
+      .add_system_to_stage(CoreStage::Update, collision_movement_system)
+      .add_system_to_stage(CoreStage::PostUpdate, process_speed_change_event);
+  }
+}
+
+pub struct PlayerSpeed(f32);
+
+fn process_speed_change_event(
+  mut console_events: EventReader<ConsoleCommandEvents>,
+  mut player_speed: ResMut<PlayerSpeed>,
+) {
+  for event in console_events.iter() {
+    if let ConsoleCommandEvents::PlayerSpeed(val) = event {
+      player_speed.0 = *val;
+    }
   }
 }
 
@@ -87,7 +100,7 @@ fn movement_input_system(
   mut stationary_frames: Local<i32>,
   mouse_sensitivity: Res<MouseSensitivity>,
   time: Res<Time>,
-  mut console_events : EventReader<ConsoleCommandEvents>,
+  player_speed: Res<PlayerSpeed>,
 ) {
   let window = windows.get_primary_mut().unwrap();
   let mut movement = Vec3::default();
@@ -136,9 +149,8 @@ fn movement_input_system(
   }
   let y = camera_velocity.linvel.y;
   camera_velocity.linvel.y = 0.0;
-  
-  let player_speed :f32 = 5.0;
-  camera_velocity.linvel = movement * player_speed;
+
+  camera_velocity.linvel = movement * player_speed.0;
   camera_velocity.linvel.y = y;
 }
 

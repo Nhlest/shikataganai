@@ -1,9 +1,9 @@
-use crate::ecs::systems::input::MainMenuOpened;
-use crate::ecs::systems::input::ConsoleMenuOpened;
-use crate::ecs::systems::input::handle_menu_system;
 use crate::ecs::resources::chunk_map::ChunkMap;
 use crate::ecs::resources::player::{PlayerInventory, SelectedHotBar};
 use crate::ecs::systems::chunkgen::collect_async_chunks;
+use crate::ecs::systems::input::handle_menu_system;
+use crate::ecs::systems::input::ConsoleMenuOpened;
+use crate::ecs::systems::input::MainMenuOpened;
 use crate::ecs::systems::input::{action_input, hot_bar_scroll_input};
 use crate::ecs::systems::light::relight_system;
 use crate::ecs::systems::ui::{hot_bar, main_menu};

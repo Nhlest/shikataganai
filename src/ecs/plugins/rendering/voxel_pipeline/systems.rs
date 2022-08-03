@@ -1,6 +1,5 @@
 use crate::ecs::components::block::Block;
 use crate::ecs::plugins::camera::Selection;
-use crate::ecs::plugins::settings::AmbientOcclusion;
 use crate::ecs::plugins::rendering::voxel_pipeline::bind_groups::{
   LightTextureBindGroup, LightTextureHandle, SelectionBindGroup, TextureHandle, VoxelTextureBindGroup,
   VoxelViewBindGroup,
@@ -8,6 +7,7 @@ use crate::ecs::plugins::rendering::voxel_pipeline::bind_groups::{
 use crate::ecs::plugins::rendering::voxel_pipeline::draw_command::DrawVoxelsFull;
 use crate::ecs::plugins::rendering::voxel_pipeline::meshing::{ChunkMeshBuffer, RemeshEvent, SingleSide};
 use crate::ecs::plugins::rendering::voxel_pipeline::pipeline::VoxelPipeline;
+use crate::ecs::plugins::settings::AmbientOcclusion;
 use crate::ecs::resources::chunk_map::BlockAccessorReadOnly;
 use crate::util::array::{sub_ddd, ArrayIndex, ImmediateNeighbours, DD};
 use bevy::core_pipeline::core_3d::Opaque3d;
@@ -50,6 +50,9 @@ pub fn extract_chunks(
     .unique()
   {
     if !block_accessor.chunk_map.map.contains_key(ch) {
+      continue;
+    }
+    if block_accessor.chunk_map.map[ch].entity.is_none() {
       continue;
     }
     updated.push(*ch);

@@ -1,7 +1,7 @@
-use crate::ecs::systems::input::MainMenuOpened;
 use crate::ecs::plugins::imgui::{BigFont, GUITextureAtlas};
 use crate::ecs::plugins::settings::{AmbientOcclusion, FullScreen, MouseSensitivity, Resolution, VSync};
 use crate::ecs::resources::player::PlayerInventory;
+use crate::ecs::systems::input::MainMenuOpened;
 use crate::ImguiState;
 use bevy::app::AppExit;
 use bevy::prelude::*;

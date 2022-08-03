@@ -115,7 +115,7 @@ pub fn handle_menu_system(
     }
     main_menu_opened.0 = !main_menu_opened.0;
   }
-  if key.just_pressed(KeyCode::Grave){
+  if key.just_pressed(KeyCode::Grave) {
     window.set_cursor_lock_mode(debug_menu_opened.0);
     window.set_cursor_visibility(!debug_menu_opened.0);
     debug_menu_opened.0 = !debug_menu_opened.0;

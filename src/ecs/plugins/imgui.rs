@@ -189,7 +189,7 @@ pub struct ImguiFrameSystem;
 impl Plugin for ImguiPlugin {
   fn build(&self, app: &mut App) {
     app.insert_non_send_resource(ImguiState);
-    app.add_system_to_stage(CoreStage::PreUpdate, start_frame.label(ImguiFrameSystem).after(InputSystem));
+    app.add_system_to_stage(CoreStage::PreUpdate, start_frame.after(InputSystem));
     let windows = app.world.get_resource::<Windows>().unwrap();
     let winit_windows = app.world.get_non_send_resource::<WinitWindows>().unwrap();
     let window = winit_windows.get_window(windows.get_primary().unwrap().id()).unwrap();
