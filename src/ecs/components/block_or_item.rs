@@ -1,8 +1,9 @@
-// use crate::ecs::components::block::Block;
-// use crate::ecs::components::item::Item;
+use crate::ecs::components::block::BlockId;
+use crate::ecs::components::item::ItemId;
+use bevy::ecs::component::Component;
 
+#[derive(Component, Copy, Clone, Debug, Eq, Hash, PartialEq)]
 pub enum BlockOrItem {
-  Empty,
-  // Block(Block),
-  // Item(Item),
+  Block(BlockId),
+  Item(ItemId),
 }

@@ -141,9 +141,10 @@ fn movement_input_system(
 pub struct Cube;
 
 fn collision_movement_system(
+  mut commands: Commands,
   camera: Query<(Entity, &FPSCamera)>,
   player: Query<Entity, With<Player>>,
-  mut queries: ParamSet<(Query<&mut Transform>, Query<&mut Transform, With<Cube>>)>,
+  mut queries: ParamSet<(Query<&mut Transform>, Query<(Entity, &mut Transform), With<Cube>>)>,
   mut block_accessor: BlockAccessorSpawner,
 ) {
   let (entity_camera, fps_camera) = camera.single();
@@ -155,7 +156,10 @@ fn collision_movement_system(
 
   let mut query = queries.p1();
 
-  let mut iter = query.iter_mut();
+  let iter = query.iter_mut();
+  for (e, _) in iter {
+    commands.entity(e).despawn();
+  }
 
   for ix in -3..=3 {
     for iy in -3..=3 {
@@ -164,39 +168,28 @@ fn collision_movement_system(
         let c = to_ddd(c);
         if let Some(block) = block_accessor.get_single(c) {
           if !block.passable() {
-            // TODO: Blocks unexpectedly jump around rearranging themselves between those 2 systems.
-            match iter.next() {
-              None => {
-                block_accessor
-                  .commands
-                  .spawn()
-                  .insert(RigidBody::Fixed)
-                  .insert(Collider::cuboid(0.5, 0.5, 0.5))
-                  .insert(Cube)
-                  .insert(Friction {
-                    coefficient: 0.0,
-                    combine_rule: CoefficientCombineRule::Min,
-                  })
-                  .insert(SolverGroups::new(0b10, 0b01))
-                  .insert(CollisionGroups::new(0b10, 0b01))
-                  .insert(Transform::from_xyz(
-                    c.0 as f32 + 0.5,
-                    c.1 as f32 + 0.5,
-                    c.2 as f32 + 0.5,
-                  ))
-                  .insert(GlobalTransform::default());
-              }
-              Some(mut transform) => {
-                transform.translation = Vec3::new(c.0 as f32 + 0.5, c.1 as f32 + 0.5, c.2 as f32 + 0.5);
-              }
-            }
+            block_accessor
+              .commands
+              .spawn()
+              .insert(RigidBody::Fixed)
+              .insert(Collider::cuboid(0.5, 0.5, 0.5))
+              .insert(Cube)
+              .insert(Friction {
+                coefficient: 0.0,
+                combine_rule: CoefficientCombineRule::Min,
+              })
+              .insert(SolverGroups::new(0b10, 0b01))
+              .insert(CollisionGroups::new(0b10, 0b01))
+              .insert(Transform::from_xyz(
+                c.0 as f32 + 0.5,
+                c.1 as f32 + 0.5,
+                c.2 as f32 + 0.5,
+              ))
+              .insert(GlobalTransform::default());
           }
         }
       }
     }
-  }
-  for mut transform in iter {
-    transform.translation = Vec3::new(-9999.0, -9999.0, -9999.0);
   }
   drop(query);
   let mut transforms = queries.p0();

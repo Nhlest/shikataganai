@@ -24,7 +24,6 @@ pub struct BlockAccessorSpawner<'w, 's> {
   pub chunk_map: ResMut<'w, ChunkMap>,
   pub chunks: Query<'w, 's, &'static mut Chunk>,
   pub commands: Commands<'w, 's>,
-  // pub dispatcher: Res<'w, AsyncComputeTaskPool>,
 }
 
 #[derive(SystemParam)]
@@ -201,7 +200,7 @@ impl<'w, 's> BlockAccessor for T<'w, 's> {
       if let Some(current_light) = self.get_light_level(c) {
         let mut new_heaven_light = None;
         let mut new_hearth_light = None;
-        for heaven_check in c.immeidate_neighbours() {
+        for heaven_check in c.immediate_neighbours() {
           if let Some(LightLevel { mut heaven, hearth }) = self.get_light_level(heaven_check) {
             if heaven_check.1 - c.1 == 1 && heaven == 15 {
               heaven += 1
@@ -227,7 +226,7 @@ impl<'w, 's> BlockAccessor for T<'w, 's> {
         self.set_light_level(c, new_light);
         let chunk_coord = ChunkMap::get_chunk_coord(c);
         remesh.insert(chunk_coord);
-        for i in c.immeidate_neighbours() {
+        for i in c.immediate_neighbours() {
           if let Some(LightLevel { heaven, hearth }) = self.get_light_level(i) {
             if (heaven >= new_light.heaven - 1 || new_light.heaven == 0)
               && (hearth >= new_light.hearth - 1 || new_light.hearth == 0)

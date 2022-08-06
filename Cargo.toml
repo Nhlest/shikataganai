@@ -49,12 +49,12 @@ glsl-to-spirv = "0.1.5"
 strip = true
 
 [profile.dev]
-strip = true
+#strip = true
 opt-level = 1
 overflow-checks = false
 
 [profile.dev.package."*"]
-strip = true
+#strip = true
 opt-level = 3
 overflow-checks = false
 

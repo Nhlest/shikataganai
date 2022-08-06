@@ -1,7 +1,7 @@
 use crate::ecs::resources::block::BlockSprite;
 use bevy::prelude::*;
 
-#[derive(Copy, Clone, PartialEq, Debug)]
+#[derive(Copy, Clone, PartialEq, Debug, Eq, Hash)]
 #[repr(u32)]
 pub enum BlockId {
   Air,

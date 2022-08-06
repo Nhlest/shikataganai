@@ -4,20 +4,27 @@ use crate::ecs::plugins::rendering::inventory_pipeline::{
 use bevy::prelude::*;
 use bevy::render::mesh::PrimitiveTopology;
 use bevy::render::render_resource::{
-  BindGroupLayout, BindGroupLayoutEntry, BindingType, BlendState, BufferBindingType, CachedRenderPipelineId,
-  ColorTargetState, ColorWrites, FragmentState, FrontFace, MultisampleState, PipelineCache, PolygonMode,
-  PrimitiveState, RenderPipeline, RenderPipelineDescriptor, SamplerBindingType, ShaderStages, TextureFormat,
-  TextureSampleType, TextureViewDimension, VertexBufferLayout, VertexFormat, VertexState, VertexStepMode,
+  BindGroup, BindGroupLayout, BindGroupLayoutEntry, BindingType, BlendState, Buffer, BufferBindingType,
+  CachedRenderPipelineId, ColorTargetState, ColorWrites, Extent3d, FragmentState, FrontFace, MultisampleState,
+  PipelineCache, PolygonMode, PrimitiveState, RenderPipeline, RenderPipelineDescriptor, SamplerBindingType,
+  ShaderStages, TextureAspect, TextureDimension, TextureFormat, TextureSampleType, TextureUsages, TextureView,
+  TextureViewDimension, VertexBufferLayout, VertexFormat, VertexState, VertexStepMode,
 };
 use bevy::render::renderer::RenderDevice;
-use bevy::render::texture::BevyDefault;
-use wgpu::BindGroupLayoutDescriptor;
+use bevy::render::texture::{BevyDefault, GpuImage};
+use wgpu::{
+  BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindingResource, CommandEncoder, LoadOp, Operations,
+  RenderPass, RenderPassColorAttachment, RenderPassDescriptor, TextureDescriptor, TextureViewDescriptor,
+};
 
 pub struct InventoryNode {
   pub render_pipeline: Option<RenderPipeline>,
   pub view_layout: BindGroupLayout,
   pub texture_layout: BindGroupLayout,
   pub render_pipeline_id: CachedRenderPipelineId,
+  pub view: TextureView,
+  pub to_render: bool,
+  pub initialised: bool,
 }
 
 impl InventoryNode {
@@ -58,7 +65,7 @@ impl InventoryNode {
       label: Some("inventory_texture_layout"),
     });
 
-    let vertex_formats = vec![VertexFormat::Float32x3, VertexFormat::Float32x2];
+    let vertex_formats = vec![VertexFormat::Float32x2, VertexFormat::Float32x2, VertexFormat::Float32];
 
     let vertex_layout = VertexBufferLayout::from_vertex_formats(VertexStepMode::Vertex, vertex_formats);
 
@@ -105,6 +112,83 @@ impl InventoryNode {
       texture_layout,
       render_pipeline_id,
       render_pipeline: None,
+      to_render: false,
+      view: InventoryNode::create_view(render_device),
+      initialised: false,
     }
+  }
+
+  pub fn create_view(render_device: &RenderDevice) -> TextureView {
+    let texture = render_device.create_texture(&TextureDescriptor {
+      label: "offscreen_texture".into(),
+      size: Extent3d {
+        width: 1024,
+        height: 1024,
+        depth_or_array_layers: 1,
+      },
+      mip_level_count: 1,
+      sample_count: 1,
+      dimension: TextureDimension::D2,
+      format: TextureFormat::bevy_default(),
+      usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
+    });
+    texture.create_view(&TextureViewDescriptor {
+      label: "offscreen_texture_view".into(),
+      format: Some(TextureFormat::bevy_default()),
+      dimension: Some(TextureViewDimension::D2),
+      aspect: TextureAspect::All,
+      base_mip_level: 0,
+      mip_level_count: None,
+      base_array_layer: 0,
+      array_layer_count: None,
+    })
+  }
+
+  pub fn create_view_bind_group(&self, render_device: &RenderDevice, view_buffer: &Buffer) -> BindGroup {
+    render_device.create_bind_group(&BindGroupDescriptor {
+      label: None,
+      layout: &self.view_layout,
+      entries: &[BindGroupEntry {
+        binding: 0,
+        resource: BindingResource::Buffer(view_buffer.as_entire_buffer_binding()),
+      }],
+    })
+  }
+
+  pub fn create_texture_bind_group(&self, render_device: &RenderDevice, gpu_image: &GpuImage) -> BindGroup {
+    render_device.create_bind_group(&BindGroupDescriptor {
+      entries: &[
+        BindGroupEntry {
+          binding: 0,
+          resource: BindingResource::TextureView(&gpu_image.texture_view),
+        },
+        BindGroupEntry {
+          binding: 1,
+          resource: BindingResource::Sampler(&gpu_image.sampler),
+        },
+      ],
+      label: Some("inventory_texture_bind_group"),
+      layout: &self.texture_layout,
+    })
+  }
+
+  pub fn begin_render_pass<'a>(&'a self, command_encoder: &'a mut CommandEncoder) -> RenderPass<'a> {
+    command_encoder.begin_render_pass(&RenderPassDescriptor {
+      label: Some("offscreen_pass"),
+      color_attachments: &[Some(RenderPassColorAttachment {
+        view: &self.view,
+        resolve_target: None,
+        ops: Operations {
+          load: LoadOp::Clear(wgpu::Color {
+            r: 1.0,
+            g: 1.0,
+            b: 0.0,
+            a: 0.0,
+          }),
+          store: true,
+        },
+      })],
+      depth_stencil_attachment: None,
+    })
   }
 }

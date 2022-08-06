@@ -18,8 +18,8 @@ use crate::ecs::plugins::camera::CameraPlugin;
 use crate::ecs::plugins::game::GamePlugin;
 use crate::ecs::plugins::imgui::{ImguiPlugin, ImguiState};
 use crate::ecs::plugins::preamble::Preamble;
-use crate::ecs::plugins::settings::SettingsPlugin;
 use crate::ecs::plugins::rendering::ShikataganaiRendererPlugins;
+use crate::ecs::plugins::settings::SettingsPlugin;
 
 mod ecs;
 mod util;

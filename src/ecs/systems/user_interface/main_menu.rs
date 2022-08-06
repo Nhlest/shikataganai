@@ -1,51 +1,10 @@
 use crate::ecs::plugins::camera::MainMenuOpened;
-use crate::ecs::plugins::imgui::{BigFont, GUITextureAtlas};
+use crate::ecs::plugins::imgui::BigFont;
 use crate::ecs::plugins::settings::{AmbientOcclusion, FullScreen, MouseSensitivity, Resolution, VSync};
-use crate::ecs::resources::player::PlayerInventory;
 use crate::ImguiState;
 use bevy::app::AppExit;
 use bevy::prelude::*;
-use imgui::{ComboBoxPreviewMode, Condition, StyleVar};
-
-pub fn hot_bar(
-  imgui: NonSendMut<ImguiState>,
-  window: Res<Windows>,
-  texture: Res<GUITextureAtlas>,
-  hotbar_items: Res<PlayerInventory>,
-) {
-  let active_window = window.get_primary().unwrap();
-  let ui = imgui.get_current_frame();
-  let x1 = active_window.width() / 2.0 - 2.0;
-  let y1 = active_window.height() / 2.0 - 2.0;
-  imgui::Window::new("HotBar")
-    .title_bar(false)
-    .resizable(false)
-    .scrollable(false)
-    .scroll_bar(false)
-    .position(
-      [
-        active_window.width() / 2.0 - 1080.0 / 2.0,
-        active_window.height() - 100.0,
-      ],
-      Condition::Always,
-    )
-    .size([1080.0, 100.0], Condition::Always)
-    .build(ui, || {
-      ui.get_background_draw_list()
-        .add_rect([x1, y1], [x1 + 4.0, y1 + 4.0], [0.1, 0.1, 0.1, 1.0])
-        .build();
-      let _a = ui.push_style_var(StyleVar::ItemSpacing([2.5, 2.5]));
-      for (_i, _item) in hotbar_items.items.iter().enumerate() {
-        imgui::Image::new(texture.0, [95.0, 95.0])
-          .uv0([1.0 / 8.0, 0.0])
-          .uv1([2.0 / 8.0, 1.0 / 8.0])
-          .border_col([0.0, 0.0, 0.0, 1.0])
-          .build(&ui);
-        ui.same_line();
-      }
-    })
-    .unwrap();
-}
+use imgui::{ComboBoxPreviewMode, Condition};
 
 pub fn main_menu(
   imgui: NonSendMut<ImguiState>,

@@ -23,7 +23,7 @@ pub fn sub_ddd(a: DDD, b: DDD) -> DDD {
 }
 
 pub trait ImmediateNeighbours {
-  fn immeidate_neighbours(&self) -> IntoIter<Self, 6>
+  fn immediate_neighbours(&self) -> IntoIter<Self, 6>
   where
     Self: Sized;
 }
@@ -36,7 +36,7 @@ pub trait FullNeighbours {
 }
 
 impl ImmediateNeighbours for DDD {
-  fn immeidate_neighbours(&self) -> IntoIter<Self, 6> {
+  fn immediate_neighbours(&self) -> IntoIter<Self, 6> {
     [
       (self.0 - 1, self.1, self.2),
       (self.0 + 1, self.1, self.2),
