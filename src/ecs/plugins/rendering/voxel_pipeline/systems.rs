@@ -1,4 +1,4 @@
-use crate::ecs::components::block::Block;
+use crate::ecs::components::blocks::{Block, BlockRenderInfo};
 use crate::ecs::plugins::camera::Selection;
 use crate::ecs::plugins::rendering::voxel_pipeline::bind_groups::{
   LightTextureBindGroup, LightTextureHandle, SelectionBindGroup, TextureHandle, VoxelTextureBindGroup,
@@ -74,14 +74,16 @@ pub fn extract_chunks(
               None => (0, 0),
             };
 
-            extracted_blocks.push(SingleSide::new(
-              (i.0 as f32, i.1 as f32, i.2 as f32),
-              sub_ddd(neighbour, i),
-              block.block.into_array_of_faces(),
-              lighting,
-              &block_accessor,
-              ambient_occlusion.0,
-            ));
+            if let BlockRenderInfo::AsBlock(block_sprites) = block.render_info() {
+              extracted_blocks.push(SingleSide::new(
+                (i.0 as f32, i.1 as f32, i.2 as f32),
+                sub_ddd(neighbour, i),
+                block_sprites,
+                lighting,
+                &block_accessor,
+                ambient_occlusion.0,
+              ));
+            }
           }
         }
       }

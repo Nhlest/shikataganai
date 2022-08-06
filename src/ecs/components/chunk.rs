@@ -1,4 +1,5 @@
-use crate::ecs::components::block::{Block, BlockId};
+use crate::ecs::components::blocks::Block;
+use crate::ecs::components::blocks::block_id::BlockId;
 use crate::ecs::resources::light::LightLevel;
 use bevy::prelude::*;
 use bevy::tasks::Task;

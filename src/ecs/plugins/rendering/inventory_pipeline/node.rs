@@ -1,4 +1,4 @@
-use crate::ecs::components::block::BlockId;
+use crate::ecs::components::blocks::block_id::BlockId;
 use crate::ecs::components::block_or_item::BlockOrItem;
 use crate::ecs::plugins::rendering::inventory_pipeline::pipeline::InventoryNode;
 use crate::ecs::plugins::rendering::inventory_pipeline::{
@@ -14,6 +14,8 @@ use bevy::render::renderer::{RenderContext, RenderDevice};
 use image::EncodableLayout;
 use std::collections::HashMap;
 use wgpu::util::BufferInitDescriptor;
+use crate::ecs::components::blocks::BlockRenderInfo;
+use crate::ecs::resources::block::BlockSprite;
 
 const HEX_CC: [f32; 2] = [0.000000, -0.000000];
 const HEX_NN: [f32; 2] = [0.000000, -1.000000];
@@ -65,10 +67,10 @@ impl Node for InventoryNode {
       let mut vertex_buffer = vec![];
       let mut rendered_item_icons = HashMap::new();
 
-      let mut add_block_to_vertices = |block: &BlockId, x, y| {
-        let top_tex   = block.into_array_of_faces()[4].into_uv();
-        let left_tex  = block.into_array_of_faces()[0].into_uv();
-        let right_tex = block.into_array_of_faces()[1].into_uv();
+      let mut add_block_to_vertices = |block_sprite: [BlockSprite; 6], x, y| {
+        let top_tex   = block_sprite[4].into_uv();
+        let left_tex  = block_sprite[0].into_uv();
+        let right_tex = block_sprite[1].into_uv();
         let x = x * INVENTORY_OUTPUT_TEXTURE_WIDTH;
         let y = y * INVENTORY_OUTPUT_TEXTURE_WIDTH;
         vertex_buffer.extend_from_slice(&[HEX_NW[0] * RADIUS + x + 0.5, HEX_NW[1] * RADIUS + y + 0.5, top_tex.0[0], top_tex.0[1], 1.0]);
@@ -96,7 +98,12 @@ impl Node for InventoryNode {
       for (item, (x, y)) in to_render.0.iter() {
         match item {
           BlockOrItem::Block(blockid) => {
-            add_block_to_vertices(blockid, x, y);
+            match blockid.render_info() {
+              BlockRenderInfo::AsBlock(block_sprite) => {
+                add_block_to_vertices(block_sprite, x, y);
+              }
+              _ => {todo!("Not implemented yet");}
+            }
           }
           BlockOrItem::Item(_) => {}
         }

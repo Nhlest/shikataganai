@@ -1,4 +1,4 @@
-use crate::ecs::components::block::BlockId;
+use crate::ecs::components::blocks::block_id::BlockId;
 use crate::ecs::components::item::ItemId;
 use bevy::ecs::component::Component;
 

@@ -1,4 +1,4 @@
-use crate::ecs::components::block::Block;
+use crate::ecs::components::blocks::Block;
 use crate::ecs::components::chunk::{Chunk, ChunkTask};
 use crate::ecs::resources::light::LightLevel;
 use crate::util::array::{ImmediateNeighbours, DD, DDD};
