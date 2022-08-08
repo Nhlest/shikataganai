@@ -126,7 +126,7 @@ impl AssetLoader for GltfLoaderII {
 
 #[derive(EnumIter, Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub enum Meshes {
-  TestModel,
+  Stair,
 }
 
 #[derive(Deref)]

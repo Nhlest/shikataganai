@@ -1,3 +1,4 @@
+use crate::ecs::plugins::game::{in_game, ShikataganaiGameState};
 use crate::ecs::plugins::settings::MouseSensitivity;
 use crate::ecs::resources::chunk_map::{BlockAccessor, BlockAccessorSpawner};
 use crate::util::array::{to_ddd, DDD};
@@ -8,6 +9,8 @@ use bevy::render::primitives::Frustum;
 use bevy_rapier3d::parry::query::Ray;
 use bevy_rapier3d::prelude::*;
 use bevy_rapier3d::rapier::pipeline::QueryFilter;
+use iyes_loopless::prelude::{ConditionSet, CurrentState, IntoConditionalSystem};
+use iyes_loopless::state::NextState;
 use num_traits::float::FloatConst;
 
 pub struct CameraPlugin;
@@ -66,11 +69,19 @@ impl Plugin for CameraPlugin {
           .insert(CollisionGroups::new(0b01, 0b10));
         c.spawn().insert(fps_camera).insert_bundle(camera);
       });
-    app
-      .add_system(movement_input_system)
-      .add_system(cursor_grab_system)
-      .add_system_to_stage(CoreStage::PreUpdate, block_pick)
-      .add_system_to_stage(CoreStage::Update, collision_movement_system);
+
+    let on_game_simulation_continous = ConditionSet::new()
+      .run_in_state(ShikataganaiGameState::Simulation)
+      .with_system(movement_input_system)
+      .with_system(collision_movement_system)
+      .into();
+    app.add_system_set(on_game_simulation_continous);
+    app.add_system(cursor_grab_system.run_if(in_game));
+    let on_simulation_pre_update = ConditionSet::new()
+      .run_in_state(ShikataganaiGameState::Simulation)
+      .with_system(block_pick)
+      .into();
+    app.add_system_set_to_stage(CoreStage::PreUpdate, on_simulation_pre_update);
   }
 }
 
@@ -204,24 +215,31 @@ fn collision_movement_system(
   camera_t.look_at(looking_at, Vec3::new(0.0, 1.0, 0.0));
 }
 
-pub struct MainMenuOpened(pub bool);
-
 fn cursor_grab_system(
+  mut commands: Commands,
+  current_state: Res<CurrentState<ShikataganaiGameState>>,
   mut windows: ResMut<Windows>,
   key: Res<Input<KeyCode>>,
-  mut main_menu_opened: ResMut<MainMenuOpened>,
+  mut physics_system: ResMut<RapierConfiguration>,
 ) {
   let window = windows.get_primary_mut().unwrap();
 
   if key.just_pressed(KeyCode::Escape) {
-    if main_menu_opened.0 {
-      window.set_cursor_lock_mode(true);
-      window.set_cursor_visibility(false);
-    } else {
-      window.set_cursor_lock_mode(false);
-      window.set_cursor_visibility(true);
+    match current_state.0 {
+      ShikataganaiGameState::Simulation => {
+        window.set_cursor_lock_mode(false);
+        window.set_cursor_visibility(true);
+        commands.insert_resource(NextState(ShikataganaiGameState::Paused));
+        physics_system.physics_pipeline_active = false;
+      }
+      ShikataganaiGameState::Paused => {
+        window.set_cursor_lock_mode(true);
+        window.set_cursor_visibility(false);
+        commands.insert_resource(NextState(ShikataganaiGameState::Simulation));
+        physics_system.physics_pipeline_active = true;
+      }
+      _ => {}
     }
-    main_menu_opened.0 = !main_menu_opened.0;
   }
 }
 

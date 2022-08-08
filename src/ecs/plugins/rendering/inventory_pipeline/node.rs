@@ -1,10 +1,11 @@
-use crate::ecs::components::blocks::block_id::BlockId;
 use crate::ecs::components::block_or_item::BlockOrItem;
+use crate::ecs::components::blocks::BlockRenderInfo;
 use crate::ecs::plugins::rendering::inventory_pipeline::pipeline::InventoryNode;
 use crate::ecs::plugins::rendering::inventory_pipeline::{
   ExtractedItems, INVENTORY_OUTPUT_TEXTURE_WIDTH, TEXTURE_NODE_OUTPUT_SLOT,
 };
 use crate::ecs::plugins::rendering::voxel_pipeline::bind_groups::TextureHandle;
+use crate::ecs::resources::block::BlockSprite;
 use crate::ecs::resources::player::RerenderInventory;
 use bevy::prelude::*;
 use bevy::render::render_asset::RenderAssets;
@@ -14,8 +15,6 @@ use bevy::render::renderer::{RenderContext, RenderDevice};
 use image::EncodableLayout;
 use std::collections::HashMap;
 use wgpu::util::BufferInitDescriptor;
-use crate::ecs::components::blocks::BlockRenderInfo;
-use crate::ecs::resources::block::BlockSprite;
 
 const HEX_CC: [f32; 2] = [0.000000, -0.000000];
 const HEX_NN: [f32; 2] = [0.000000, -1.000000];
@@ -36,6 +35,9 @@ impl Node for InventoryNode {
     }]
   }
   fn update(&mut self, world: &mut World) {
+    if !world.contains_resource::<RerenderInventory>() {
+      return;
+    }
     if world.resource::<RerenderInventory>().0 || !self.initialised {
       self.to_render = true;
       self.view = InventoryNode::create_view(world.resource::<RenderDevice>());
@@ -101,6 +103,10 @@ impl Node for InventoryNode {
             match blockid.render_info() {
               BlockRenderInfo::AsBlock(block_sprite) => {
                 add_block_to_vertices(block_sprite, x, y);
+              }
+              BlockRenderInfo::AsMesh(mesh_handle) => {
+                let meshes = world.resource::<Assets<Mesh>>();
+                // let mesh_storage = world.resource::<MeshS>();
               }
               _ => {todo!("Not implemented yet");}
             }

@@ -34,6 +34,13 @@ impl BlockTrait for Grass {
 impl BlockTrait for Cobblestone {
   fn render_info(&self) -> BlockRenderInfo {
     use crate::ecs::resources::block::BlockSprite::*;
-    BlockRenderInfo::AsBlock([Cobblestone, Cobblestone, Cobblestone, Cobblestone, Cobblestone, Cobblestone])
+    BlockRenderInfo::AsBlock([
+      Cobblestone,
+      Cobblestone,
+      Cobblestone,
+      Cobblestone,
+      Cobblestone,
+      Cobblestone,
+    ])
   }
 }

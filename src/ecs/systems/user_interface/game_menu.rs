@@ -6,9 +6,9 @@ use bevy::app::AppExit;
 use bevy::prelude::*;
 use bevy_rapier3d::plugin::RapierConfiguration;
 use imgui::{ComboBoxPreviewMode, Condition};
-use iyes_loopless::state::NextState;
+use iyes_loopless::prelude::NextState;
 
-pub fn main_menu(
+pub fn game_menu(
   mut commands: Commands,
   imgui: NonSendMut<ImguiState>,
   mut window: ResMut<Windows>,
@@ -25,7 +25,7 @@ pub fn main_menu(
   let active_window = window.get_primary_mut().unwrap();
   let ui = imgui.get_current_frame();
 
-  imgui::Window::new("Main Menu")
+  imgui::Window::new("Game Menu")
     // .title_bar(false)
     .resizable(false)
     .scrollable(false)
@@ -45,11 +45,10 @@ pub fn main_menu(
       let w = ui.calc_text_size("Continue");
       ui.set_cursor_pos([((x2 - x1) - w[0]) / 2.0, ui.cursor_pos()[1]]);
       if ui.button("Continue") {
-        // main_menu_opened.0 = false;
         active_window.set_cursor_lock_mode(true);
         active_window.set_cursor_visibility(false);
-        commands.insert_resource(NextState(ShikataganaiGameState::PreSimulation));
         physics_system.physics_pipeline_active = true;
+        commands.insert_resource(NextState(ShikataganaiGameState::Simulation));
       }
       let w = ui.calc_text_size("Settings");
       ui.set_cursor_pos([((x2 - x1) - w[0]) / 2.0, ui.cursor_pos()[1]]);

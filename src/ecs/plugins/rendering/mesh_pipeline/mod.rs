@@ -1,3 +1,4 @@
+use crate::ecs::plugins::game::{in_game, in_game_extract};
 use crate::ecs::plugins::rendering::mesh_pipeline::draw_command::DrawMeshFull;
 use crate::ecs::plugins::rendering::mesh_pipeline::loader::{GltfLoaderII, GltfMeshStorage};
 use crate::ecs::plugins::rendering::mesh_pipeline::pipeline::MeshPipeline;
@@ -12,6 +13,7 @@ use bevy::render::render_phase::AddRenderCommand;
 use bevy::render::render_resource::SpecializedRenderPipelines;
 use bevy::render::{RenderApp, RenderStage};
 use bevy_rapier3d::prelude::*;
+use iyes_loopless::prelude::IntoConditionalSystem;
 
 pub mod bind_groups;
 pub mod draw_command;
@@ -111,9 +113,9 @@ impl Plugin for MeshRendererPlugin {
     render_app
       .init_resource::<MeshPipeline>()
       .init_resource::<SpecializedRenderPipelines<MeshPipeline>>()
-      .add_system_to_stage(RenderStage::Extract, extract_meshes)
-      .add_system_to_stage(RenderStage::Queue, queue_mesh_position_bind_group)
-      .add_system_to_stage(RenderStage::Queue, queue_meshes)
+      .add_system_to_stage(RenderStage::Extract, extract_meshes.run_if(in_game_extract))
+      .add_system_to_stage(RenderStage::Queue, queue_mesh_position_bind_group.run_if(in_game))
+      .add_system_to_stage(RenderStage::Queue, queue_meshes.run_if(in_game))
       .add_render_command::<Opaque3d, DrawMeshFull>();
   }
 }

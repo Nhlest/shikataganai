@@ -1,4 +1,5 @@
 use crate::ecs::components::block_or_item::BlockOrItem;
+use crate::ecs::plugins::game::{in_game, in_game_extract};
 use crate::ecs::plugins::imgui::{IMGUI_PASS, TEXTURE_NODE_INPUT_SLOT};
 use crate::ecs::plugins::rendering::inventory_pipeline::pipeline::InventoryNode;
 use crate::ecs::plugins::rendering::inventory_pipeline::systems::{
@@ -12,6 +13,7 @@ use bevy::render::render_resource::PipelineCache;
 use bevy::render::renderer::RenderDevice;
 use bevy::render::{RenderApp, RenderStage};
 use bevy::utils::hashbrown::HashMap;
+use iyes_loopless::prelude::IntoConditionalSystem;
 use std::ops::{Deref, DerefMut};
 
 pub mod node;
@@ -46,7 +48,7 @@ impl Plugin for InventoryRendererPlugin {
     app.init_resource::<RerenderInventory>();
     app.init_resource::<ExtractedItems>();
     app.add_system_to_stage(CoreStage::First, cleanup_rerender);
-    app.add_system_to_stage(CoreStage::PostUpdate, prepare_extracted_inventory);
+    app.add_system_to_stage(CoreStage::PostUpdate, prepare_extracted_inventory.run_if(in_game));
 
     if let Ok(render_app) = app.get_sub_app_mut(RenderApp) {
       let inventory_node = {
@@ -56,7 +58,7 @@ impl Plugin for InventoryRendererPlugin {
         InventoryNode::new(render_device.deref(), render_pipeline_cache.deref_mut())
       };
 
-      render_app.add_system_to_stage(RenderStage::Extract, extract_inventory_tiles);
+      render_app.add_system_to_stage(RenderStage::Extract, extract_inventory_tiles.run_if(in_game_extract));
       render_app.init_resource::<ExtractedItems>();
 
       let mut render_graph = render_app.world.get_resource_mut::<RenderGraph>().unwrap();
