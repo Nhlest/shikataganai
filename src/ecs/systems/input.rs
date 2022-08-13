@@ -84,7 +84,7 @@ pub fn action_input(
         })) = player_inventory.items.get_mut(hotbar_selection.0 as usize)
         {
           if let Some([target_negative_block]) = block_accessor.get_many_mut([target_negative]) {
-            let shape = Collider::cuboid(0.45, 0.45, 0.45);
+            let shape = Collider::cuboid(0.5, 0.5, 0.5);
             let shape_pos = Vec3::new(
               target_negative.0 as f32 + 0.5,
               target_negative.1 as f32 + 0.5,

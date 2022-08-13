@@ -6,7 +6,7 @@ use bevy::tasks::Task;
 use noise::utils::{NoiseMap, NoiseMapBuilder, PlaneMapBuilder};
 use noise::*;
 
-use crate::util::array::{Array, Array3d, Bounds, DD, DDD};
+use crate::util::array::{Array, Array2d, Array3d, Bounds, DD, DDD};
 
 const CHUNK_MAX_HEIGHT: i32 = 255;
 
@@ -22,8 +22,8 @@ pub struct Chunk {
   pub light_map: Array3d<LightLevel>,
 }
 
-fn noise(plane: &NoiseMap, c: DDD) -> f64 {
-  let a = plane.get_value(c.0 as usize, c.2 as usize);
+fn noise(perlin: &Perlin, c: DDD) -> f64 {
+  let a = perlin.get([c.0 as f64 / 20.0, 0.0, c.2 as f64 / 20.0]);
   a
 }
 
@@ -48,22 +48,35 @@ impl Chunk {
 
   pub async fn generate(coord: DD) -> Chunk {
     let perlin = Perlin::new().set_seed(11);
-    let plane = PlaneMapBuilder::new(&perlin)
-      .set_x_bounds(-2.0, 2.0)
-      .set_y_bounds(-2.0, 2.0)
-      .build();
     let from = (coord.0 * 16, 0, coord.1 * 16);
     let to = (coord.0 * 16 + 15, CHUNK_MAX_HEIGHT, coord.1 * 16 + 15);
+    let v = Array2d::new_init(((from.0, from.2), (to.0, to.2)), |(x, z)| noise(&perlin, (x, 0, z)));
+
     Chunk::new((from, to), |(x, y, z)| {
-      let a = noise(&plane, (x, y, z));
-      if (((a + 1.0) * 15.0) as i32 + 15) < y {
+      let bottom = v[(x, z)];
+      let top = v[(x+999, z+399)];
+
+      let bottom_extent = (bottom * 30.0).floor() as i32;
+      let top_extent = ((top + 1.0) * bottom / 2.0 * 30.0).floor() as i32;
+
+      if bottom <= 0.0 {
         BlockId::Air
-      } else if (((a + 1.0) * 15.0) as i32 + 15) < y + 1 {
-        BlockId::Grass
-      } else if (((a + 1.0) * 15.0) as i32 + 15) < y + 3 {
-        BlockId::Dirt
+      } else if y < 30 {
+        if (30 - y) < bottom_extent {
+          BlockId::Cobble
+        } else {
+          BlockId::Air
+        }
       } else {
-        BlockId::Cobble
+        if (y-30) > top_extent {
+          BlockId::Air
+        } else if (y-30) == top_extent {
+          BlockId::Grass
+        } else if y - 28 >= top_extent {
+          BlockId::Dirt
+        } else {
+          BlockId::Cobble
+        }
       }
     })
   }

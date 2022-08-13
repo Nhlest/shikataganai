@@ -37,7 +37,7 @@ fn main() {
     .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
     .add_plugin(ImguiPlugin)
     .add_plugins(ShikataganaiRendererPlugins)
-    // .add_plugin(bevy_framepace::FramepacePlugin::default())
+    .add_plugin(bevy_framepace::FramepacePlugin::default())
     // .add_plugin(RapierDebugRenderPlugin::default())
     // .add_plugin(LogDiagnosticsPlugin::default())
     // .add_plugin(FrameTimeDiagnosticsPlugin::default())

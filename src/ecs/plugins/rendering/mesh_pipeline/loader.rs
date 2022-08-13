@@ -4,6 +4,7 @@ use bevy::render::mesh::{Indices, MeshVertexAttribute, PrimitiveTopology, Vertex
 use bevy::render::render_resource::VertexFormat;
 use bevy::utils::hashbrown::HashMap;
 use bevy::utils::BoxedFuture;
+use bevy::reflect::TypeUuid;
 use gltf::buffer::Source;
 use gltf::Gltf;
 use std::path::Path;
@@ -90,6 +91,9 @@ impl AssetLoader for GltfLoaderII {
     load_context: &'a mut LoadContext,
   ) -> BoxedFuture<'a, anyhow::Result<(), anyhow::Error>> {
     Box::pin(async {
+      let mut hash_map = HashMap::new();
+
+      // Render mesh
       let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
       let gltf = Gltf::from_slice(bytes).unwrap();
       let buffers = load_buffers(&gltf, load_context, load_context.path()).await.unwrap();
@@ -114,7 +118,35 @@ impl AssetLoader for GltfLoaderII {
         );
         mesh.set_indices(Some(Indices::U32(indicies)));
       }
-      load_context.set_default_asset(LoadedAsset::new(mesh));
+      let render_handle = load_context.set_labeled_asset("RenderHandleStair", LoadedAsset::new(mesh));
+
+      // Collision mesh
+      let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
+      let gltf = Gltf::from_slice(bytes).unwrap();
+      let buffers = load_buffers(&gltf, load_context, load_context.path()).await.unwrap();
+      let mesh_map = gltf
+        .document
+        .meshes()
+        .map(|x| (x.name().unwrap(), x))
+        .collect::<HashMap<_, _>>();
+      let mesh_render = mesh_map.get("Collider").unwrap();
+      for p in mesh_render.primitives() {
+        let reader = p.reader(|r| Some(&buffers[r.index()]));
+        let positions = reader.read_positions().unwrap().collect();
+        // let tex_coords = reader.read_tex_coords(0).unwrap().into_f32().collect();
+        let indicies = reader.read_indices().unwrap().into_u32().collect();
+        mesh.insert_attribute(
+          MeshVertexAttribute::new("POSITIONS", 0, VertexFormat::Float32x3),
+          VertexAttributeValues::Float32x3(positions),
+        );
+        mesh.set_indices(Some(Indices::U32(indicies)));
+      }
+      let collider_handle = load_context.set_labeled_asset("ColliderHandleStair", LoadedAsset::new(mesh));
+      hash_map.insert(Meshes::Stair, MeshHandles {
+        render: Some(render_handle),
+        collision: Some(collider_handle)
+      });
+      load_context.set_default_asset(LoadedAsset::new(GltfMeshStorageHandle(hash_map)));
       Ok(())
     })
   }
@@ -129,13 +161,21 @@ pub enum Meshes {
   Stair,
 }
 
+pub struct MeshHandles {
+  pub render: Option<Handle<Mesh>>,
+  pub collision: Option<Handle<Mesh>>,
+}
+
 #[derive(Deref)]
-pub struct GltfMeshStorage(pub Option<Handle<Mesh>>);
+pub struct GltfMeshStorage(pub Handle<GltfMeshStorageHandle>);
+
+#[derive(TypeUuid, Deref)]
+#[uuid="03ddd1e6-1adf-11ed-9dbf-7c10c93f86f5"]
+pub struct GltfMeshStorageHandle(pub HashMap<Meshes, MeshHandles>);
 
 impl FromWorld for GltfMeshStorage {
   fn from_world(world: &mut World) -> Self {
     let asset_server = world.get_resource::<AssetServer>().unwrap();
-    let gltf: Handle<Mesh> = asset_server.load("meshes/meshes.glb");
-    GltfMeshStorage(Some(gltf))
+    GltfMeshStorage(asset_server.load("meshes/meshes.glb"))
   }
 }

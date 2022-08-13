@@ -18,7 +18,7 @@ pub struct PlayerInventory {
 impl Default for PlayerInventory {
   fn default() -> Self {
     Self {
-      items: vec![None, None],
+      items: vec![None, None, None, None],
     }
   }
 }

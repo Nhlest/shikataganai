@@ -30,7 +30,7 @@ imgui-wgpu = { git = "https://github.com/Nhlest/imgui-wgpu-rs", branch = "master
 imgui-winit-support = { version = "*", default-features = false, features = [ "winit-26" ] }
 
 bevy_embedded_assets = "0.4"
-#bevy_framepace = { git = "https://github.com/aevyrie/bevy_framepace", branch = "main" }
+bevy_framepace = "0.5"
 
 [dependencies.bevy_rapier3d]
 version = "0.16.0"

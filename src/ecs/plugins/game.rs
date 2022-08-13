@@ -1,5 +1,5 @@
 use crate::ecs::plugins::camera::Selection;
-use crate::ecs::resources::chunk_map::ChunkMap;
+use crate::ecs::resources::chunk_map::{BlockAccessorSpawner, ChunkMap};
 use crate::ecs::resources::player::{PlayerInventory, SelectedHotBar};
 use crate::ecs::systems::chunkgen::collect_async_chunks;
 use crate::ecs::systems::input::{action_input, hot_bar_scroll_input};
@@ -11,9 +11,11 @@ use std::time::Duration;
 
 pub struct GamePlugin;
 
+use crate::ecs::resources::chunk_map::BlockAccessor;
 use crate::ecs::systems::user_interface::game_menu::game_menu;
 use bevy::render::{Extract, RenderApp, RenderStage};
 use iyes_loopless::prelude::*;
+use crate::ecs::plugins::rendering::mesh_pipeline::spawn_mesh;
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Hash)]
 pub enum ShikataganaiGameState {
@@ -47,8 +49,13 @@ pub fn init_game(mut commands: Commands) {
   commands.init_resource::<Option<Selection>>();
 }
 
-pub fn transition_to_simulation(mut commands: Commands) {
+pub fn transition_to_simulation(mut commands: Commands, mut r: BlockAccessorSpawner) {
   commands.insert_resource(NextState(ShikataganaiGameState::Simulation));
+  for i in -10..=10 {
+    for j in -10..=10 {
+      r.get_single((i*16, 0, j*16));
+    }
+  }
 }
 
 pub fn cleanup_game(mut commands: Commands) {
@@ -68,7 +75,7 @@ impl Plugin for GamePlugin {
       .run_in_state(ShikataganaiGameState::MainMenu)
       .with_system(main_menu)
       .into();
-    let on_game_enter = SystemStage::parallel().with_system(init_game);
+    let on_game_enter = SystemStage::parallel().with_system(init_game).with_system(spawn_mesh);
     let on_game_exit = SystemStage::parallel().with_system(cleanup_game);
     let on_game_pre_simulation_update = ConditionSet::new()
       .run_in_state(ShikataganaiGameState::PreSimulation)
