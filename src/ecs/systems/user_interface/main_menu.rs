@@ -42,10 +42,9 @@ pub fn main_menu(
       let _f = ui.push_font(big_font.0);
       let [x1, _] = ui.window_content_region_min();
       let [x2, _] = ui.window_content_region_max();
-      let w = ui.calc_text_size("Continue");
+      let w = ui.calc_text_size("New Game");
       ui.set_cursor_pos([((x2 - x1) - w[0]) / 2.0, ui.cursor_pos()[1]]);
-      if ui.button("Continue") {
-        // main_menu_opened.0 = false;
+      if ui.button("New Game") {
         active_window.set_cursor_lock_mode(true);
         active_window.set_cursor_visibility(false);
         commands.insert_resource(NextState(ShikataganaiGameState::PreSimulation));
