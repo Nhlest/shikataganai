@@ -1,24 +1,20 @@
 use crate::ecs::plugins::camera::Selection;
+use crate::ecs::resources::chunk_map::BlockAccessor;
 use crate::ecs::resources::chunk_map::{BlockAccessorSpawner, ChunkMap};
 use crate::ecs::resources::player::{PlayerInventory, SelectedHotBar};
 use crate::ecs::systems::chunkgen::collect_async_chunks;
-use crate::ecs::systems::input::handle_menu_system;
-use crate::ecs::systems::input::ConsoleMenuOpened;
-use crate::ecs::systems::input::MainMenuOpened;
 use crate::ecs::systems::input::{action_input, hot_bar_scroll_input};
 use crate::ecs::systems::light::relight_system;
+use crate::ecs::systems::remesh::remesh_system_auxiliary;
+use crate::ecs::systems::user_interface::game_menu::game_menu;
 use crate::ecs::systems::user_interface::hot_bar::hot_bar;
 use crate::ecs::systems::user_interface::main_menu::main_menu;
 use bevy::prelude::*;
-use std::time::Duration;
-use crate::ecs::resources::chunk_map::BlockAccessor;
-use crate::ecs::systems::remesh::remesh_system_auxiliary;
-use crate::ecs::systems::user_interface::game_menu::game_menu;
 use bevy::render::{Extract, RenderApp, RenderStage};
 use iyes_loopless::prelude::*;
+use std::time::Duration;
 
 pub struct GamePlugin;
-
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Hash)]
 pub enum ShikataganaiGameState {

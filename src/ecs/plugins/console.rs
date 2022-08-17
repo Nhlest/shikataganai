@@ -1,33 +1,57 @@
-﻿use crate::ecs::plugins::imgui::{BigFont, ImguiFrameSystem};
-use crate::ecs::systems::input::ConsoleMenuOpened;
+use crate::ecs::plugins::game::ShikataganaiGameState;
+use crate::ecs::plugins::imgui::BigFont;
 use crate::App;
 use crate::ImguiState;
 use bevy::app::Plugin;
 use bevy::prelude::*;
 use imgui::{Condition, StyleColor};
+use iyes_loopless::prelude::{ConditionSet, CurrentState};
 use tracing::Level;
 
 pub struct ConsolePlugin;
-pub enum ConsoleCommandEvents {
-  ToggleNoClip(bool),
-  PlayerSpeed(f32),
-}
+
 impl Plugin for ConsolePlugin {
   fn build(&self, app: &mut App) {
-    app.add_system(debug_console).add_event::<ConsoleCommandEvents>();
+    let on_game_simulation_continuous = ConditionSet::new()
+      .run_if(|state: Option<Res<CurrentState<ShikataganaiGameState>>>| {
+        state
+          .map(|state| state.0 == ShikataganaiGameState::Simulation || state.0 == ShikataganaiGameState::Paused)
+          .unwrap_or(false)
+      })
+      .with_system(open_close_console)
+      .with_system(debug_console)
+      .into();
+    app.add_system_set(on_game_simulation_continuous);
   }
 }
+
 pub struct ConsoleText {
   text: String,
   level: Level,
 }
+
+#[derive(Default)]
+pub struct ConsoleMenuOpened(pub bool);
+
+pub fn open_close_console(
+  mut windows: ResMut<Windows>,
+  key: Res<Input<KeyCode>>,
+  mut debug_menu_opened: ResMut<ConsoleMenuOpened>,
+) {
+  let window = windows.get_primary_mut().unwrap();
+  if key.just_pressed(KeyCode::Grave) {
+    window.set_cursor_lock_mode(debug_menu_opened.0);
+    window.set_cursor_visibility(!debug_menu_opened.0);
+    debug_menu_opened.0 = !debug_menu_opened.0;
+  }
+}
+
 pub fn debug_console(
   imgui: NonSendMut<ImguiState>,
   mut window: ResMut<Windows>,
   debug_console_opened: ResMut<ConsoleMenuOpened>,
   big_font: NonSend<BigFont>,
   mut items: Local<Vec<ConsoleText>>,
-  mut console_event_writer: EventWriter<ConsoleCommandEvents>,
 ) {
   if !debug_console_opened.0 {
     return;
@@ -43,8 +67,8 @@ pub fn debug_console(
     items.push(ct);
   }
   imgui::Window::new("Debug Console")
-    .position([0.0, 0.0], Condition::Once)
-    .size([active_window.width(), 300.0], Condition::Once)
+    .position([0.0, 0.0], Condition::Always)
+    .size([active_window.width(), 300.0], Condition::Always)
     .movable(false)
     .collapsible(false)
     .resizable(false)
@@ -65,11 +89,11 @@ pub fn debug_console(
             const YELLOW: [f32; 4] = [1.0, 1.0, 0.0, 1.0];
 
             let token = match &item.level {
-              &Level::ERROR =>  ui.push_style_color(StyleColor::Text, RED),
-              &Level::INFO =>   ui.push_style_color(StyleColor::Text, GREEN),
-              &Level::WARN =>   ui.push_style_color(StyleColor::Text, YELLOW),
-              &Level::TRACE =>  ui.push_style_color(StyleColor::Text, YELLOW),
-              &Level::DEBUG =>  ui.push_style_color(StyleColor::Text, YELLOW),
+              &Level::ERROR => ui.push_style_color(StyleColor::Text, RED),
+              &Level::INFO => ui.push_style_color(StyleColor::Text, GREEN),
+              &Level::WARN => ui.push_style_color(StyleColor::Text, YELLOW),
+              &Level::TRACE => ui.push_style_color(StyleColor::Text, YELLOW),
+              &Level::DEBUG => ui.push_style_color(StyleColor::Text, YELLOW),
             };
             ui.text(&item.text);
             token.pop();
@@ -105,9 +129,8 @@ pub fn debug_console(
             _ => match command.get(1) {
               Some(..) => match command[0] {
                 "noclip" => {
-                  let cd = get_bool_command(command[1]);
+                  // let cd = get_bool_command(command[1]);
                   add_log(&mut items, std::format!("noclip {}", command[1]).as_str(), Level::INFO);
-                  console_event_writer.send(ConsoleCommandEvents::ToggleNoClip(cd));
                 }
                 "player_speed" => {
                   let cd = get_float_command(command[1]);
@@ -119,7 +142,6 @@ pub fn debug_console(
                     std::format!("Changed player speed to: {}", command[1]).as_str(),
                     Level::INFO,
                   );
-                  console_event_writer.send(ConsoleCommandEvents::PlayerSpeed(cd))
                 }
                 _ => {
                   add_log(

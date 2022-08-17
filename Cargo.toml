@@ -23,7 +23,7 @@ itertools = "*"
 num-traits = "*"
 strum_macros = "*"
 futures-lite = "*"
-iyes_loopless = "0.7.0"
+iyes_loopless = "*"
 bytemuck_derive = "*"
 percent-encoding = "*"
 imgui-wgpu = { git = "https://github.com/Nhlest/imgui-wgpu-rs", branch = "master" }

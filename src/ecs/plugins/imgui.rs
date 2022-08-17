@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 use std::io::Cursor;
 use std::sync::{Arc, Mutex};
 

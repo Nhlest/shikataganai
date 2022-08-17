@@ -16,8 +16,6 @@ use iyes_loopless::prelude::{ConditionSet, CurrentState, IntoConditionalSystem};
 use iyes_loopless::state::NextState;
 use num_traits::float::FloatConst;
 
-use crate::ecs::plugins::console::ConsoleCommandEvents;
-
 pub struct CameraPlugin;
 
 #[derive(Component)]

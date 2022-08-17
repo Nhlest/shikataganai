@@ -19,8 +19,6 @@ use crate::ecs::plugins::console::ConsolePlugin;
 use crate::ecs::plugins::game::GamePlugin;
 use crate::ecs::plugins::imgui::{ImguiPlugin, ImguiState};
 use crate::ecs::plugins::preamble::Preamble;
-use crate::ecs::plugins::rendering::ShikataganaiRendererPlugins;
-use crate::ecs::plugins::settings::SettingsPlugin;
 use crate::ecs::plugins::rendering::mesh_pipeline::loader::GltfMeshStorage;
 use crate::ecs::plugins::rendering::ShikataganaiRendererPlugins;
 use crate::ecs::plugins::settings::SettingsPlugin;

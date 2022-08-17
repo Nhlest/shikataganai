@@ -1,7 +1,3 @@
-use crate::ecs::plugins::imgui::{BigFont, GUITextureAtlas};
-use crate::ecs::plugins::settings::{AmbientOcclusion, FullScreen, MouseSensitivity, Resolution, VSync};
-use crate::ecs::resources::player::PlayerInventory;
-use crate::ecs::systems::input::MainMenuOpened;
 use crate::ecs::plugins::game::ShikataganaiGameState;
 use crate::ecs::plugins::imgui::BigFont;
 use crate::ecs::plugins::settings::{AmbientOcclusion, FullScreen, MouseSensitivity, Resolution, VSync};
