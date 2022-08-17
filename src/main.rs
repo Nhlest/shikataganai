@@ -11,6 +11,7 @@ use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::prelude::App;
 use bevy::DefaultPlugins;
 use bevy_embedded_assets::EmbeddedAssetPlugin;
+use bevy_framepace::FramepacePlugin;
 use bevy_rapier3d::prelude::{NoUserData, RapierPhysicsPlugin};
 
 use crate::ecs::plugins::camera::CameraPlugin;
@@ -36,7 +37,7 @@ fn main() {
     .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
     .add_plugin(ImguiPlugin)
     .add_plugins(ShikataganaiRendererPlugins)
-    .add_plugin(bevy_framepace::FramepacePlugin::default())
+    .add_plugin(FramepacePlugin)
     // .add_plugin(RapierDebugRenderPlugin::default())
     // .add_plugin(LogDiagnosticsPlugin::default())
     // .add_plugin(FrameTimeDiagnosticsPlugin::default())
