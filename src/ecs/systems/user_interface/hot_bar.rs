@@ -65,8 +65,6 @@ pub fn hot_bar(
             imgui::Image::new(texture.0, [95.0, 95.0])
               .uv0([coords.0, coords.1])
               .uv1([coords.0 + 1.0 / 8.0, coords.1 + 1.0 / 8.0])
-              // .uv0([0.0, 0.0])
-              // .uv1([0.3, 0.3])
               .border_col([0.0, 0.0, 0.0, 1.0])
               .build(&ui);
             ui.same_line();

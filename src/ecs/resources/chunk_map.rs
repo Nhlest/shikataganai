@@ -253,30 +253,6 @@ impl FromWorld for ChunkMap {
 }
 
 impl ChunkMap {
-  //   pub fn animate(&mut self, source: DDD, target: DDD, commands: &mut Commands, chunks: &mut Query<&mut Chunk>, source_replace: BlockId) {
-  //     // let [(source_block, free_entities), (target_block, _)] = self.get_many_mut_with_free_entities(commands, None, chunks, [source, target]).unwrap();
-  //     // let block = std::mem::replace(source_block, Block::new(source_replace));
-  //     // let _ = std::mem::replace(target_block, Block::new(BlockId::Reserved));
-  //     // free_entities.push(
-  //     //   commands.spawn()
-  //     //     .insert(Transform::from_translation(from_ddd(source)))
-  //     //     .insert(Animation::new(source, target, 1.0, Some(block)))
-  //     //     .insert(RigidBody::KinematicPositionBased)
-  //     //     .with_children(|c| {
-  //     //       c.spawn()
-  //     //         .insert(Collider::cuboid(0.5, 0.5, 0.5))
-  //     //         .insert(Friction {
-  //     //           coefficient: 0.0,
-  //     //           combine_rule: CoefficientCombineRule::Min,
-  //     //         })
-  //     //         .insert(SolverGroups::new(0b10, 0b01))
-  //     //         .insert(CollisionGroups::new(0b10, 0b01))
-  //     //         .insert(Transform::from_translation(Vec3::new(0.5, 0.5, 0.5)))
-  //     //         .insert(GlobalTransform::default());
-  //     //     })
-  //     //     .id()
-  //     // );
-  //   }
   pub fn get_chunk_coord(mut coord: DDD) -> DD {
     if coord.0 < 0 {
       coord.0 -= 15;

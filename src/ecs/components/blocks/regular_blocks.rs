@@ -6,14 +6,14 @@ pub struct Grass;
 pub struct Cobblestone;
 
 impl BlockTrait for Air {
-  fn render_info(&self) -> BlockRenderInfo {
-    BlockRenderInfo::Nothing
-  }
   fn visible(&self) -> bool {
     false
   }
   fn passable(&self) -> bool {
     true
+  }
+  fn render_info(&self) -> BlockRenderInfo {
+    BlockRenderInfo::Nothing
   }
 }
 

@@ -24,9 +24,31 @@ pub trait BlockTrait {
   fn render_info(&self) -> BlockRenderInfo;
 }
 
+pub enum BlockRotation {
+  NORTH,
+  EAST,
+  SOUTH,
+  WEST,
+}
+
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub struct BlockMeta {
   pub v: u32,
+}
+
+impl BlockMeta {
+  pub fn get_rotation(self) -> BlockRotation {
+    match self.v % 4 {
+      0 => BlockRotation::NORTH,
+      1 => BlockRotation::EAST,
+      2 => BlockRotation::SOUTH,
+      3 => BlockRotation::WEST,
+      _ => panic!("Shouldn't happen"),
+    }
+  }
+  pub fn set_rotation(&mut self, rotation: BlockRotation) {
+    self.v = (self.v ^ (self.v & 0b11)) | rotation as u32;
+  }
 }
 
 #[derive(Debug, Component, Copy, Clone)]

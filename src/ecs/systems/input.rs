@@ -1,6 +1,6 @@
 use crate::ecs::components::block_or_item::BlockOrItem;
 use crate::ecs::components::blocks::block_id::BlockId;
-use crate::ecs::components::blocks::BlockMeta;
+use crate::ecs::components::blocks::BlockRotation;
 use crate::ecs::plugins::camera::{FPSCamera, Selection};
 use crate::ecs::plugins::rendering::voxel_pipeline::meshing::{RelightEvent, RelightType};
 use crate::ecs::resources::chunk_map::{BlockAccessor, BlockAccessorStatic};
@@ -23,22 +23,16 @@ pub fn action_input(
   rapier_context: Res<RapierContext>,
   mut rerender_inventory: ResMut<RerenderInventory>,
 ) {
-  // let hotbar_selection = &hotbar_items.items[hotbar_selection.0 as usize];
   match selection.into_inner() {
     None => {}
     Some(Selection { cube, face }) => {
       let source: DDD = *cube;
       let target_negative = *face;
-      // let (dx, dy, dz) = (
-      //   source.0 - target_negative.0,
-      //   source.1 - target_negative.1,
-      //   source.2 - target_negative.2,
-      // );
-      // let _target_positive = add_ddd(source, (dx, dy, dz));
-      // let up = (source.0, source.1 + 1, source.2);
-      // let down = (source.0, source.1 - 1, source.2);
       if mouse.just_pressed(MouseButton::Left) {
         if let Some([source_block]) = block_accessor.get_many_mut([source]) {
+          if source_block.block == BlockId::Air {
+            return;
+          } // TODO: without this line, in some weird situations game decides to collect air blocks on left click. Investigate.
           let block: BlockId = std::mem::replace(&mut source_block.block, BlockId::Air);
 
           let mut found = false;
@@ -114,13 +108,13 @@ pub fn action_input(
                 phi = f32::PI() * 2.0 + phi;
               }
               if phi > 0.0 && phi <= f32::FRAC_PI_2() {
-                target_negative_block.meta = BlockMeta { v: 3 };
+                target_negative_block.meta.set_rotation(BlockRotation::WEST);
               } else if phi > f32::FRAC_PI_2() && phi <= f32::PI() {
-                target_negative_block.meta = BlockMeta { v: 2 };
+                target_negative_block.meta.set_rotation(BlockRotation::SOUTH);
               } else if phi > f32::PI() && phi <= f32::PI() + f32::FRAC_PI_2() {
-                target_negative_block.meta = BlockMeta { v: 1 };
+                target_negative_block.meta.set_rotation(BlockRotation::EAST);
               } else {
-                target_negative_block.meta = BlockMeta { v: 0 };
+                target_negative_block.meta.set_rotation(BlockRotation::NORTH);
               }
               target_negative_block.block = block.clone();
               *quant -= 1;
@@ -155,5 +149,11 @@ pub fn hot_bar_scroll_input(
   }
   if keys.just_pressed(KeyCode::Key3) {
     selected_hotbar.0 = 2;
+  }
+  if keys.just_pressed(KeyCode::Key4) {
+    selected_hotbar.0 = 3;
+  }
+  if keys.just_pressed(KeyCode::Key5) {
+    selected_hotbar.0 = 4;
   }
 }

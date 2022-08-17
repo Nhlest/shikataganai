@@ -26,7 +26,6 @@ pub fn game_menu(
   let ui = imgui.get_current_frame();
 
   imgui::Window::new("Game Menu")
-    // .title_bar(false)
     .resizable(false)
     .scrollable(false)
     .scroll_bar(false)

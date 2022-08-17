@@ -178,7 +178,7 @@ fn collision_movement_system(
   mesh_assets: Res<Assets<Mesh>>,
   storage: Res<GltfMeshStorageHandle>,
   mesh_storage_assets: Res<Assets<GltfMeshStorage>>,
-  mut player_previous_position: ResMut<PlayerPreviousPosition>
+  mut player_previous_position: ResMut<PlayerPreviousPosition>,
 ) {
   let (entity_camera, mut fps_camera): (Entity, Mut<FPSCamera>) = camera.single_mut();
   let entity_player = player.single();
@@ -193,7 +193,6 @@ fn collision_movement_system(
   }
 
   let mut query = queries.p1();
-
 
   let player_new_position = to_ddd(translation);
   if player_new_position != player_previous_position.0 {
@@ -438,5 +437,7 @@ fn block_pick(
         normal.z.floor() as i32,
       ),
     });
+  } else {
+    *selection = None;
   }
 }

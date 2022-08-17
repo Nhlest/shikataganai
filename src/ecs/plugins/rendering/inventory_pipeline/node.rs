@@ -128,7 +128,7 @@ impl Node for InventoryNode {
                 let mesh_handle = &mesh_storage[&mesh_handle].render.as_ref().unwrap();
                 meshes_to_render.push((mesh_handle.clone(), [x, y]));
               }
-              _ => {todo!("Not implemented yet");}
+              BlockRenderInfo::Nothing => {}
             }
           }
           BlockOrItem::Item(_) => {}

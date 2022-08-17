@@ -7,7 +7,7 @@ use noise::*;
 
 use crate::util::array::{Array, Array2d, Array3d, Bounds, DD, DDD};
 
-const CHUNK_MAX_HEIGHT: i32 = 255;
+const CHUNK_MAX_HEIGHT: i32 = 127;
 
 #[derive(Component)]
 pub struct ChunkTask {

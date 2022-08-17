@@ -40,13 +40,13 @@ pub fn remesh_system_auxiliary(
             if let Some(mesh_assets_hash_map) = mesh_storage_assets.get(&storage.0) {
               let mesh = &mesh_assets_hash_map[&mesh];
               let render_mesh: &Handle<Mesh> = mesh.render.as_ref().unwrap();
-              let meta = block.meta.v;
+              let rotation = block.meta.get_rotation();
               let e = commands
                 .spawn()
                 .insert(render_mesh.clone())
                 .insert(
                   Transform::from_translation(from_ddd(i) + Vec3::new(0.5, 0.5, 0.5))
-                    .with_rotation(Quat::from_rotation_y(f32::PI() / 2.0 * meta as f32)),
+                    .with_rotation(Quat::from_rotation_y(f32::PI() / 2.0 * rotation as i32 as f32)),
                 )
                 .insert(GlobalTransform::default())
                 .id();
