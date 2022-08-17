@@ -1,5 +1,4 @@
-// use bevy::prelude::*;
-
-// pub enum Item {
-// Coal,
-// }
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub enum ItemId {
+  Coal,
+}

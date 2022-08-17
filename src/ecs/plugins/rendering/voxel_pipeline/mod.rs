@@ -1,3 +1,4 @@
+use crate::ecs::plugins::game::{in_game, in_game_extract};
 use crate::ecs::plugins::rendering::voxel_pipeline::bind_groups::{LightTextureHandle, TextureHandle};
 use crate::ecs::plugins::rendering::voxel_pipeline::draw_command::DrawVoxelsFull;
 use crate::ecs::plugins::rendering::voxel_pipeline::meshing::{RelightEvent, RemeshEvent};
@@ -9,6 +10,7 @@ use bevy::reflect::TypeUuid;
 use bevy::render::render_phase::AddRenderCommand;
 use bevy::render::render_resource::SpecializedRenderPipelines;
 use bevy::render::{RenderApp, RenderStage};
+use iyes_loopless::prelude::IntoConditionalSystem;
 
 pub mod bind_groups;
 pub mod consts;
@@ -44,8 +46,8 @@ impl Plugin for VoxelRendererPlugin {
       .init_resource::<SpecializedRenderPipelines<VoxelPipeline>>()
       .init_resource::<TextureHandle>()
       .init_resource::<LightTextureHandle>()
-      .add_system_to_stage(RenderStage::Extract, extract_chunks)
-      .add_system_to_stage(RenderStage::Queue, queue_chunks)
+      .add_system_to_stage(RenderStage::Extract, extract_chunks.run_if(in_game_extract))
+      .add_system_to_stage(RenderStage::Queue, queue_chunks.run_if(in_game))
       .add_render_command::<Opaque3d, DrawVoxelsFull>();
   }
 }

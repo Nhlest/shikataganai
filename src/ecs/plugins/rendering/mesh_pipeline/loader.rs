@@ -1,6 +1,10 @@
 use bevy::asset::{AssetLoader, LoadContext, LoadedAsset};
+use bevy::ecs::system::SystemParamItem;
 use bevy::prelude::*;
+use bevy::reflect::TypeUuid;
+use bevy::render::extract_resource::ExtractResource;
 use bevy::render::mesh::{Indices, MeshVertexAttribute, PrimitiveTopology, VertexAttributeValues};
+use bevy::render::render_asset::{PrepareAssetError, RenderAsset};
 use bevy::render::render_resource::VertexFormat;
 use bevy::utils::hashbrown::HashMap;
 use bevy::utils::BoxedFuture;
@@ -90,6 +94,9 @@ impl AssetLoader for GltfLoaderII {
     load_context: &'a mut LoadContext,
   ) -> BoxedFuture<'a, anyhow::Result<(), anyhow::Error>> {
     Box::pin(async {
+      let mut hash_map = HashMap::new();
+
+      // Render mesh
       let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
       let gltf = Gltf::from_slice(bytes).unwrap();
       let buffers = load_buffers(&gltf, load_context, load_context.path()).await.unwrap();
@@ -114,7 +121,38 @@ impl AssetLoader for GltfLoaderII {
         );
         mesh.set_indices(Some(Indices::U32(indicies)));
       }
-      load_context.set_default_asset(LoadedAsset::new(mesh));
+      let render_handle = load_context.set_labeled_asset("RenderHandleStair", LoadedAsset::new(mesh));
+
+      // Collision mesh
+      let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
+      let gltf = Gltf::from_slice(bytes).unwrap();
+      let buffers = load_buffers(&gltf, load_context, load_context.path()).await.unwrap();
+      let mesh_map = gltf
+        .document
+        .meshes()
+        .map(|x| (x.name().unwrap(), x))
+        .collect::<HashMap<_, _>>();
+      let mesh_render = mesh_map.get("Collider").unwrap();
+      for p in mesh_render.primitives() {
+        let reader = p.reader(|r| Some(&buffers[r.index()]));
+        let positions = reader.read_positions().unwrap().collect();
+        // let tex_coords = reader.read_tex_coords(0).unwrap().into_f32().collect();
+        let indicies = reader.read_indices().unwrap().into_u32().collect();
+        mesh.insert_attribute(
+          MeshVertexAttribute::new("POSITIONS", 0, VertexFormat::Float32x3),
+          VertexAttributeValues::Float32x3(positions),
+        );
+        mesh.set_indices(Some(Indices::U32(indicies)));
+      }
+      let collider_handle = load_context.set_labeled_asset("ColliderHandleStair", LoadedAsset::new(mesh));
+      hash_map.insert(
+        Meshes::Stair,
+        MeshHandles {
+          render: Some(render_handle),
+          collision: Some(collider_handle),
+        },
+      );
+      load_context.set_default_asset(LoadedAsset::new(GltfMeshStorage(hash_map)));
       Ok(())
     })
   }
@@ -126,16 +164,42 @@ impl AssetLoader for GltfLoaderII {
 
 #[derive(EnumIter, Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub enum Meshes {
-  TestModel,
+  Stair,
 }
 
-#[derive(Deref)]
-pub struct GltfMeshStorage(pub Option<Handle<Mesh>>);
+#[derive(Clone)]
+pub struct MeshHandles {
+  pub render: Option<Handle<Mesh>>,
+  pub collision: Option<Handle<Mesh>>,
+}
 
-impl FromWorld for GltfMeshStorage {
+#[derive(Deref, ExtractResource, Clone)]
+pub struct GltfMeshStorageHandle(pub Handle<GltfMeshStorage>);
+
+#[derive(TypeUuid, Deref, Clone)]
+#[uuid = "03ddd1e6-1adf-11ed-9dbf-7c10c93f86f5"]
+pub struct GltfMeshStorage(pub HashMap<Meshes, MeshHandles>);
+
+impl RenderAsset for GltfMeshStorage {
+  type ExtractedAsset = GltfMeshStorage;
+  type PreparedAsset = GltfMeshStorage;
+  type Param = ();
+
+  fn extract_asset(&self) -> Self::ExtractedAsset {
+    self.clone()
+  }
+
+  fn prepare_asset(
+    extracted_asset: Self::ExtractedAsset,
+    _param: &mut SystemParamItem<Self::Param>,
+  ) -> Result<Self::PreparedAsset, PrepareAssetError<Self::ExtractedAsset>> {
+    Ok(extracted_asset)
+  }
+}
+
+impl FromWorld for GltfMeshStorageHandle {
   fn from_world(world: &mut World) -> Self {
     let asset_server = world.get_resource::<AssetServer>().unwrap();
-    let gltf: Handle<Mesh> = asset_server.load("meshes/meshes.glb");
-    GltfMeshStorage(Some(gltf))
+    GltfMeshStorageHandle(asset_server.load("meshes/meshes.glb"))
   }
 }

@@ -325,6 +325,7 @@ impl Node for ImguiNode {
     render_context: &mut RenderContext,
     world: &World,
   ) -> Result<(), NodeRunError> {
+    // TODO: blinking in inventory. IMGUI uses old texture for a single frame for some reason.
     let inventory_texture = graph.get_input_texture(TEXTURE_NODE_INPUT_SLOT).unwrap();
 
     let q = self.renderer.clone();

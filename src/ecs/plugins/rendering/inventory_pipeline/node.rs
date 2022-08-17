@@ -1,20 +1,32 @@
+use crate::ecs::components::block_or_item::BlockOrItem;
+use crate::ecs::components::blocks::BlockRenderInfo;
 use crate::ecs::plugins::rendering::inventory_pipeline::pipeline::InventoryNode;
-use crate::ecs::plugins::rendering::inventory_pipeline::TEXTURE_NODE_OUTPUT_SLOT;
+use crate::ecs::plugins::rendering::inventory_pipeline::{
+  ExtractedItems, INVENTORY_OUTPUT_TEXTURE_WIDTH, TEXTURE_NODE_OUTPUT_SLOT,
+};
+use crate::ecs::plugins::rendering::mesh_pipeline::loader::{GltfMeshStorage, GltfMeshStorageHandle};
 use crate::ecs::plugins::rendering::voxel_pipeline::bind_groups::TextureHandle;
+use crate::ecs::resources::block::BlockSprite;
+use crate::ecs::resources::player::RerenderInventory;
 use bevy::prelude::*;
+use bevy::render::mesh::GpuBufferInfo;
 use bevy::render::render_asset::RenderAssets;
 use bevy::render::render_graph::{Node, NodeRunError, RenderGraphContext, SlotInfo, SlotType, SlotValue};
-use bevy::render::render_resource::{
-  BufferUsages, Extent3d, PipelineCache, TextureAspect, TextureDimension, TextureFormat, TextureUsages,
-  TextureViewDimension,
-};
-use bevy::render::renderer::RenderContext;
-use bevy::render::texture::BevyDefault;
+use bevy::render::render_resource::{BufferUsages, PipelineCache};
+use bevy::render::renderer::{RenderContext, RenderDevice};
+use image::EncodableLayout;
+use num_traits::FloatConst;
+use std::collections::HashMap;
 use wgpu::util::BufferInitDescriptor;
-use wgpu::{
-  BindGroupDescriptor, BindGroupEntry, BindingResource, LoadOp, Operations, RenderPassColorAttachment,
-  RenderPassDescriptor, TextureDescriptor, TextureViewDescriptor,
-};
+use wgpu::IndexFormat;
+
+const HEX_CC: [f32; 2] = [0.000000, -0.000000];
+const HEX_NN: [f32; 2] = [0.000000, -1.000000];
+const HEX_SS: [f32; 2] = [0.000000, 1.000000];
+const HEX_NW: [f32; 2] = [-0.866025, -0.500000];
+const HEX_NE: [f32; 2] = [0.866025, -0.500000];
+const HEX_SW: [f32; 2] = [-0.866025, 0.500000];
+const HEX_SE: [f32; 2] = [0.866025, 0.500000];
 
 impl Node for InventoryNode {
   fn input(&self) -> Vec<SlotInfo> {
@@ -27,10 +39,34 @@ impl Node for InventoryNode {
     }]
   }
   fn update(&mut self, world: &mut World) {
-    self.render_pipeline = world
+    if !world.contains_resource::<RerenderInventory>() {
+      return;
+    }
+    if world.resource::<RerenderInventory>().0 || !self.initialised {
+      self.to_render = true;
+      self.view = InventoryNode::create_view(world.resource::<RenderDevice>());
+      self.depth_view = InventoryNode::create_depth_view(world.resource::<RenderDevice>());
+    } else {
+      if self.initialised {
+        self.to_render = false;
+      }
+    }
+
+    self.direct_render_pipeline.render_pipeline = world
       .resource_mut::<PipelineCache>()
-      .get_render_pipeline(self.render_pipeline_id)
+      .get_render_pipeline(self.direct_render_pipeline.pipeline_id)
       .cloned();
+
+    self.mesh_render_pipeline.render_pipeline = world
+      .resource_mut::<PipelineCache>()
+      .get_render_pipeline(self.mesh_render_pipeline.pipeline_id)
+      .cloned();
+
+    let handle = world.resource::<TextureHandle>();
+    let gpu_images = world.resource::<RenderAssets<Image>>();
+    self.initialised = self.mesh_render_pipeline.render_pipeline.is_some()
+      && self.direct_render_pipeline.render_pipeline.is_some()
+      && gpu_images.get(&handle.0).is_some();
   }
   fn run(
     &self,
@@ -38,47 +74,76 @@ impl Node for InventoryNode {
     render_context: &mut RenderContext,
     world: &World,
   ) -> Result<(), NodeRunError> {
-    if let Some(render_pipeline) = &self.render_pipeline {
-      let texture = render_context.render_device.create_texture(&TextureDescriptor {
-        label: "offscreen_texture".into(),
-        size: Extent3d {
-          width: 256,
-          height: 256,
-          depth_or_array_layers: 1,
-        },
-        mip_level_count: 1,
-        sample_count: 1,
-        dimension: TextureDimension::D2,
-        format: TextureFormat::bevy_default(),
-        usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
-      });
-      let view = texture.create_view(&TextureViewDescriptor {
-        label: "offscreen_texture_view".into(),
-        format: Some(TextureFormat::bevy_default()),
-        dimension: Some(TextureViewDimension::D2),
-        aspect: TextureAspect::All,
-        base_mip_level: 0,
-        mip_level_count: None,
-        base_array_layer: 0,
-        array_layer_count: None,
-      });
+    let handle = world.resource::<TextureHandle>();
+    let gpu_images = world.resource::<RenderAssets<Image>>();
+    if let Some(mesh_render_pipeline) = &self.mesh_render_pipeline.render_pipeline && let Some(direct_render_pipeline) = &self.direct_render_pipeline.render_pipeline && self.to_render && let Some(gpu_image) = gpu_images.get(&handle.0) {
+      let meshes = world.resource::<RenderAssets<Mesh>>();
+      let mesh_storage_assets = world.resource::<RenderAssets<GltfMeshStorage>>();
+      let mesh_storage = world.resource::<GltfMeshStorageHandle>();
+      let mesh_storage = &mesh_storage_assets[&mesh_storage.0];
 
-      let contents: [[f32; 5]; 6] = [
-        [-1.0, -1.0, 1.0, 0.0, 1.0],
-        [-1.0, 1.0, 1.0, 0.0, 0.0],
-        [1.0, -1.0, 1.0, 1.0, 1.0],
-        [-1.0, 1.0, 1.0, 0.0, 0.0],
-        [1.0, -1.0, 1.0, 1.0, 1.0],
-        [1.0, 1.0, 1.0, 1.0, 0.0],
-      ];
+      let mut meshes_to_render = vec![];
+
+      let to_render = world.resource::<ExtractedItems>();
+      const RADIUS: f32 = 0.49;
+      let mut vertex_buffer = vec![];
+      let mut rendered_item_icons = HashMap::new();
+
+      let mut add_block_to_vertices = |block_sprite: [BlockSprite; 6], x, y| {
+        let top_tex   = block_sprite[4].into_uv();
+        let left_tex  = block_sprite[0].into_uv();
+        let right_tex = block_sprite[1].into_uv();
+        let x = x * INVENTORY_OUTPUT_TEXTURE_WIDTH;
+        let y = y * INVENTORY_OUTPUT_TEXTURE_WIDTH;
+        vertex_buffer.extend_from_slice(&[HEX_NW[0] * RADIUS + x + 0.5, HEX_NW[1] * RADIUS + y + 0.5, top_tex.0[0], top_tex.0[1], 1.0]);
+        vertex_buffer.extend_from_slice(&[HEX_NN[0] * RADIUS + x + 0.5, HEX_NN[1] * RADIUS + y + 0.5, top_tex.0[0], top_tex.1[1], 1.0]);
+        vertex_buffer.extend_from_slice(&[HEX_CC[0] * RADIUS + x + 0.5, HEX_CC[1] * RADIUS + y + 0.5, top_tex.1[0], top_tex.0[1], 1.0]);
+        vertex_buffer.extend_from_slice(&[HEX_NN[0] * RADIUS + x + 0.5, HEX_NN[1] * RADIUS + y + 0.5, top_tex.0[0], top_tex.1[1], 1.0]);
+        vertex_buffer.extend_from_slice(&[HEX_CC[0] * RADIUS + x + 0.5, HEX_CC[1] * RADIUS + y + 0.5, top_tex.1[0], top_tex.0[1], 1.0]);
+        vertex_buffer.extend_from_slice(&[HEX_NE[0] * RADIUS + x + 0.5, HEX_NE[1] * RADIUS + y + 0.5, top_tex.1[0], top_tex.1[1], 1.0]);
+
+        vertex_buffer.extend_from_slice(&[HEX_NW[0] * RADIUS + x + 0.5, HEX_NW[1] * RADIUS + y + 0.5, left_tex.0[0], left_tex.0[1], 0.6]);
+        vertex_buffer.extend_from_slice(&[HEX_SW[0] * RADIUS + x + 0.5, HEX_SW[1] * RADIUS + y + 0.5, left_tex.0[0], left_tex.1[1], 0.6]);
+        vertex_buffer.extend_from_slice(&[HEX_CC[0] * RADIUS + x + 0.5, HEX_CC[1] * RADIUS + y + 0.5, left_tex.1[0], left_tex.0[1], 0.6]);
+        vertex_buffer.extend_from_slice(&[HEX_SW[0] * RADIUS + x + 0.5, HEX_SW[1] * RADIUS + y + 0.5, left_tex.0[0], left_tex.1[1], 0.6]);
+        vertex_buffer.extend_from_slice(&[HEX_CC[0] * RADIUS + x + 0.5, HEX_CC[1] * RADIUS + y + 0.5, left_tex.1[0], left_tex.0[1], 0.6]);
+        vertex_buffer.extend_from_slice(&[HEX_SS[0] * RADIUS + x + 0.5, HEX_SS[1] * RADIUS + y + 0.5, left_tex.1[0], left_tex.1[1], 0.6]);
+
+        vertex_buffer.extend_from_slice(&[HEX_CC[0] * RADIUS + x + 0.5, HEX_CC[1] * RADIUS + y + 0.5, right_tex.0[0], right_tex.0[1], 0.4]);
+        vertex_buffer.extend_from_slice(&[HEX_SS[0] * RADIUS + x + 0.5, HEX_SS[1] * RADIUS + y + 0.5, right_tex.0[0], right_tex.1[1], 0.4]);
+        vertex_buffer.extend_from_slice(&[HEX_NE[0] * RADIUS + x + 0.5, HEX_NE[1] * RADIUS + y + 0.5, right_tex.1[0], right_tex.0[1], 0.4]);
+        vertex_buffer.extend_from_slice(&[HEX_SE[0] * RADIUS + x + 0.5, HEX_SE[1] * RADIUS + y + 0.5, right_tex.1[0], right_tex.1[1], 0.4]);
+        vertex_buffer.extend_from_slice(&[HEX_SS[0] * RADIUS + x + 0.5, HEX_SS[1] * RADIUS + y + 0.5, right_tex.0[0], right_tex.1[1], 0.4]);
+        vertex_buffer.extend_from_slice(&[HEX_NE[0] * RADIUS + x + 0.5, HEX_NE[1] * RADIUS + y + 0.5, right_tex.1[0], right_tex.0[1], 0.4]);
+      };
+
+      for (item, (x, y)) in to_render.0.iter() {
+        match item {
+          BlockOrItem::Block(blockid) => {
+            match blockid.render_info() {
+              BlockRenderInfo::AsBlock(block_sprite) => {
+                add_block_to_vertices(block_sprite, x, y);
+              }
+              BlockRenderInfo::AsMesh(mesh_handle) => {
+                let mesh_handle = &mesh_storage[&mesh_handle].render.as_ref().unwrap();
+                meshes_to_render.push((mesh_handle.clone(), [x, y]));
+              }
+              _ => {todo!("Not implemented yet");}
+            }
+          }
+          BlockOrItem::Item(_) => {}
+        }
+        rendered_item_icons.insert(item.clone(), [x, y]);
+      }
+
       let buffer = render_context
         .render_device
         .create_buffer_with_data(&BufferInitDescriptor {
           label: None,
-          contents: bytemuck::bytes_of(&contents),
+          contents: &vertex_buffer.as_bytes(),
           usage: BufferUsages::VERTEX,
         });
-      let contents = Mat4::orthographic_lh(-1.0, 1.0, -1.0, 1.0, 0.01, 2.0);
+      let contents = Mat4::orthographic_lh(0.0, INVENTORY_OUTPUT_TEXTURE_WIDTH as f32, INVENTORY_OUTPUT_TEXTURE_WIDTH as f32, 0.0, 0.01, 2.0);
       let view_buffer = render_context
         .render_device
         .create_buffer_with_data(&BufferInitDescriptor {
@@ -86,64 +151,80 @@ impl Node for InventoryNode {
           contents: bytemuck::bytes_of(&contents),
           usage: BufferUsages::UNIFORM,
         });
-      let view_bind_group = render_context.render_device.create_bind_group(&BindGroupDescriptor {
-        label: None,
-        layout: &self.view_layout,
-        entries: &[BindGroupEntry {
-          binding: 0,
-          resource: BindingResource::Buffer(view_buffer.as_entire_buffer_binding()),
-        }],
-      });
 
-      let handle = world.resource::<TextureHandle>();
-      let gpu_images = world.resource::<RenderAssets<Image>>();
-      let texture_bind_group = if let Some(gpu_image) = gpu_images.get(&handle.0) {
-        Some(render_context.render_device.create_bind_group(&BindGroupDescriptor {
-          entries: &[
-            BindGroupEntry {
-              binding: 0,
-              resource: BindingResource::TextureView(&gpu_image.texture_view),
-            },
-            BindGroupEntry {
-              binding: 1,
-              resource: BindingResource::Sampler(&gpu_image.sampler),
-            },
-          ],
-          label: Some("inventory_texture_bind_group"),
-          layout: &self.texture_layout,
-        }))
+      // TODO: this code is ass. Someone please fix it :(
+
+      let direct_view_bind_group = self.direct_render_pipeline.create_view_bind_group(&render_context.render_device, &view_buffer);
+      let direct_texture_bind_group = self.direct_render_pipeline.create_texture_bind_group(&render_context.render_device, gpu_image);
+
+      let contents = Mat4::orthographic_lh(0.0, INVENTORY_OUTPUT_TEXTURE_WIDTH as f32, INVENTORY_OUTPUT_TEXTURE_WIDTH as f32, 0.0, 0.001, 4.0);
+      let view_buffer = render_context
+        .render_device
+        .create_buffer_with_data(&BufferInitDescriptor {
+          label: None,
+          contents: bytemuck::bytes_of(&contents),
+          usage: BufferUsages::UNIFORM,
+        });
+
+      let mut contents = vec![];
+      for (_, [x, y]) in meshes_to_render.iter() {
+        contents.extend_from_slice(
+          &bytemuck::bytes_of(
+            &(
+              Mat4::from_translation(Vec3::new(0.5 + *x * INVENTORY_OUTPUT_TEXTURE_WIDTH, 0.5 + *y * INVENTORY_OUTPUT_TEXTURE_WIDTH, 1.0)) *
+              Mat4::from_quat(Quat::from_euler(EulerRot::XYZ, -f32::FRAC_PI_4(), f32::FRAC_PI_4(), 0.0)) *
+              Mat4::from_scale(Vec3::new(0.55, -0.55, 0.55))
+            )
+          )
+        );
+      }
+
+      let position_buffer = render_context
+        .render_device
+        .create_buffer_with_data(&BufferInitDescriptor {
+          label: None,
+          contents: bytemuck::cast_slice(contents.as_slice()),
+          usage: BufferUsages::UNIFORM,
+        });
+      let mesh_position_bind_group = if contents.len() > 0 {
+        Some(self.mesh_render_pipeline.create_position_bind_group(&render_context.render_device, &position_buffer))
       } else {
         None
       };
-      if let Some(texture_bind_group) = texture_bind_group {
-        let mut pass = render_context.command_encoder.begin_render_pass(&RenderPassDescriptor {
-          label: Some("offscreen_pass"),
-          color_attachments: &[Some(RenderPassColorAttachment {
-            view: &view,
-            resolve_target: None,
-            ops: Operations {
-              load: LoadOp::Clear(wgpu::Color {
-                r: 1.0,
-                g: 1.0,
-                b: 0.0,
-                a: 1.0,
-              }),
-              store: true,
-            },
-          })],
-          depth_stencil_attachment: None,
-        });
-        pass.set_pipeline(render_pipeline);
-        let buf = &*buffer;
-        pass.set_vertex_buffer(0, buf.slice(..));
-        pass.set_bind_group(0, &view_bind_group, &[]);
-        pass.set_bind_group(1, &texture_bind_group, &[]);
-        pass.draw(0..6, 0..1)
+
+      let mesh_view_bind_group = self.mesh_render_pipeline.create_view_bind_group(&render_context.render_device, &view_buffer);
+      let mesh_texture_bind_group = self.mesh_render_pipeline.create_texture_bind_group(&render_context.render_device, gpu_image);
+      let mut pass = self.begin_render_pass(&mut render_context.command_encoder);
+
+      pass.set_pipeline(direct_render_pipeline);
+      let buf = &*buffer;
+      pass.set_vertex_buffer(0, buf.slice(..));
+      pass.set_bind_group(0, &direct_view_bind_group, &[]);
+      pass.set_bind_group(1, &direct_texture_bind_group, &[]);
+      pass.draw(0..(vertex_buffer.len()/5) as u32, 0..1);
+
+      // Mesh pass
+
+      pass.set_pipeline(mesh_render_pipeline);
+      for (i, (handle, _)) in meshes_to_render.iter().enumerate() {
+        let mesh = &meshes[handle];
+
+        match &mesh.buffer_info {
+          GpuBufferInfo::Indexed { buffer, count, .. } => {
+            pass.set_vertex_buffer(0, *mesh.vertex_buffer.slice(..));
+            pass.set_index_buffer(*buffer.slice(..), IndexFormat::Uint32);
+            pass.set_bind_group(0, &mesh_view_bind_group, &[]);
+            pass.set_bind_group(1, &mesh_texture_bind_group, &[]);
+            pass.set_bind_group(2, mesh_position_bind_group.as_ref().unwrap(), &[(i as u32) * 64]);
+            pass.draw_indexed(0..*count, 0, 0..1);
+          }
+          _ => {}
+        }
       }
-      graph
-        .set_output(TEXTURE_NODE_OUTPUT_SLOT, SlotValue::TextureView(view))
-        .unwrap();
     }
+    graph
+      .set_output(TEXTURE_NODE_OUTPUT_SLOT, SlotValue::TextureView(self.view.clone()))
+      .unwrap();
     Ok(())
   }
 }

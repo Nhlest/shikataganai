@@ -1,23 +1,28 @@
-use crate::ecs::components::block::BlockId;
-use crate::ecs::plugins::camera::Selection;
+use crate::ecs::components::block_or_item::BlockOrItem;
+use crate::ecs::components::blocks::block_id::BlockId;
+use crate::ecs::components::blocks::BlockMeta;
+use crate::ecs::plugins::camera::{FPSCamera, Selection};
 use crate::ecs::plugins::rendering::voxel_pipeline::meshing::{RelightEvent, RelightType};
 use crate::ecs::resources::chunk_map::{BlockAccessor, BlockAccessorStatic};
-use crate::ecs::resources::player::{PlayerInventory, SelectedHotBar};
+use crate::ecs::resources::player::{PlayerInventory, QuantifiedBlockOrItem, RerenderInventory, SelectedHotBar};
 use crate::util::array::DDD;
 use bevy::input::mouse::MouseWheel;
 use bevy::prelude::*;
 use bevy_rapier3d::pipeline::QueryFilter;
 use bevy_rapier3d::prelude::{Collider, InteractionGroups, RapierContext};
 use tracing::field::debug;
+use num_traits::FloatConst;
 
 pub fn action_input(
   mouse: Res<Input<MouseButton>>,
+  camera: Query<&FPSCamera>,
   selection: Res<Option<Selection>>,
-  // hotbar_items: Res<PlayerInventory>,
-  // hotbar_selection: Res<SelectedHotBar>,
+  mut player_inventory: ResMut<PlayerInventory>,
+  hotbar_selection: Res<SelectedHotBar>,
   mut block_accessor: BlockAccessorStatic,
   mut relight_events: EventWriter<RelightEvent>,
   rapier_context: Res<RapierContext>,
+  mut rerender_inventory: ResMut<RerenderInventory>,
 ) {
   // let hotbar_selection = &hotbar_items.items[hotbar_selection.0 as usize];
   match selection.into_inner() {
@@ -35,37 +40,96 @@ pub fn action_input(
       // let down = (source.0, source.1 - 1, source.2);
       if mouse.just_pressed(MouseButton::Left) {
         if let Some([source_block]) = block_accessor.get_many_mut([source]) {
-          source_block.block = BlockId::Air;
-          //TODO: remesh neighbouring chunks
+          let block: BlockId = std::mem::replace(&mut source_block.block, BlockId::Air);
+
+          let mut found = false;
+          for item in player_inventory.items.iter_mut() {
+            match item {
+              Some(QuantifiedBlockOrItem {
+                block_or_item: BlockOrItem::Block(player_block),
+                quant,
+              }) if *player_block == block => {
+                *quant += 1;
+                found = true;
+                break;
+              }
+              _ => (),
+            }
+          }
+          if !found {
+            let mut found = false;
+            for item in player_inventory.items.iter_mut() {
+              match item {
+                None => {
+                  *item = Some(QuantifiedBlockOrItem {
+                    block_or_item: BlockOrItem::Block(block),
+                    quant: 1,
+                  });
+                  found = true;
+                  rerender_inventory.0 = true;
+                  break;
+                }
+                _ => (),
+              }
+            }
+            if !found {
+              let _ = std::mem::replace(&mut source_block.block, block);
+              return;
+            }
+          }
+
           relight_events.send(RelightEvent::Relight(RelightType::BlockRemoved, source));
         }
       }
       if mouse.just_pressed(MouseButton::Right) {
-        if let Some([target_negative_block]) = block_accessor.get_many_mut([target_negative]) {
-          let shape = Collider::cuboid(0.45, 0.45, 0.45);
-          let shape_pos = Vec3::new(
-            target_negative.0 as f32 + 0.5,
-            target_negative.1 as f32 + 0.5,
-            target_negative.2 as f32 + 0.5,
-          );
-          let shape_rot = Quat::IDENTITY;
-          if rapier_context
-            .intersection_with_shape(
-              shape_pos,
-              shape_rot,
-              &shape,
-              QueryFilter {
-                flags: Default::default(),
-                groups: Some(InteractionGroups::new(0b10, 0b01)),
-                exclude_collider: None,
-                exclude_rigid_body: None,
-                predicate: None,
-              },
-            )
-            .is_none()
-          {
-            target_negative_block.block = BlockId::Cobble;
-            relight_events.send(RelightEvent::Relight(RelightType::BlockAdded, target_negative));
+        if let Some(Some(QuantifiedBlockOrItem {
+          block_or_item: BlockOrItem::Block(block),
+          quant,
+        })) = player_inventory.items.get_mut(hotbar_selection.0 as usize)
+        {
+          if let Some([target_negative_block]) = block_accessor.get_many_mut([target_negative]) {
+            let shape = Collider::cuboid(0.5, 0.5, 0.5);
+            let shape_pos = Vec3::new(
+              target_negative.0 as f32 + 0.5,
+              target_negative.1 as f32 + 0.5,
+              target_negative.2 as f32 + 0.5,
+            );
+            let shape_rot = Quat::IDENTITY;
+            if rapier_context
+              .intersection_with_shape(
+                shape_pos,
+                shape_rot,
+                &shape,
+                QueryFilter {
+                  flags: Default::default(),
+                  groups: Some(InteractionGroups::new(0b10, 0b01)),
+                  exclude_collider: None,
+                  exclude_rigid_body: None,
+                  predicate: None,
+                },
+              )
+              .is_none()
+            {
+              let mut phi = (camera.single().phi - f32::FRAC_PI_4()) % (f32::PI() * 2.0);
+              if phi < 0.0 {
+                phi = f32::PI() * 2.0 + phi;
+              }
+              if phi > 0.0 && phi <= f32::FRAC_PI_2() {
+                target_negative_block.meta = BlockMeta { v: 3 };
+              } else if phi > f32::FRAC_PI_2() && phi <= f32::PI() {
+                target_negative_block.meta = BlockMeta { v: 2 };
+              } else if phi > f32::PI() && phi <= f32::PI() + f32::FRAC_PI_2() {
+                target_negative_block.meta = BlockMeta { v: 1 };
+              } else {
+                target_negative_block.meta = BlockMeta { v: 0 };
+              }
+              target_negative_block.block = block.clone();
+              *quant -= 1;
+              if *quant <= 0 {
+                player_inventory.items[hotbar_selection.0 as usize] = None;
+              }
+              relight_events.send(RelightEvent::Relight(RelightType::BlockAdded, target_negative));
+            }
           }
         }
       }

@@ -1,9 +1,9 @@
-use crate::ecs::plugins::camera::Selection;
 use crate::ecs::plugins::settings::{AmbientOcclusion, FullScreen, MouseSensitivity, Resolution, Settings, VSync};
 use bevy::app::AppExit;
 use bevy::prelude::*;
 use bevy::render::texture::ImageSettings;
 use bevy::winit::WinitWindows;
+use bevy_rapier3d::prelude::RapierConfiguration;
 use std::fs::OpenOptions;
 use std::io::Write;
 
@@ -24,9 +24,18 @@ impl Plugin for Preamble {
         mode: fullscreen.as_mode(),
         ..default()
       })
+      .insert_resource(ClearColor(Color::Rgba {
+        red: 0.527,
+        green: 0.804,
+        blue: 0.917,
+        alpha: 1.0,
+      }))
       .insert_resource(ImageSettings::default_nearest())
       .insert_resource(Msaa { samples: 1 })
-      .init_resource::<Option<Selection>>()
+      .insert_resource(RapierConfiguration {
+        physics_pipeline_active: false,
+        ..RapierConfiguration::default()
+      })
       .add_system_to_stage(CoreStage::Last, exit);
   }
 }

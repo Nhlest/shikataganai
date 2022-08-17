@@ -30,7 +30,7 @@ pub fn extract_meshes(mut commands: Commands, meshes: Extract<Query<(&Handle<Mes
     commands
       .spawn()
       .insert(PositionUniform {
-        transform: Mat4::from_translation(meshes.1.translation),
+        transform: Mat4::from_rotation_translation(meshes.1.rotation, meshes.1.translation),
       })
       .insert(meshes.0.clone());
   }

@@ -1,4 +1,4 @@
-use crate::ecs::components::block::Block;
+use crate::ecs::components::blocks::{Block, BlockRenderInfo};
 use crate::ecs::plugins::camera::Selection;
 use crate::ecs::plugins::rendering::voxel_pipeline::bind_groups::{
   LightTextureBindGroup, LightTextureHandle, SelectionBindGroup, TextureHandle, VoxelTextureBindGroup,
@@ -65,25 +65,31 @@ pub fn extract_chunks(
     let mut i = bounds.0;
     loop {
       let block: Block = block_accessor.get_single(i).unwrap().clone();
-      if block.visible() {
-        for neighbour in i.immeidate_neighbours() {
-          if block_accessor.get_single(neighbour).map_or(true, |b| !b.visible()) {
-            let light_level = block_accessor.get_light_level(neighbour);
-            let lighting = match light_level {
-              Some(light_level) => (light_level.heaven, light_level.hearth),
-              None => (0, 0),
-            };
+      match block.render_info() {
+        BlockRenderInfo::Nothing => {}
+        BlockRenderInfo::AsBlock(block_sprites) => {
+          if block.visible() {
+            for neighbour in i.immediate_neighbours() {
+              if block_accessor.get_single(neighbour).map_or(true, |b| !b.visible()) {
+                let light_level = block_accessor.get_light_level(neighbour);
+                let lighting = match light_level {
+                  Some(light_level) => (light_level.heaven, light_level.hearth),
+                  None => (0, 0),
+                };
 
-            extracted_blocks.push(SingleSide::new(
-              (i.0 as f32, i.1 as f32, i.2 as f32),
-              sub_ddd(neighbour, i),
-              block.block.into_array_of_faces(),
-              lighting,
-              &block_accessor,
-              ambient_occlusion.0,
-            ));
+                extracted_blocks.push(SingleSide::new(
+                  (i.0 as f32, i.1 as f32, i.2 as f32),
+                  sub_ddd(neighbour, i),
+                  block_sprites,
+                  lighting,
+                  &block_accessor,
+                  ambient_occlusion.0,
+                ));
+              }
+            }
           }
         }
+        BlockRenderInfo::AsMesh(_) => {}
       }
       i = match i.next(&bounds) {
         None => break,
