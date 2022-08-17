@@ -21,7 +21,9 @@ impl Plugin for ConsolePlugin {
       .with_system(open_close_console)
       .with_system(debug_console)
       .into();
-    app.add_system_set(on_game_simulation_continuous);
+    app
+      .init_resource::<ConsoleMenuOpened>()
+      .add_system_set(on_game_simulation_continuous);
   }
 }
 

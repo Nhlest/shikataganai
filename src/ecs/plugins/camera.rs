@@ -31,6 +31,9 @@ pub struct FPSCamera {
   pub velocity: Vect,
 }
 
+#[derive(Default)]
+pub struct PlayerPreviousPosition(pub DDD);
+
 impl Plugin for CameraPlugin {
   fn build(&self, app: &mut App) {
     let fps_camera = FPSCamera {
@@ -86,6 +89,7 @@ impl Plugin for CameraPlugin {
       .with_system(block_pick)
       .into();
     app.add_system_set_to_stage(CoreStage::PreUpdate, on_simulation_pre_update);
+    app.init_resource::<PlayerPreviousPosition>();
   }
 }
 
@@ -174,6 +178,7 @@ fn collision_movement_system(
   mesh_assets: Res<Assets<Mesh>>,
   storage: Res<GltfMeshStorageHandle>,
   mesh_storage_assets: Res<Assets<GltfMeshStorage>>,
+  mut player_previous_position: ResMut<PlayerPreviousPosition>
 ) {
   let (entity_camera, mut fps_camera): (Entity, Mut<FPSCamera>) = camera.single_mut();
   let entity_player = player.single();
@@ -189,49 +194,27 @@ fn collision_movement_system(
 
   let mut query = queries.p1();
 
-  let iter = query.iter_mut();
-  for (e, _) in iter {
-    commands.entity(e).despawn();
-  }
 
-  for ix in -3..=3 {
-    for iy in -3..=3 {
-      for iz in -3..=3 {
-        let c = translation + Vec3::new(ix as f32, iy as f32, iz as f32);
-        let c = to_ddd(c);
-        if let Some(block) = block_accessor.get_single(c) {
-          if !block.passable() {
-            match block.render_info() {
-              BlockRenderInfo::AsBlock(_) => {
-                block_accessor
-                  .commands
-                  .spawn()
-                  .insert(RigidBody::Fixed)
-                  .insert(Collider::cuboid(0.5, 0.5, 0.5))
-                  .insert(Cube)
-                  .insert(Friction {
-                    coefficient: 0.0,
-                    combine_rule: CoefficientCombineRule::Min,
-                  })
-                  .insert(SolverGroups::new(0b10, 0b01))
-                  .insert(CollisionGroups::new(0b10, 0b01))
-                  .insert(Transform::from_xyz(
-                    c.0 as f32 + 0.5,
-                    c.1 as f32 + 0.5,
-                    c.2 as f32 + 0.5,
-                  ))
-                  .insert(GlobalTransform::default());
-              }
-              BlockRenderInfo::AsMesh(mesh) => {
-                if let Some(mesh_assets_hash_map) = mesh_storage_assets.get(&storage.0) {
-                  let mesh = &mesh_assets_hash_map[&mesh];
-                  let collider_mesh = mesh_assets.get(&mesh.collision.as_ref().unwrap()).unwrap();
-                  let meta = block.meta.v as f32;
+  let player_new_position = to_ddd(translation);
+  if player_new_position != player_previous_position.0 {
+    let iter = query.iter_mut();
+    for (e, _) in iter {
+      commands.entity(e).despawn();
+    }
+    for ix in -3..=3 {
+      for iy in -3..=3 {
+        for iz in -3..=3 {
+          let c = translation + Vec3::new(ix as f32, iy as f32, iz as f32);
+          let c = to_ddd(c);
+          if let Some(block) = block_accessor.get_single(c) {
+            if !block.passable() {
+              match block.render_info() {
+                BlockRenderInfo::AsBlock(_) => {
                   block_accessor
                     .commands
                     .spawn()
                     .insert(RigidBody::Fixed)
-                    .insert(Collider::from_bevy_mesh(collider_mesh, &ComputedColliderShape::TriMesh).unwrap())
+                    .insert(Collider::cuboid(0.5, 0.5, 0.5))
                     .insert(Cube)
                     .insert(Friction {
                       coefficient: 0.0,
@@ -239,21 +222,47 @@ fn collision_movement_system(
                     })
                     .insert(SolverGroups::new(0b10, 0b01))
                     .insert(CollisionGroups::new(0b10, 0b01))
-                    .insert(
-                      Transform::from_xyz(c.0 as f32 + 0.5, c.1 as f32 + 0.5, c.2 as f32 + 0.5)
-                        .with_rotation(Quat::from_rotation_y(f32::FRAC_PI_2() * meta)),
-                    )
+                    .insert(Transform::from_xyz(
+                      c.0 as f32 + 0.5,
+                      c.1 as f32 + 0.5,
+                      c.2 as f32 + 0.5,
+                    ))
                     .insert(GlobalTransform::default());
                 }
+                BlockRenderInfo::AsMesh(mesh) => {
+                  if let Some(mesh_assets_hash_map) = mesh_storage_assets.get(&storage.0) {
+                    let mesh = &mesh_assets_hash_map[&mesh];
+                    let collider_mesh = mesh_assets.get(&mesh.collision.as_ref().unwrap()).unwrap();
+                    let meta = block.meta.v as f32;
+                    block_accessor
+                      .commands
+                      .spawn()
+                      .insert(RigidBody::Fixed)
+                      .insert(Collider::from_bevy_mesh(collider_mesh, &ComputedColliderShape::TriMesh).unwrap())
+                      .insert(Cube)
+                      .insert(Friction {
+                        coefficient: 0.0,
+                        combine_rule: CoefficientCombineRule::Min,
+                      })
+                      .insert(SolverGroups::new(0b10, 0b01))
+                      .insert(CollisionGroups::new(0b10, 0b01))
+                      .insert(
+                        Transform::from_xyz(c.0 as f32 + 0.5, c.1 as f32 + 0.5, c.2 as f32 + 0.5)
+                          .with_rotation(Quat::from_rotation_y(f32::FRAC_PI_2() * meta)),
+                      )
+                      .insert(GlobalTransform::default());
+                  }
+                }
+                _ => {}
               }
-              _ => {}
             }
           }
         }
       }
     }
+    drop(query);
+    player_previous_position.0 = player_new_position;
   }
-  drop(query);
   let mut transforms = queries.p0();
 
   let looking_at = Vec3::new(
