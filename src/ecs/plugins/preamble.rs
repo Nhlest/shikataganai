@@ -24,7 +24,12 @@ impl Plugin for Preamble {
         mode: fullscreen.as_mode(),
         ..default()
       })
-      .insert_resource(ClearColor(Color::Rgba { red: 0.527, green: 0.804, blue: 0.917, alpha: 1.0 }))
+      .insert_resource(ClearColor(Color::Rgba {
+        red: 0.527,
+        green: 0.804,
+        blue: 0.917,
+        alpha: 1.0,
+      }))
       .insert_resource(ImageSettings::default_nearest())
       .insert_resource(Msaa { samples: 1 })
       .insert_resource(RapierConfiguration {

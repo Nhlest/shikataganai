@@ -8,8 +8,7 @@
 
 #[allow(unused_imports)]
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
-use bevy::prelude::{App, Mesh};
-use bevy::render::render_asset::RenderAssetPlugin;
+use bevy::prelude::App;
 use bevy::DefaultPlugins;
 use bevy_embedded_assets::EmbeddedAssetPlugin;
 use bevy_rapier3d::prelude::{NoUserData, RapierPhysicsPlugin};
@@ -18,6 +17,7 @@ use crate::ecs::plugins::camera::CameraPlugin;
 use crate::ecs::plugins::game::GamePlugin;
 use crate::ecs::plugins::imgui::{ImguiPlugin, ImguiState};
 use crate::ecs::plugins::preamble::Preamble;
+use crate::ecs::plugins::rendering::mesh_pipeline::loader::GltfMeshStorage;
 use crate::ecs::plugins::rendering::ShikataganaiRendererPlugins;
 use crate::ecs::plugins::settings::SettingsPlugin;
 
@@ -31,7 +31,6 @@ fn main() {
     .add_plugins_with(DefaultPlugins, |group| {
       group.add_before::<bevy::asset::AssetPlugin, _>(EmbeddedAssetPlugin)
     })
-    .add_plugin(RenderAssetPlugin::<Mesh>::default())
     .add_plugin(GamePlugin)
     .add_plugin(CameraPlugin)
     .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())

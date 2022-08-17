@@ -1,4 +1,5 @@
 use crate::ecs::components::block_or_item::BlockOrItem;
+use crate::ecs::components::blocks::block_id::BlockId;
 
 #[derive(Default)]
 pub struct SelectedHotBar(pub i32);
@@ -18,7 +19,16 @@ pub struct PlayerInventory {
 impl Default for PlayerInventory {
   fn default() -> Self {
     Self {
-      items: vec![None, None, None, None],
+      items: vec![
+        Some(QuantifiedBlockOrItem {
+          block_or_item: BlockOrItem::Block(BlockId::Stair),
+          quant: 100,
+        }),
+        None,
+        None,
+        None,
+        None,
+      ],
     }
   }
 }

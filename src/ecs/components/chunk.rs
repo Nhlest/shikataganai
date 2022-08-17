@@ -3,7 +3,6 @@ use crate::ecs::components::blocks::Block;
 use crate::ecs::resources::light::LightLevel;
 use bevy::prelude::*;
 use bevy::tasks::Task;
-use noise::utils::{NoiseMap, NoiseMapBuilder, PlaneMapBuilder};
 use noise::*;
 
 use crate::util::array::{Array, Array2d, Array3d, Bounds, DD, DDD};
@@ -50,11 +49,13 @@ impl Chunk {
     let perlin = Perlin::new().set_seed(11);
     let from = (coord.0 * 16, 0, coord.1 * 16);
     let to = (coord.0 * 16 + 15, CHUNK_MAX_HEIGHT, coord.1 * 16 + 15);
+    let perlin_top = Perlin::new().set_seed(12);
     let v = Array2d::new_init(((from.0, from.2), (to.0, to.2)), |(x, z)| noise(&perlin, (x, 0, z)));
+    let vtop = Array2d::new_init(((from.0, from.2), (to.0, to.2)), |(x, z)| noise(&perlin_top, (x, 0, z)));
 
     Chunk::new((from, to), |(x, y, z)| {
       let bottom = v[(x, z)];
-      let top = v[(x+999, z+399)];
+      let top = vtop[(x, z)];
 
       let bottom_extent = (bottom * 30.0).floor() as i32;
       let top_extent = ((top + 1.0) * bottom / 2.0 * 30.0).floor() as i32;
@@ -68,9 +69,9 @@ impl Chunk {
           BlockId::Air
         }
       } else {
-        if (y-30) > top_extent {
+        if (y - 30) > top_extent {
           BlockId::Air
-        } else if (y-30) == top_extent {
+        } else if (y - 30) == top_extent {
           BlockId::Grass
         } else if y - 28 >= top_extent {
           BlockId::Dirt

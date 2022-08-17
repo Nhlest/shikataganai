@@ -1,10 +1,13 @@
 use bevy::asset::{AssetLoader, LoadContext, LoadedAsset};
+use bevy::ecs::system::SystemParamItem;
 use bevy::prelude::*;
+use bevy::reflect::TypeUuid;
+use bevy::render::extract_resource::ExtractResource;
 use bevy::render::mesh::{Indices, MeshVertexAttribute, PrimitiveTopology, VertexAttributeValues};
+use bevy::render::render_asset::{PrepareAssetError, RenderAsset};
 use bevy::render::render_resource::VertexFormat;
 use bevy::utils::hashbrown::HashMap;
 use bevy::utils::BoxedFuture;
-use bevy::reflect::TypeUuid;
 use gltf::buffer::Source;
 use gltf::Gltf;
 use std::path::Path;
@@ -142,11 +145,14 @@ impl AssetLoader for GltfLoaderII {
         mesh.set_indices(Some(Indices::U32(indicies)));
       }
       let collider_handle = load_context.set_labeled_asset("ColliderHandleStair", LoadedAsset::new(mesh));
-      hash_map.insert(Meshes::Stair, MeshHandles {
-        render: Some(render_handle),
-        collision: Some(collider_handle)
-      });
-      load_context.set_default_asset(LoadedAsset::new(GltfMeshStorageHandle(hash_map)));
+      hash_map.insert(
+        Meshes::Stair,
+        MeshHandles {
+          render: Some(render_handle),
+          collision: Some(collider_handle),
+        },
+      );
+      load_context.set_default_asset(LoadedAsset::new(GltfMeshStorage(hash_map)));
       Ok(())
     })
   }
@@ -161,21 +167,39 @@ pub enum Meshes {
   Stair,
 }
 
+#[derive(Clone)]
 pub struct MeshHandles {
   pub render: Option<Handle<Mesh>>,
   pub collision: Option<Handle<Mesh>>,
 }
 
-#[derive(Deref)]
-pub struct GltfMeshStorage(pub Handle<GltfMeshStorageHandle>);
+#[derive(Deref, ExtractResource, Clone)]
+pub struct GltfMeshStorageHandle(pub Handle<GltfMeshStorage>);
 
-#[derive(TypeUuid, Deref)]
-#[uuid="03ddd1e6-1adf-11ed-9dbf-7c10c93f86f5"]
-pub struct GltfMeshStorageHandle(pub HashMap<Meshes, MeshHandles>);
+#[derive(TypeUuid, Deref, Clone)]
+#[uuid = "03ddd1e6-1adf-11ed-9dbf-7c10c93f86f5"]
+pub struct GltfMeshStorage(pub HashMap<Meshes, MeshHandles>);
 
-impl FromWorld for GltfMeshStorage {
+impl RenderAsset for GltfMeshStorage {
+  type ExtractedAsset = GltfMeshStorage;
+  type PreparedAsset = GltfMeshStorage;
+  type Param = ();
+
+  fn extract_asset(&self) -> Self::ExtractedAsset {
+    self.clone()
+  }
+
+  fn prepare_asset(
+    extracted_asset: Self::ExtractedAsset,
+    _param: &mut SystemParamItem<Self::Param>,
+  ) -> Result<Self::PreparedAsset, PrepareAssetError<Self::ExtractedAsset>> {
+    Ok(extracted_asset)
+  }
+}
+
+impl FromWorld for GltfMeshStorageHandle {
   fn from_world(world: &mut World) -> Self {
     let asset_server = world.get_resource::<AssetServer>().unwrap();
-    GltfMeshStorage(asset_server.load("meshes/meshes.glb"))
+    GltfMeshStorageHandle(asset_server.load("meshes/meshes.glb"))
   }
 }

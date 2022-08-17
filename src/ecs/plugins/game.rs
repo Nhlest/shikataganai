@@ -12,10 +12,10 @@ use std::time::Duration;
 pub struct GamePlugin;
 
 use crate::ecs::resources::chunk_map::BlockAccessor;
+use crate::ecs::systems::remesh::remesh_system_auxiliary;
 use crate::ecs::systems::user_interface::game_menu::game_menu;
 use bevy::render::{Extract, RenderApp, RenderStage};
 use iyes_loopless::prelude::*;
-use crate::ecs::plugins::rendering::mesh_pipeline::spawn_mesh;
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Hash)]
 pub enum ShikataganaiGameState {
@@ -53,7 +53,7 @@ pub fn transition_to_simulation(mut commands: Commands, mut r: BlockAccessorSpaw
   commands.insert_resource(NextState(ShikataganaiGameState::Simulation));
   for i in -10..=10 {
     for j in -10..=10 {
-      r.get_single((i*16, 0, j*16));
+      r.get_single((i * 16, 0, j * 16));
     }
   }
 }
@@ -75,7 +75,7 @@ impl Plugin for GamePlugin {
       .run_in_state(ShikataganaiGameState::MainMenu)
       .with_system(main_menu)
       .into();
-    let on_game_enter = SystemStage::parallel().with_system(init_game).with_system(spawn_mesh);
+    let on_game_enter = SystemStage::parallel().with_system(init_game); //.with_system(spawn_mesh);
     let on_game_exit = SystemStage::parallel().with_system(cleanup_game);
     let on_game_pre_simulation_update = ConditionSet::new()
       .run_in_state(ShikataganaiGameState::PreSimulation)
@@ -87,6 +87,10 @@ impl Plugin for GamePlugin {
       .with_system(hot_bar_scroll_input)
       .with_system(hot_bar)
       .with_system(collect_async_chunks)
+      .into();
+    let on_game_simulation_continuous_post_update = ConditionSet::new()
+      .run_in_state(ShikataganaiGameState::Simulation)
+      .with_system(remesh_system_auxiliary)
       .into();
     let on_pause = ConditionSet::new()
       .run_in_state(ShikataganaiGameState::Paused)
@@ -114,6 +118,7 @@ impl Plugin for GamePlugin {
       .add_system_set(on_game_pre_simulation_update)
       .add_system_set(on_pause)
       .add_system_set_to_stage(CoreStage::PostUpdate, on_post_update_simulation)
+      .add_system_set_to_stage(CoreStage::PostUpdate, on_game_simulation_continuous_post_update)
       .set_enter_stage(ShikataganaiGameState::MainMenu, on_game_exit)
       .set_enter_stage(ShikataganaiGameState::PreSimulation, on_game_enter);
 

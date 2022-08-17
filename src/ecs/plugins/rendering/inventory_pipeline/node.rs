@@ -4,17 +4,21 @@ use crate::ecs::plugins::rendering::inventory_pipeline::pipeline::InventoryNode;
 use crate::ecs::plugins::rendering::inventory_pipeline::{
   ExtractedItems, INVENTORY_OUTPUT_TEXTURE_WIDTH, TEXTURE_NODE_OUTPUT_SLOT,
 };
+use crate::ecs::plugins::rendering::mesh_pipeline::loader::{GltfMeshStorage, GltfMeshStorageHandle};
 use crate::ecs::plugins::rendering::voxel_pipeline::bind_groups::TextureHandle;
 use crate::ecs::resources::block::BlockSprite;
 use crate::ecs::resources::player::RerenderInventory;
 use bevy::prelude::*;
+use bevy::render::mesh::GpuBufferInfo;
 use bevy::render::render_asset::RenderAssets;
 use bevy::render::render_graph::{Node, NodeRunError, RenderGraphContext, SlotInfo, SlotType, SlotValue};
 use bevy::render::render_resource::{BufferUsages, PipelineCache};
 use bevy::render::renderer::{RenderContext, RenderDevice};
 use image::EncodableLayout;
+use num_traits::FloatConst;
 use std::collections::HashMap;
 use wgpu::util::BufferInitDescriptor;
+use wgpu::IndexFormat;
 
 const HEX_CC: [f32; 2] = [0.000000, -0.000000];
 const HEX_NN: [f32; 2] = [0.000000, -1.000000];
@@ -41,19 +45,28 @@ impl Node for InventoryNode {
     if world.resource::<RerenderInventory>().0 || !self.initialised {
       self.to_render = true;
       self.view = InventoryNode::create_view(world.resource::<RenderDevice>());
+      self.depth_view = InventoryNode::create_depth_view(world.resource::<RenderDevice>());
     } else {
       if self.initialised {
         self.to_render = false;
       }
     }
 
-    self.render_pipeline = world
+    self.direct_render_pipeline.render_pipeline = world
       .resource_mut::<PipelineCache>()
-      .get_render_pipeline(self.render_pipeline_id)
+      .get_render_pipeline(self.direct_render_pipeline.pipeline_id)
       .cloned();
+
+    self.mesh_render_pipeline.render_pipeline = world
+      .resource_mut::<PipelineCache>()
+      .get_render_pipeline(self.mesh_render_pipeline.pipeline_id)
+      .cloned();
+
     let handle = world.resource::<TextureHandle>();
     let gpu_images = world.resource::<RenderAssets<Image>>();
-    self.initialised = self.render_pipeline.is_some() && gpu_images.get(&handle.0).is_some();
+    self.initialised = self.mesh_render_pipeline.render_pipeline.is_some()
+      && self.direct_render_pipeline.render_pipeline.is_some()
+      && gpu_images.get(&handle.0).is_some();
   }
   fn run(
     &self,
@@ -63,7 +76,14 @@ impl Node for InventoryNode {
   ) -> Result<(), NodeRunError> {
     let handle = world.resource::<TextureHandle>();
     let gpu_images = world.resource::<RenderAssets<Image>>();
-    if let Some(render_pipeline) = &self.render_pipeline && self.to_render && let Some(gpu_image) = gpu_images.get(&handle.0) {
+    if let Some(mesh_render_pipeline) = &self.mesh_render_pipeline.render_pipeline && let Some(direct_render_pipeline) = &self.direct_render_pipeline.render_pipeline && self.to_render && let Some(gpu_image) = gpu_images.get(&handle.0) {
+      let meshes = world.resource::<RenderAssets<Mesh>>();
+      let mesh_storage_assets = world.resource::<RenderAssets<GltfMeshStorage>>();
+      let mesh_storage = world.resource::<GltfMeshStorageHandle>();
+      let mesh_storage = &mesh_storage_assets[&mesh_storage.0];
+
+      let mut meshes_to_render = vec![];
+
       let to_render = world.resource::<ExtractedItems>();
       const RADIUS: f32 = 0.49;
       let mut vertex_buffer = vec![];
@@ -105,8 +125,8 @@ impl Node for InventoryNode {
                 add_block_to_vertices(block_sprite, x, y);
               }
               BlockRenderInfo::AsMesh(mesh_handle) => {
-                let meshes = world.resource::<Assets<Mesh>>();
-                // let mesh_storage = world.resource::<MeshS>();
+                let mesh_handle = &mesh_storage[&mesh_handle].render.as_ref().unwrap();
+                meshes_to_render.push((mesh_handle.clone(), [x, y]));
               }
               _ => {todo!("Not implemented yet");}
             }
@@ -132,16 +152,75 @@ impl Node for InventoryNode {
           usage: BufferUsages::UNIFORM,
         });
 
-      let view_bind_group = self.create_view_bind_group(&render_context.render_device, &view_buffer);
-      let texture_bind_group = self.create_texture_bind_group(&render_context.render_device, gpu_image);
+      // TODO: this code is ass. Someone please fix it :(
+
+      let direct_view_bind_group = self.direct_render_pipeline.create_view_bind_group(&render_context.render_device, &view_buffer);
+      let direct_texture_bind_group = self.direct_render_pipeline.create_texture_bind_group(&render_context.render_device, gpu_image);
+
+      let contents = Mat4::orthographic_lh(0.0, INVENTORY_OUTPUT_TEXTURE_WIDTH as f32, INVENTORY_OUTPUT_TEXTURE_WIDTH as f32, 0.0, 0.001, 4.0);
+      let view_buffer = render_context
+        .render_device
+        .create_buffer_with_data(&BufferInitDescriptor {
+          label: None,
+          contents: bytemuck::bytes_of(&contents),
+          usage: BufferUsages::UNIFORM,
+        });
+
+      let mut contents = vec![];
+      for (_, [x, y]) in meshes_to_render.iter() {
+        contents.extend_from_slice(
+          &bytemuck::bytes_of(
+            &(
+              Mat4::from_translation(Vec3::new(0.5 + *x * INVENTORY_OUTPUT_TEXTURE_WIDTH, 0.5 + *y * INVENTORY_OUTPUT_TEXTURE_WIDTH, 1.0)) *
+              Mat4::from_quat(Quat::from_euler(EulerRot::XYZ, -f32::FRAC_PI_4(), f32::FRAC_PI_4(), 0.0)) *
+              Mat4::from_scale(Vec3::new(0.55, -0.55, 0.55))
+            )
+          )
+        );
+      }
+
+      let position_buffer = render_context
+        .render_device
+        .create_buffer_with_data(&BufferInitDescriptor {
+          label: None,
+          contents: bytemuck::cast_slice(contents.as_slice()),
+          usage: BufferUsages::UNIFORM,
+        });
+      let mesh_position_bind_group = if contents.len() > 0 {
+        Some(self.mesh_render_pipeline.create_position_bind_group(&render_context.render_device, &position_buffer))
+      } else {
+        None
+      };
+
+      let mesh_view_bind_group = self.mesh_render_pipeline.create_view_bind_group(&render_context.render_device, &view_buffer);
+      let mesh_texture_bind_group = self.mesh_render_pipeline.create_texture_bind_group(&render_context.render_device, gpu_image);
       let mut pass = self.begin_render_pass(&mut render_context.command_encoder);
 
-      pass.set_pipeline(render_pipeline);
+      pass.set_pipeline(direct_render_pipeline);
       let buf = &*buffer;
       pass.set_vertex_buffer(0, buf.slice(..));
-      pass.set_bind_group(0, &view_bind_group, &[]);
-      pass.set_bind_group(1, &texture_bind_group, &[]);
-      pass.draw(0..(vertex_buffer.len()/5) as u32, 0..1)
+      pass.set_bind_group(0, &direct_view_bind_group, &[]);
+      pass.set_bind_group(1, &direct_texture_bind_group, &[]);
+      pass.draw(0..(vertex_buffer.len()/5) as u32, 0..1);
+
+      // Mesh pass
+
+      pass.set_pipeline(mesh_render_pipeline);
+      for (i, (handle, _)) in meshes_to_render.iter().enumerate() {
+        let mesh = &meshes[handle];
+
+        match &mesh.buffer_info {
+          GpuBufferInfo::Indexed { buffer, count, .. } => {
+            pass.set_vertex_buffer(0, *mesh.vertex_buffer.slice(..));
+            pass.set_index_buffer(*buffer.slice(..), IndexFormat::Uint32);
+            pass.set_bind_group(0, &mesh_view_bind_group, &[]);
+            pass.set_bind_group(1, &mesh_texture_bind_group, &[]);
+            pass.set_bind_group(2, mesh_position_bind_group.as_ref().unwrap(), &[(i as u32) * 64]);
+            pass.draw_indexed(0..*count, 0, 0..1);
+          }
+          _ => {}
+        }
+      }
     }
     graph
       .set_output(TEXTURE_NODE_OUTPUT_SLOT, SlotValue::TextureView(self.view.clone()))

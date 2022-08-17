@@ -1,24 +1,20 @@
 // TODO: collision system is still too lidl, fixme
-use std::ops::Mul;
+use crate::ecs::components::blocks::BlockRenderInfo;
 use crate::ecs::plugins::game::{in_game, ShikataganaiGameState};
+use crate::ecs::plugins::rendering::mesh_pipeline::loader::GltfMeshStorageHandle;
 use crate::ecs::plugins::settings::MouseSensitivity;
-use crate::ecs::resources::chunk_map::{BlockAccessor, BlockAccessorInternal, BlockAccessorSpawner, BlockAccessorStatic};
+use crate::ecs::resources::chunk_map::{BlockAccessor, BlockAccessorInternal, BlockAccessorSpawner};
 use crate::util::array::{to_ddd, DDD};
+use crate::GltfMeshStorage;
 use bevy::input::mouse::MouseMotion;
 use bevy::prelude::*;
 use bevy::render::camera::{CameraProjection, Projection};
 use bevy::render::primitives::Frustum;
-use bevy_rapier3d::na::{Isometry3, Vector3};
-use bevy_rapier3d::parry::math::Vector;
-use bevy_rapier3d::parry::query::{Ray, TOI};
-use bevy_rapier3d::prelude::*;
 use bevy_rapier3d::prelude::TOIStatus::Converged;
-use bevy_rapier3d::rapier::geometry::ColliderHandle;
-use bevy_rapier3d::rapier::prelude::{ColliderShape, Cuboid};
+use bevy_rapier3d::prelude::*;
 use iyes_loopless::prelude::{ConditionSet, CurrentState, IntoConditionalSystem};
 use iyes_loopless::state::NextState;
 use num_traits::float::FloatConst;
-use num_traits::Zero;
 
 pub struct CameraPlugin;
 
@@ -30,9 +26,9 @@ pub struct PlayerCollider;
 
 #[derive(Component)]
 pub struct FPSCamera {
-  phi: f32,
-  theta: f32,
-  velocity: Vect
+  pub phi: f32,
+  pub theta: f32,
+  pub velocity: Vect,
 }
 
 impl Plugin for CameraPlugin {
@@ -40,7 +36,7 @@ impl Plugin for CameraPlugin {
     let fps_camera = FPSCamera {
       phi: 0.0,
       theta: f32::FRAC_PI_2(),
-      velocity: Vect::ZERO
+      velocity: Vect::ZERO,
     };
     let camera = {
       let perspective_projection = PerspectiveProjection {
@@ -103,7 +99,7 @@ fn movement_input_system(
   mouse_sensitivity: Res<MouseSensitivity>,
   time: Res<Time>,
   player_position: Query<&Transform, With<Player>>,
-  mut block_accessor: BlockAccessorSpawner
+  mut block_accessor: BlockAccessorSpawner,
 ) {
   let translation = player_position.single().translation;
 
@@ -119,8 +115,7 @@ fn movement_input_system(
   if window.cursor_locked() {
     for MouseMotion { delta } in mouse_events.iter() {
       fps_camera.phi += delta.x * mouse_sensitivity.0 * 0.003;
-      fps_camera.theta = (fps_camera.theta + delta.y * mouse_sensitivity.0 * 0.003)
-        .clamp(0.00005, f32::PI() - 0.00005);
+      fps_camera.theta = (fps_camera.theta + delta.y * mouse_sensitivity.0 * 0.003).clamp(0.00005, f32::PI() - 0.00005);
     }
 
     if key_events.pressed(KeyCode::W) {
@@ -175,9 +170,12 @@ fn collision_movement_system(
   mut queries: ParamSet<(Query<&mut Transform>, Query<(Entity, &mut Transform), With<Cube>>)>,
   mut block_accessor: BlockAccessorSpawner,
   time: Res<Time>,
-  rapier_context: Res<RapierContext>
+  rapier_context: Res<RapierContext>,
+  mesh_assets: Res<Assets<Mesh>>,
+  storage: Res<GltfMeshStorageHandle>,
+  mesh_storage_assets: Res<Assets<GltfMeshStorage>>,
 ) {
-  let (entity_camera, mut fps_camera) : (Entity, Mut<FPSCamera>) = camera.single_mut();
+  let (entity_camera, mut fps_camera): (Entity, Mut<FPSCamera>) = camera.single_mut();
   let entity_player = player.single();
   let translation = {
     let q = queries.p0();
@@ -203,24 +201,53 @@ fn collision_movement_system(
         let c = to_ddd(c);
         if let Some(block) = block_accessor.get_single(c) {
           if !block.passable() {
-            block_accessor
-              .commands
-              .spawn()
-              .insert(RigidBody::Fixed)
-              .insert(Collider::cuboid(0.5, 0.5, 0.5))
-              .insert(Cube)
-              .insert(Friction {
-                coefficient: 0.0,
-                combine_rule: CoefficientCombineRule::Min,
-              })
-              .insert(SolverGroups::new(0b10, 0b01))
-              .insert(CollisionGroups::new(0b10, 0b01))
-              .insert(Transform::from_xyz(
-                c.0 as f32 + 0.5,
-                c.1 as f32 + 0.5,
-                c.2 as f32 + 0.5,
-              ))
-              .insert(GlobalTransform::default());
+            match block.render_info() {
+              BlockRenderInfo::AsBlock(_) => {
+                block_accessor
+                  .commands
+                  .spawn()
+                  .insert(RigidBody::Fixed)
+                  .insert(Collider::cuboid(0.5, 0.5, 0.5))
+                  .insert(Cube)
+                  .insert(Friction {
+                    coefficient: 0.0,
+                    combine_rule: CoefficientCombineRule::Min,
+                  })
+                  .insert(SolverGroups::new(0b10, 0b01))
+                  .insert(CollisionGroups::new(0b10, 0b01))
+                  .insert(Transform::from_xyz(
+                    c.0 as f32 + 0.5,
+                    c.1 as f32 + 0.5,
+                    c.2 as f32 + 0.5,
+                  ))
+                  .insert(GlobalTransform::default());
+              }
+              BlockRenderInfo::AsMesh(mesh) => {
+                if let Some(mesh_assets_hash_map) = mesh_storage_assets.get(&storage.0) {
+                  let mesh = &mesh_assets_hash_map[&mesh];
+                  let collider_mesh = mesh_assets.get(&mesh.collision.as_ref().unwrap()).unwrap();
+                  let meta = block.meta.v as f32;
+                  block_accessor
+                    .commands
+                    .spawn()
+                    .insert(RigidBody::Fixed)
+                    .insert(Collider::from_bevy_mesh(collider_mesh, &ComputedColliderShape::TriMesh).unwrap())
+                    .insert(Cube)
+                    .insert(Friction {
+                      coefficient: 0.0,
+                      combine_rule: CoefficientCombineRule::Min,
+                    })
+                    .insert(SolverGroups::new(0b10, 0b01))
+                    .insert(CollisionGroups::new(0b10, 0b01))
+                    .insert(
+                      Transform::from_xyz(c.0 as f32 + 0.5, c.1 as f32 + 0.5, c.2 as f32 + 0.5)
+                        .with_rotation(Quat::from_rotation_y(f32::FRAC_PI_2() * meta)),
+                    )
+                    .insert(GlobalTransform::default());
+                }
+              }
+              _ => {}
+            }
           }
         }
       }
@@ -242,7 +269,7 @@ fn collision_movement_system(
   let feet_shape = Collider::cylinder(0.05, 0.2);
 
   let mut movement_left = fps_camera.velocity * time.delta().as_secs_f32();
-  let mut leg_height = 0.26;
+  let leg_height = 0.26;
 
   let filter = QueryFilter {
     flags: Default::default(),
@@ -253,17 +280,12 @@ fn collision_movement_system(
   };
 
   loop {
-    if movement_left.length() <= 0.0 { break; }
+    if movement_left.length() <= 0.0 {
+      break;
+    }
     let mut position = transforms.get(entity_player).unwrap().translation - Vec3::new(0.0, 0.495, 0.0);
 
-    let intersection = rapier_context.cast_shape(
-      position,
-      Rot::default(),
-      movement_left,
-      &shape,
-      1.0,
-      filter
-    );
+    let intersection = rapier_context.cast_shape(position, Rot::default(), movement_left, &shape, 1.0, filter);
 
     match intersection {
       None => {
@@ -301,7 +323,7 @@ fn collision_movement_system(
       Vec3::new(0.0, -1.0, 0.0),
       &feet_shape,
       leg_height,
-      filter
+      filter,
     );
 
     match intersection {
@@ -384,7 +406,7 @@ fn block_pick(
   if let Some((entity, intersection)) = rapier_context.cast_ray_and_get_normal(
     origin.into(),
     direction.into(),
-      5.0,
+    5.0,
     false,
     QueryFilter {
       flags: Default::default(),

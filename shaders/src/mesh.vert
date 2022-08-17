@@ -7,7 +7,7 @@ layout(location = 0) out vec2 uv_out;
 
 layout (set = 0, binding = 0) uniform View {
   mat4 view_proj;
-  vec3 world_position;
+//  vec3 world_position;
 } view;
 
 layout (set = 2, binding = 0) uniform Position {

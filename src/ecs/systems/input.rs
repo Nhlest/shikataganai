@@ -1,6 +1,7 @@
 use crate::ecs::components::block_or_item::BlockOrItem;
 use crate::ecs::components::blocks::block_id::BlockId;
-use crate::ecs::plugins::camera::Selection;
+use crate::ecs::components::blocks::BlockMeta;
+use crate::ecs::plugins::camera::{FPSCamera, Selection};
 use crate::ecs::plugins::rendering::voxel_pipeline::meshing::{RelightEvent, RelightType};
 use crate::ecs::resources::chunk_map::{BlockAccessor, BlockAccessorStatic};
 use crate::ecs::resources::player::{PlayerInventory, QuantifiedBlockOrItem, RerenderInventory, SelectedHotBar};
@@ -9,9 +10,11 @@ use bevy::input::mouse::MouseWheel;
 use bevy::prelude::*;
 use bevy_rapier3d::pipeline::QueryFilter;
 use bevy_rapier3d::prelude::{Collider, InteractionGroups, RapierContext};
+use num_traits::FloatConst;
 
 pub fn action_input(
   mouse: Res<Input<MouseButton>>,
+  camera: Query<&FPSCamera>,
   selection: Res<Option<Selection>>,
   mut player_inventory: ResMut<PlayerInventory>,
   hotbar_selection: Res<SelectedHotBar>,
@@ -106,6 +109,19 @@ pub fn action_input(
               )
               .is_none()
             {
+              let mut phi = (camera.single().phi - f32::FRAC_PI_4()) % (f32::PI() * 2.0);
+              if phi < 0.0 {
+                phi = f32::PI() * 2.0 + phi;
+              }
+              if phi > 0.0 && phi <= f32::FRAC_PI_2() {
+                target_negative_block.meta = BlockMeta { v: 3 };
+              } else if phi > f32::FRAC_PI_2() && phi <= f32::PI() {
+                target_negative_block.meta = BlockMeta { v: 2 };
+              } else if phi > f32::PI() && phi <= f32::PI() + f32::FRAC_PI_2() {
+                target_negative_block.meta = BlockMeta { v: 1 };
+              } else {
+                target_negative_block.meta = BlockMeta { v: 0 };
+              }
               target_negative_block.block = block.clone();
               *quant -= 1;
               if *quant <= 0 {

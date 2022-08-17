@@ -7,4 +7,7 @@ impl BlockTrait for Stair {
   fn render_info(&self) -> BlockRenderInfo {
     BlockRenderInfo::AsMesh(Meshes::Stair)
   }
+  fn visible(&self) -> bool {
+    false
+  }
 }

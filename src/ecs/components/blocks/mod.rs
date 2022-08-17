@@ -26,7 +26,7 @@ pub trait BlockTrait {
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub struct BlockMeta {
-  v: u32,
+  pub v: u32,
 }
 
 #[derive(Debug, Component, Copy, Clone)]
