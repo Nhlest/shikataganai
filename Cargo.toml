@@ -4,7 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-rand = "0.8.*"
 wgpu = "0.13.*"
 toml = "0.5.*"
 gltf = "1.0.0"
@@ -31,7 +30,6 @@ percent-encoding = "2.1.*"
 bevy_embedded_assets = "0.4.*"
 imgui-wgpu = { git = "https://github.com/Nhlest/imgui-wgpu-rs", branch = "master" }
 imgui-winit-support = { version = "0.8.1", default-features = false, features = [ "winit-26" ] }
-
 
 [dependencies.bevy_rapier3d]
 version = "0.16.*"

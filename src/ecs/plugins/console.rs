@@ -1,11 +1,11 @@
-use crate::ecs::plugins::game::ShikataganaiGameState;
+use crate::ecs::plugins::game::in_game;
 use crate::ecs::plugins::imgui::BigFont;
 use crate::App;
 use crate::ImguiState;
 use bevy::app::Plugin;
 use bevy::prelude::*;
 use imgui::{Condition, StyleColor};
-use iyes_loopless::prelude::{ConditionSet, CurrentState};
+use iyes_loopless::prelude::ConditionSet;
 use tracing::Level;
 
 pub struct ConsolePlugin;
@@ -13,11 +13,7 @@ pub struct ConsolePlugin;
 impl Plugin for ConsolePlugin {
   fn build(&self, app: &mut App) {
     let on_game_simulation_continuous = ConditionSet::new()
-      .run_if(|state: Option<Res<CurrentState<ShikataganaiGameState>>>| {
-        state
-          .map(|state| state.0 == ShikataganaiGameState::Simulation || state.0 == ShikataganaiGameState::Paused)
-          .unwrap_or(false)
-      })
+      .run_if(in_game)
       .with_system(open_close_console)
       .with_system(debug_console)
       .into();

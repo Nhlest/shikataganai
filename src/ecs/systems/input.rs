@@ -1,7 +1,7 @@
 use crate::ecs::components::block_or_item::BlockOrItem;
 use crate::ecs::components::blocks::block_id::BlockId;
 use crate::ecs::components::blocks::BlockRotation;
-use crate::ecs::plugins::camera::{FPSCamera, Selection};
+use crate::ecs::plugins::camera::{FPSCamera, Recollide, Selection};
 use crate::ecs::plugins::rendering::voxel_pipeline::meshing::{RelightEvent, RelightType};
 use crate::ecs::resources::chunk_map::{BlockAccessor, BlockAccessorStatic};
 use crate::ecs::resources::player::{PlayerInventory, QuantifiedBlockOrItem, RerenderInventory, SelectedHotBar};
@@ -13,6 +13,7 @@ use bevy_rapier3d::prelude::{Collider, InteractionGroups, RapierContext};
 use num_traits::FloatConst;
 
 pub fn action_input(
+  mut commands: Commands,
   mouse: Res<Input<MouseButton>>,
   camera: Query<&FPSCamera>,
   selection: Res<Option<Selection>>,
@@ -22,6 +23,7 @@ pub fn action_input(
   mut relight_events: EventWriter<RelightEvent>,
   rapier_context: Res<RapierContext>,
   mut rerender_inventory: ResMut<RerenderInventory>,
+  mut recollide: ResMut<Recollide>,
 ) {
   match selection.into_inner() {
     None => {}
@@ -30,9 +32,6 @@ pub fn action_input(
       let target_negative = *face;
       if mouse.just_pressed(MouseButton::Left) {
         if let Some([source_block]) = block_accessor.get_many_mut([source]) {
-          if source_block.block == BlockId::Air {
-            return;
-          } // TODO: without this line, in some weird situations game decides to collect air blocks on left click. Investigate.
           let block: BlockId = std::mem::replace(&mut source_block.block, BlockId::Air);
 
           let mut found = false;
@@ -71,7 +70,12 @@ pub fn action_input(
             }
           }
 
+          if source_block.entity != Entity::from_bits(0) {
+            commands.entity(source_block.entity).despawn();
+            source_block.entity = Entity::from_bits(0);
+          }
           relight_events.send(RelightEvent::Relight(RelightType::BlockRemoved, source));
+          recollide.0 = true;
         }
       }
       if mouse.just_pressed(MouseButton::Right) {
@@ -122,6 +126,7 @@ pub fn action_input(
                 player_inventory.items[hotbar_selection.0 as usize] = None;
               }
               relight_events.send(RelightEvent::Relight(RelightType::BlockAdded, target_negative));
+              recollide.0 = true;
             }
           }
         }

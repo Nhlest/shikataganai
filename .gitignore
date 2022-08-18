@@ -3,3 +3,4 @@ shaders/output
 .idea
 shikataganai.toml
 Cargo.lock
+.cargo/config.toml

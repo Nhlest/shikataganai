@@ -1,4 +1,3 @@
-// TODO: collision system is still too lidl, fixme
 use crate::ecs::components::blocks::BlockRenderInfo;
 use crate::ecs::plugins::game::{in_game, ShikataganaiGameState};
 use crate::ecs::plugins::rendering::mesh_pipeline::loader::GltfMeshStorageHandle;
@@ -22,13 +21,41 @@ pub struct CameraPlugin;
 pub struct Player;
 
 #[derive(Component)]
-pub struct PlayerCollider;
-
-#[derive(Component)]
 pub struct FPSCamera {
   pub phi: f32,
   pub theta: f32,
   pub velocity: Vect,
+}
+
+impl Default for FPSCamera {
+  fn default() -> Self {
+    FPSCamera {
+      phi: 0.0,
+      theta: f32::FRAC_PI_2(),
+      velocity: Vect::ZERO,
+    }
+  }
+}
+
+pub fn raycast_to_block(
+  rapier_context: &RapierContext,
+  ray_origin: Vec3,
+  ray_dir: Vec3,
+  max_toi: f32,
+) -> Option<(Entity, RayIntersection)> {
+  rapier_context.cast_ray_and_get_normal(
+    ray_origin,
+    ray_dir,
+    max_toi,
+    false,
+    QueryFilter {
+      flags: Default::default(),
+      groups: Some(InteractionGroups::new(0b01, 0b10)),
+      exclude_collider: None,
+      exclude_rigid_body: None,
+      predicate: None,
+    },
+  )
 }
 
 #[derive(Default)]
@@ -36,11 +63,6 @@ pub struct PlayerPreviousPosition(pub DDD);
 
 impl Plugin for CameraPlugin {
   fn build(&self, app: &mut App) {
-    let fps_camera = FPSCamera {
-      phi: 0.0,
-      theta: f32::FRAC_PI_2(),
-      velocity: Vect::ZERO,
-    };
     let camera = {
       let perspective_projection = PerspectiveProjection {
         fov: std::f32::consts::PI / 1.8,
@@ -58,52 +80,53 @@ impl Plugin for CameraPlugin {
       }
     };
     app
+      .init_resource::<Recollide>()
+      .init_resource::<PlayerPreviousPosition>();
+
+    // Spawn player
+    app
       .world
       .spawn()
-      .insert(RigidBody::KinematicPositionBased)
       .insert(Transform::from_xyz(10.1, 45.0, 10.0))
       .insert(GlobalTransform::default())
-      .insert(LockedAxes::ROTATION_LOCKED)
       .insert(Player)
-      .insert(Velocity::default())
       .with_children(|c| {
         c.spawn()
-          .insert(PlayerCollider)
           .insert(GlobalTransform::default())
           .insert(Transform::from_xyz(0.0, -0.5, 0.0))
           .insert(Collider::cylinder(0.8, 0.2))
           .insert(SolverGroups::new(0b01, 0b10))
           .insert(CollisionGroups::new(0b01, 0b10));
-        c.spawn().insert(fps_camera).insert_bundle(camera);
+        c.spawn().insert(FPSCamera::default()).insert_bundle(camera);
       });
 
-    let on_game_simulation_continous = ConditionSet::new()
+    let on_game_simulation_continuous = ConditionSet::new()
       .run_in_state(ShikataganaiGameState::Simulation)
       .with_system(movement_input_system)
+      .with_system(update_colliders)
       .with_system(collision_movement_system)
       .into();
-    app.add_system_set(on_game_simulation_continous);
-    app.add_system(cursor_grab_system.run_if(in_game));
     let on_simulation_pre_update = ConditionSet::new()
       .run_in_state(ShikataganaiGameState::Simulation)
       .with_system(block_pick)
       .into();
+    app.add_system(cursor_grab_system.run_if(in_game));
+    app.add_system_set(on_game_simulation_continuous);
     app.add_system_set_to_stage(CoreStage::PreUpdate, on_simulation_pre_update);
-    app.init_resource::<PlayerPreviousPosition>();
   }
 }
 
 fn movement_input_system(
+  mut block_accessor: BlockAccessorSpawner,
   mut player: Query<&mut FPSCamera>,
+  player_position: Query<&Transform, With<Player>>,
   camera_transform: Query<&Transform, With<Camera>>,
   mut mouse_events: EventReader<MouseMotion>,
+  mouse_sensitivity: Res<MouseSensitivity>,
   key_events: Res<Input<KeyCode>>,
   mut windows: ResMut<Windows>,
-  mut stationary_frames: Local<i32>,
-  mouse_sensitivity: Res<MouseSensitivity>,
   time: Res<Time>,
-  player_position: Query<&Transform, With<Player>>,
-  mut block_accessor: BlockAccessorSpawner,
+  mut stationary_frames: Local<i32>,
 ) {
   let translation = player_position.single().translation;
 
@@ -164,46 +187,55 @@ fn movement_input_system(
 }
 
 #[derive(Component)]
-pub struct Cube;
+pub struct ProximityCollider;
 
-//TODO: too lidl, fix
-fn collision_movement_system(
+#[derive(Default)]
+pub struct Recollide(pub bool);
+
+#[derive(Bundle)]
+pub struct ProximityColliderBundle {
+  rigid_body: RigidBody,
+  collider: Collider,
+  proximity_collider: ProximityCollider,
+  solver_groups: SolverGroups,
+  collision_groups: CollisionGroups,
+  transform: Transform,
+  global_transform: GlobalTransform,
+}
+
+impl ProximityColliderBundle {
+  pub fn proximity_collider(collider: Collider, transform: Transform) -> Self {
+    Self {
+      rigid_body: RigidBody::Fixed,
+      collider,
+      proximity_collider: ProximityCollider,
+      solver_groups: SolverGroups::new(0b10, 0b01),
+      collision_groups: CollisionGroups::new(0b10, 0b01),
+      transform,
+      global_transform: Default::default(),
+    }
+  }
+}
+
+fn update_colliders(
   mut commands: Commands,
-  mut camera: Query<(Entity, &mut FPSCamera)>,
-  player: Query<Entity, With<Player>>,
-  mut queries: ParamSet<(Query<&mut Transform>, Query<(Entity, &mut Transform), With<Cube>>)>,
   mut block_accessor: BlockAccessorSpawner,
-  time: Res<Time>,
-  rapier_context: Res<RapierContext>,
+  proximity_colliders: Query<Entity, With<ProximityCollider>>,
+  player_transform: Query<&Transform, With<Player>>,
+  mut player_previous_position: ResMut<PlayerPreviousPosition>,
+  mut recollide: ResMut<Recollide>,
   mesh_assets: Res<Assets<Mesh>>,
   storage: Res<GltfMeshStorageHandle>,
   mesh_storage_assets: Res<Assets<GltfMeshStorage>>,
-  mut player_previous_position: ResMut<PlayerPreviousPosition>,
 ) {
-  let (entity_camera, mut fps_camera): (Entity, Mut<FPSCamera>) = camera.single_mut();
-  let entity_player = player.single();
-  let translation = {
-    let q = queries.p0();
-    q.get(entity_player).unwrap().translation
-  };
-
-  //TODO: doesnt work. At all
-  if block_accessor.get_chunk_entity_or_queue(to_ddd(translation)).is_none() {
-    return;
-  }
-
-  let mut query = queries.p1();
-
-  let player_new_position = to_ddd(translation);
-  if player_new_position != player_previous_position.0 {
-    let iter = query.iter_mut();
-    for (e, _) in iter {
-      commands.entity(e).despawn();
-    }
+  let player_new_position_translation = player_transform.single().translation;
+  let player_new_position = to_ddd(player_new_position_translation);
+  if player_new_position != player_previous_position.0 || recollide.0 {
+    proximity_colliders.iter().for_each(|e| commands.entity(e).despawn());
     for ix in -3..=3 {
       for iy in -3..=3 {
         for iz in -3..=3 {
-          let c = translation + Vec3::new(ix as f32, iy as f32, iz as f32);
+          let c = player_new_position_translation + Vec3::new(ix as f32, iy as f32, iz as f32);
           let c = to_ddd(c);
           if let Some(block) = block_accessor.get_single(c) {
             if !block.passable() {
@@ -211,22 +243,10 @@ fn collision_movement_system(
                 BlockRenderInfo::AsBlock(_) => {
                   block_accessor
                     .commands
-                    .spawn()
-                    .insert(RigidBody::Fixed)
-                    .insert(Collider::cuboid(0.5, 0.5, 0.5))
-                    .insert(Cube)
-                    .insert(Friction {
-                      coefficient: 0.0,
-                      combine_rule: CoefficientCombineRule::Min,
-                    })
-                    .insert(SolverGroups::new(0b10, 0b01))
-                    .insert(CollisionGroups::new(0b10, 0b01))
-                    .insert(Transform::from_xyz(
-                      c.0 as f32 + 0.5,
-                      c.1 as f32 + 0.5,
-                      c.2 as f32 + 0.5,
-                    ))
-                    .insert(GlobalTransform::default());
+                    .spawn_bundle(ProximityColliderBundle::proximity_collider(
+                      Collider::cuboid(0.5, 0.5, 0.5),
+                      Transform::from_xyz(c.0 as f32 + 0.5, c.1 as f32 + 0.5, c.2 as f32 + 0.5),
+                    ));
                 }
                 BlockRenderInfo::AsMesh(mesh) => {
                   if let Some(mesh_assets_hash_map) = mesh_storage_assets.get(&storage.0) {
@@ -235,21 +255,11 @@ fn collision_movement_system(
                     let meta = block.meta.v as f32;
                     block_accessor
                       .commands
-                      .spawn()
-                      .insert(RigidBody::Fixed)
-                      .insert(Collider::from_bevy_mesh(collider_mesh, &ComputedColliderShape::TriMesh).unwrap())
-                      .insert(Cube)
-                      .insert(Friction {
-                        coefficient: 0.0,
-                        combine_rule: CoefficientCombineRule::Min,
-                      })
-                      .insert(SolverGroups::new(0b10, 0b01))
-                      .insert(CollisionGroups::new(0b10, 0b01))
-                      .insert(
+                      .spawn_bundle(ProximityColliderBundle::proximity_collider(
+                        Collider::from_bevy_mesh(collider_mesh, &ComputedColliderShape::TriMesh).unwrap(), // TODO: cache this
                         Transform::from_xyz(c.0 as f32 + 0.5, c.1 as f32 + 0.5, c.2 as f32 + 0.5)
                           .with_rotation(Quat::from_rotation_y(f32::FRAC_PI_2() * meta)),
-                      )
-                      .insert(GlobalTransform::default());
+                      ));
                   }
                 }
                 _ => {}
@@ -259,10 +269,30 @@ fn collision_movement_system(
         }
       }
     }
-    drop(query);
     player_previous_position.0 = player_new_position;
+    recollide.0 = false;
   }
-  let mut transforms = queries.p0();
+}
+
+fn collision_movement_system(
+  mut camera: Query<(Entity, &mut FPSCamera)>,
+  player: Query<Entity, With<Player>>,
+  mut transforms: Query<&mut Transform>,
+  mut block_accessor: BlockAccessorSpawner,
+  time: Res<Time>,
+  rapier_context: Res<RapierContext>,
+) {
+  let (entity_camera, mut fps_camera): (Entity, Mut<FPSCamera>) = camera.single_mut();
+  let entity_player = player.single();
+  let player_translation = transforms.get(entity_player).unwrap().translation;
+
+  // Don't move if chunk is not yet generated. TODO: check if this still works after move to client-server architecture
+  if block_accessor
+    .get_chunk_entity_or_queue(to_ddd(player_translation))
+    .is_none()
+  {
+    return;
+  }
 
   let looking_at = Vec3::new(
     10.0 * fps_camera.phi.cos() * fps_camera.theta.sin(),
@@ -291,87 +321,53 @@ fn collision_movement_system(
     if movement_left.length() <= 0.0 {
       break;
     }
-    let mut position = transforms.get(entity_player).unwrap().translation - Vec3::new(0.0, 0.495, 0.0);
+    let mut player_transform = transforms.get_mut(entity_player).unwrap();
+    let position = player_transform.translation - Vec3::new(0.0, 0.495, 0.0);
 
-    let intersection = rapier_context.cast_shape(position, Rot::default(), movement_left, &shape, 1.0, filter);
-
-    match intersection {
+    match rapier_context.cast_shape(position, Rot::default(), movement_left, &shape, 1.0, filter) {
       None => {
-        position = position + movement_left + Vec3::new(0.0, 0.495, 0.0);
-        transforms.get_mut(entity_player).unwrap().translation = position;
+        player_transform.translation = position + movement_left + Vec3::new(0.0, 0.495, 0.0);
         break;
       }
       Some((collision_entity, toi)) => {
         if toi.status != Converged {
-          //TODO: fix this, this is so lidl i cant
+          // TODO: there might be a better way of implementing an unstuck mechanism
           let unstuck_vector = transforms.get(collision_entity).unwrap().translation - position;
           transforms.get_mut(entity_player).unwrap().translation -= unstuck_vector.normalize() * 0.01;
           fps_camera.velocity = Vec3::new(0.0, 0.0, 0.0);
           break;
         }
-        let v = movement_left.dot(toi.normal1);
-        movement_left = movement_left - v * toi.normal1;
+        movement_left -= movement_left.dot(toi.normal1) * toi.normal1;
         fps_camera.velocity = movement_left / time.delta().as_secs_f32();
       }
     }
   }
 
-  // ----------------------------  TODO:   -----------------------------------------
-  // While mid air treat entire player body as one tall collider
-  // If just went from on_the_ground to mid_air have a snap leg raycast to snap down
-  // While on the ground do that leg thing
-  // -------------------------------------------------------------------------------
-
   if fps_camera.velocity.y <= 0.0 {
     let position = transforms.get(entity_player).unwrap().translation - Vec3::new(0.0, 1.19, 0.0);
 
-    let intersection = rapier_context.cast_shape(
+    if let Some((_, toi)) = rapier_context.cast_shape(
       position,
       Rot::default(),
       Vec3::new(0.0, -1.0, 0.0),
       &feet_shape,
       leg_height,
       filter,
-    );
-
-    match intersection {
-      None => {}
-      Some((_, toi)) => {
-        transforms.get_mut(entity_player).unwrap().translation -= Vec3::new(0.0, toi.toi - leg_height, 0.0);
-        fps_camera.velocity.y = 0.0;
-      }
+    ) {
+      transforms.get_mut(entity_player).unwrap().translation -= Vec3::new(0.0, toi.toi - leg_height, 0.0);
+      fps_camera.velocity.y = 0.0;
     }
 
     // TODO: downward snapping
-    // if fps_camera.velocity.y == 0.0 {
-    //   let position = transforms.get(entity_player).unwrap().translation - Vec3::new(0.0, 1.45, 0.0);
-    //
-    //   let intersection = rapier_context.cast_shape(
-    //     position,
-    //     Rot::default(),
-    //     Vec3::new(0.0, -1.0, 0.0),
-    //     &feet_shape,
-    //     leg_height+0.5,
-    //     filter
-    //   );
-    //
-    //   match intersection {
-    //     None => {}
-    //     Some((_, toi)) => {
-    //       transforms.get_mut(entity_player).unwrap().translation -= Vec3::new(0.0, toi.toi - leg_height, 0.0);
-    //       fps_camera.velocity.y = 0.0;
-    //     }
-    //   }
-    // }
   }
 }
 
 fn cursor_grab_system(
-  mut commands: Commands,
   current_state: Res<CurrentState<ShikataganaiGameState>>,
-  mut windows: ResMut<Windows>,
   key: Res<Input<KeyCode>>,
   mut physics_system: ResMut<RapierConfiguration>,
+  mut windows: ResMut<Windows>,
+  mut commands: Commands,
 ) {
   let window = windows.get_primary_mut().unwrap();
 
@@ -406,26 +402,12 @@ fn block_pick(
   mut selection: ResMut<Option<Selection>>,
   rapier_context: Res<RapierContext>,
 ) {
-  *selection = None;
   let transform = camera.single();
-  let origin = transform.translation();
-  let direction = transform.forward();
 
-  if let Some((entity, intersection)) = rapier_context.cast_ray_and_get_normal(
-    origin.into(),
-    direction.into(),
-    5.0,
-    false,
-    QueryFilter {
-      flags: Default::default(),
-      groups: Some(InteractionGroups::new(0b01, 0b10)),
-      exclude_collider: None,
-      exclude_rigid_body: None,
-      predicate: None,
-    },
-  ) {
-    // let c = rapier_context.colliders.get(entity).unwrap();
-    // let e = Entity::from_bits(c.user_data as u64);
+  if let Some((entity, intersection)) =
+    raycast_to_block(&rapier_context, transform.translation(), transform.forward(), 5.0)
+  {
+    // TODO: generalise it. Make it possible to right click on custom meshes
     let transform = transforms.get(entity).unwrap();
     let cube = transform.translation - Vec3::new(0.5, 0.5, 0.5);
     let normal: Vec3 = Vec3::from(intersection.normal) + cube;

@@ -1,4 +1,4 @@
-use crate::ecs::components::blocks::{Block, BlockRenderInfo};
+use crate::ecs::components::blocks::BlockRenderInfo;
 use crate::ecs::plugins::rendering::mesh_pipeline::loader::GltfMeshStorageHandle;
 use crate::ecs::plugins::rendering::voxel_pipeline::meshing::RemeshEvent;
 use crate::ecs::resources::chunk_map::BlockAccessor;
@@ -33,7 +33,7 @@ pub fn remesh_system_auxiliary(
     let bounds = block_accessor.chunks.get(entity).unwrap().grid.bounds;
     let mut i = bounds.0;
     loop {
-      let mut block: Block = block_accessor.get_single(i).unwrap().clone();
+      let mut block = block_accessor.get_mut(i).unwrap();
       match block.render_info() {
         BlockRenderInfo::AsMesh(mesh) => {
           if block.entity == Entity::from_bits(0) {
