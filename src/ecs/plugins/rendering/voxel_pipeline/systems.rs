@@ -133,6 +133,7 @@ pub fn queue_chunks(
       }),
     });
   }
+  // TODO: only do this once maybe?
   if let Some(gpu_image) = gpu_images.get(&light_texture_handle.0) {
     commands.insert_resource(LightTextureBindGroup {
       bind_group: render_device.create_bind_group(&BindGroupDescriptor {

@@ -13,7 +13,7 @@ impl WriteInto for LightLevel {
   where
     B: BufferMut,
   {
-    writer.write(&[self.heaven, 0, 0, 0, self.hearth, 0, 0, 0])
+    writer.write(&[self.hearth, 0, 0, 0, self.heaven, 0, 0, 0])
   }
 }
 

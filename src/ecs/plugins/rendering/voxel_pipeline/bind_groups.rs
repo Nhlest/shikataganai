@@ -1,7 +1,10 @@
 use bevy::prelude::*;
+use bevy::render::extract_resource::ExtractResource;
 use bevy::render::render_resource::BindGroup;
 
 pub struct TextureHandle(pub Handle<Image>);
+
+#[derive(Clone, ExtractResource)]
 pub struct LightTextureHandle(pub Handle<Image>);
 
 impl FromWorld for TextureHandle {

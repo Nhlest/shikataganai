@@ -147,6 +147,10 @@ pub fn action_input(
         recollide.0 = true;
       }
       if mouse.just_pressed(MouseButton::Right) {
+        let block = player_inventory.items[hotbar_selection.0 as usize]
+          .as_ref()
+          .map(|x| x.block_or_item == BlockOrItem::Block(BlockId::LightEmitter))
+          .unwrap_or(false);
         place_item_from_inventory(
           player_inventory.as_mut(),
           hotbar_selection.0 as usize,
@@ -155,7 +159,11 @@ pub fn action_input(
           &rapier_context,
           &camera.single(),
         );
-        relight_events.send(RelightEvent::Relight(RelightType::BlockAdded, target_negative));
+        if block {
+          relight_events.send(RelightEvent::Relight(RelightType::LightSourceAdded, target_negative));
+        } else {
+          relight_events.send(RelightEvent::Relight(RelightType::BlockAdded, target_negative));
+        }
         recollide.0 = true;
       }
     }

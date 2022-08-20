@@ -4,6 +4,7 @@ pub struct Air;
 pub struct Dirt;
 pub struct Grass;
 pub struct Cobblestone;
+pub struct LightEmitter;
 
 impl BlockTrait for Air {
   fn visible(&self) -> bool {
@@ -42,5 +43,17 @@ impl BlockTrait for Cobblestone {
       Cobblestone,
       Cobblestone,
     ])
+  }
+}
+
+impl BlockTrait for LightEmitter {
+  fn render_info(&self) -> BlockRenderInfo {
+    BlockRenderInfo::Nothing
+  }
+  fn visible(&self) -> bool {
+    false
+  }
+  fn passable(&self) -> bool {
+    true
   }
 }

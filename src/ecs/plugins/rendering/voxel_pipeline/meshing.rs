@@ -13,7 +13,7 @@ pub enum RemeshEvent {
 }
 
 pub enum RelightType {
-  // LightSourceAdded,
+  LightSourceAdded,
   // LightSourceRemoved,
   BlockAdded,
   BlockRemoved,

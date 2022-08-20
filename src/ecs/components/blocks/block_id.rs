@@ -10,14 +10,16 @@ pub enum BlockId {
   Grass,
   Cobble,
   Stair,
+  LightEmitter,
 }
 
-static BLOCK_TRAITS: [&(dyn BlockTrait + Sync); 5] = [
+static BLOCK_TRAITS: [&(dyn BlockTrait + Sync); 6] = [
   &regular_blocks::Air,
   &regular_blocks::Dirt,
   &regular_blocks::Grass,
   &regular_blocks::Cobblestone,
   &regular_meshes::Stair,
+  &regular_blocks::LightEmitter,
 ];
 
 impl Deref for BlockId {

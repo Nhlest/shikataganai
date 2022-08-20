@@ -7,6 +7,7 @@ use crate::ecs::plugins::rendering::voxel_pipeline::systems::{extract_chunks, qu
 use bevy::core_pipeline::core_3d::Opaque3d;
 use bevy::prelude::*;
 use bevy::reflect::TypeUuid;
+use bevy::render::extract_resource::ExtractResourcePlugin;
 use bevy::render::render_phase::AddRenderCommand;
 use bevy::render::render_resource::SpecializedRenderPipelines;
 use bevy::render::{RenderApp, RenderStage};
@@ -38,6 +39,9 @@ impl Plugin for VoxelRendererPlugin {
 
     app.add_event::<RemeshEvent>();
     app.add_event::<RelightEvent>();
+    app
+      .add_plugin(ExtractResourcePlugin::<LightTextureHandle>::default())
+      .init_resource::<LightTextureHandle>();
 
     let render_app = app.get_sub_app_mut(RenderApp).unwrap();
     render_app
@@ -45,7 +49,6 @@ impl Plugin for VoxelRendererPlugin {
       .init_resource::<VoxelPipeline>()
       .init_resource::<SpecializedRenderPipelines<VoxelPipeline>>()
       .init_resource::<TextureHandle>()
-      .init_resource::<LightTextureHandle>()
       .add_system_to_stage(RenderStage::Extract, extract_chunks.run_if(in_game_extract))
       .add_system_to_stage(RenderStage::Queue, queue_chunks.run_if(in_game))
       .add_render_command::<Opaque3d, DrawVoxelsFull>();

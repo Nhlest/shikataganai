@@ -24,7 +24,10 @@ impl Default for PlayerInventory {
           block_or_item: BlockOrItem::Block(BlockId::Stair),
           quant: 100,
         }),
-        None,
+        Some(QuantifiedBlockOrItem {
+          block_or_item: BlockOrItem::Block(BlockId::LightEmitter),
+          quant: 100,
+        }),
         None,
         None,
         None,
