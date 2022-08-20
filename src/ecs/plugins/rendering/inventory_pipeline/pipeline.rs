@@ -1,7 +1,7 @@
 use crate::ecs::plugins::rendering::inventory_pipeline::{
-  INVENTORY_SHADER_FRAGMENT_HANDLE, INVENTORY_SHADER_VERTEX_HANDLE,
+  INVENTORY_MESH_SHADER_FRAGMENT_HANDLE, INVENTORY_MESH_SHADER_VERTEX_HANDLE, INVENTORY_SHADER_FRAGMENT_HANDLE,
+  INVENTORY_SHADER_VERTEX_HANDLE,
 };
-use crate::ecs::plugins::rendering::mesh_pipeline::{MESH_SHADER_FRAGMENT_HANDLE, MESH_SHADER_VERTEX_HANDLE};
 use bevy::prelude::*;
 use bevy::render::mesh::PrimitiveTopology;
 use bevy::render::render_resource::{
@@ -277,13 +277,13 @@ impl InventoryNode {
 
     let pipeline_descriptor = RenderPipelineDescriptor {
       vertex: VertexState {
-        shader: MESH_SHADER_VERTEX_HANDLE.typed::<Shader>(),
+        shader: INVENTORY_MESH_SHADER_VERTEX_HANDLE.typed::<Shader>(),
         entry_point: "main".into(),
         shader_defs: vec![],
         buffers: vec![vertex_layout],
       },
       fragment: Some(FragmentState {
-        shader: MESH_SHADER_FRAGMENT_HANDLE.typed::<Shader>(),
+        shader: INVENTORY_MESH_SHADER_FRAGMENT_HANDLE.typed::<Shader>(),
         shader_defs: vec![],
         entry_point: "main".into(),
         targets: vec![Some(ColorTargetState {

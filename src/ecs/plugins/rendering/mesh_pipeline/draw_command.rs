@@ -1,29 +1,36 @@
 use crate::ecs::plugins::rendering::draw_command::{SetBindGroup, SetViewBindGroup};
 use crate::ecs::plugins::rendering::mesh_pipeline::bind_groups::{
-  MeshPositionBindGroup, MeshTextureBindGroup, MeshViewBindGroup,
+  MeshLightBindGroup, MeshLightTextureBindGroup, MeshPositionBindGroup, MeshTextureBindGroup, MeshViewBindGroup,
 };
 use crate::ecs::plugins::rendering::mesh_pipeline::systems::{MeshBuffer, PositionUniform};
+use crate::ecs::resources::light::LightLevel;
 use bevy::ecs::system::lifetimeless::{Read, SQuery, SRes};
 use bevy::ecs::system::SystemParamItem;
 use bevy::prelude::*;
 use bevy::render::extract_component::DynamicUniformIndex;
 use bevy::render::render_phase::{EntityRenderCommand, RenderCommandResult, SetItemPipeline, TrackedRenderPass};
-use bevy::render::render_resource::IndexFormat;
+use bevy::render::render_resource::{BindGroup, IndexFormat};
+use std::marker::PhantomData;
+use std::ops::Deref;
 
 pub type DrawMeshFull = (
   SetItemPipeline,
   SetViewBindGroup<0, MeshViewBindGroup>,
   SetBindGroup<1, MeshTextureBindGroup>,
-  SetMeshPositionBindGroup<2>,
+  SetMeshDynamicBindGroup<2, MeshPositionBindGroup, PositionUniform>,
+  SetMeshDynamicBindGroup<3, MeshLightBindGroup, LightLevel>,
+  SetBindGroup<4, MeshLightTextureBindGroup>,
   DrawMeshes,
 );
 
-pub struct SetMeshPositionBindGroup<const I: usize>;
-impl<const I: usize> EntityRenderCommand for SetMeshPositionBindGroup<I> {
-  type Param = (
-    SRes<MeshPositionBindGroup>,
-    SQuery<Read<DynamicUniformIndex<PositionUniform>>>,
-  );
+pub struct SetMeshDynamicBindGroup<const I: usize, B, U> {
+  _b: PhantomData<B>,
+  _u: PhantomData<U>,
+}
+impl<const I: usize, B: Send + Sync + Deref<Target = BindGroup> + 'static, U: Component> EntityRenderCommand
+  for SetMeshDynamicBindGroup<I, B, U>
+{
+  type Param = (SRes<B>, SQuery<Read<DynamicUniformIndex<U>>>);
   #[inline]
   fn render<'w>(
     _view: Entity,
@@ -32,7 +39,7 @@ impl<const I: usize> EntityRenderCommand for SetMeshPositionBindGroup<I> {
     pass: &mut TrackedRenderPass<'w>,
   ) -> RenderCommandResult {
     let mesh_index = mesh_query.get(item).unwrap();
-    pass.set_bind_group(I, &mesh_bind_group.into_inner(), &[mesh_index.index()]);
+    pass.set_bind_group(I, mesh_bind_group.into_inner().deref(), &[mesh_index.index()]);
     RenderCommandResult::Success
   }
 }

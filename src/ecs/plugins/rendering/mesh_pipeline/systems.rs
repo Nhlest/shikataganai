@@ -1,9 +1,12 @@
 use crate::ecs::plugins::rendering::mesh_pipeline::bind_groups::{
-  MeshPositionBindGroup, MeshTextureBindGroup, MeshViewBindGroup,
+  MeshLightBindGroup, MeshLightTextureBindGroup, MeshPositionBindGroup, MeshTextureBindGroup, MeshViewBindGroup,
 };
 use crate::ecs::plugins::rendering::mesh_pipeline::draw_command::DrawMeshFull;
 use crate::ecs::plugins::rendering::mesh_pipeline::pipeline::MeshPipeline;
-use crate::ecs::plugins::rendering::voxel_pipeline::bind_groups::TextureHandle;
+use crate::ecs::plugins::rendering::voxel_pipeline::bind_groups::{LightTextureHandle, TextureHandle};
+use crate::ecs::resources::chunk_map::BlockAccessorReadOnly;
+use crate::ecs::resources::light::LightLevel;
+use crate::util::array::to_ddd;
 use bevy::core_pipeline::core_3d::Opaque3d;
 use bevy::prelude::*;
 use bevy::render::extract_component::ComponentUniforms;
@@ -25,14 +28,19 @@ pub struct PositionUniform {
   pub transform: Mat4,
 }
 
-pub fn extract_meshes(mut commands: Commands, meshes: Extract<Query<(&Handle<Mesh>, &Transform)>>) {
+pub fn extract_meshes(
+  mut commands: Commands,
+  meshes: Extract<Query<(&Handle<Mesh>, &Transform)>>,
+  block_accessor: Extract<BlockAccessorReadOnly>,
+) {
   for meshes in meshes.iter() {
     commands
       .spawn()
       .insert(PositionUniform {
         transform: Mat4::from_rotation_translation(meshes.1.rotation, meshes.1.translation),
       })
-      .insert(meshes.0.clone());
+      .insert(meshes.0.clone())
+      .insert(block_accessor.get_light_level(to_ddd(meshes.1.translation)).unwrap());
   }
 }
 
@@ -129,5 +137,53 @@ pub fn queue_mesh_position_bind_group(
       }),
     };
     commands.insert_resource(mesh_bind_group);
+  }
+}
+
+pub fn queue_light_levels_bind_group(
+  mut commands: Commands,
+  mesh_pipeline: Res<MeshPipeline>,
+  render_device: Res<RenderDevice>,
+  light_level_uniforms: Res<ComponentUniforms<LightLevel>>,
+) {
+  if let Some(light_binding) = light_level_uniforms.uniforms().binding() {
+    let light_bind_group = MeshLightBindGroup {
+      bind_group: render_device.create_bind_group(&BindGroupDescriptor {
+        entries: &[BindGroupEntry {
+          binding: 0,
+          resource: light_binding.clone(),
+        }],
+        label: Some("mesh_light_bind_group"),
+        layout: &mesh_pipeline.light_layout,
+      }),
+    };
+    commands.insert_resource(light_bind_group);
+  }
+}
+
+pub fn queue_light_texture_bind_group(
+  mut commands: Commands,
+  mesh_pipeline: Res<MeshPipeline>,
+  render_device: Res<RenderDevice>,
+  gpu_images: Res<RenderAssets<Image>>,
+  light_texture_handle: Res<LightTextureHandle>,
+) {
+  if let Some(gpu_image) = gpu_images.get(&light_texture_handle.0) {
+    commands.insert_resource(MeshLightTextureBindGroup {
+      bind_group: render_device.create_bind_group(&BindGroupDescriptor {
+        entries: &[
+          BindGroupEntry {
+            binding: 0,
+            resource: BindingResource::TextureView(&gpu_image.texture_view),
+          },
+          BindGroupEntry {
+            binding: 1,
+            resource: BindingResource::Sampler(&gpu_image.sampler),
+          },
+        ],
+        label: Some("mesh_light_texture_bind_group"),
+        layout: &mesh_pipeline.light_texture_layout,
+      }),
+    });
   }
 }

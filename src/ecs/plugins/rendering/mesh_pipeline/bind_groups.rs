@@ -15,3 +15,13 @@ pub struct MeshTextureBindGroup {
 pub struct MeshPositionBindGroup {
   pub bind_group: BindGroup,
 }
+
+#[derive(Deref)]
+pub struct MeshLightBindGroup {
+  pub bind_group: BindGroup,
+}
+
+#[derive(Deref)]
+pub struct MeshLightTextureBindGroup {
+  pub bind_group: BindGroup,
+}

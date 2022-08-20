@@ -17,6 +17,8 @@ pub struct MeshPipeline {
   pub view_layout: BindGroupLayout,
   pub position_layout: BindGroupLayout,
   pub texture_layout: BindGroupLayout,
+  pub light_layout: BindGroupLayout,
+  pub light_texture_layout: BindGroupLayout,
 }
 
 impl SpecializedRenderPipeline for MeshPipeline {
@@ -48,6 +50,8 @@ impl SpecializedRenderPipeline for MeshPipeline {
         self.view_layout.clone(),
         self.texture_layout.clone(),
         self.position_layout.clone(),
+        self.light_layout.clone(),
+        self.light_texture_layout.clone(),
       ]),
       primitive: PrimitiveState {
         front_face: FrontFace::Cw,
@@ -125,6 +129,40 @@ impl FromWorld for MeshPipeline {
           },
         ],
         label: Some("texture_layout"),
+      }),
+      light_layout: render_device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+        entries: &[BindGroupLayoutEntry {
+          binding: 0,
+          visibility: ShaderStages::FRAGMENT,
+          ty: BindingType::Buffer {
+            ty: BufferBindingType::Uniform,
+            has_dynamic_offset: true,
+            min_binding_size: None,
+          },
+          count: None,
+        }],
+        label: Some("light_layout"),
+      }),
+      light_texture_layout: render_device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+        entries: &[
+          BindGroupLayoutEntry {
+            binding: 0,
+            visibility: ShaderStages::FRAGMENT,
+            ty: BindingType::Texture {
+              multisampled: false,
+              sample_type: TextureSampleType::Float { filterable: true },
+              view_dimension: TextureViewDimension::D2,
+            },
+            count: None,
+          },
+          BindGroupLayoutEntry {
+            binding: 1,
+            visibility: ShaderStages::FRAGMENT,
+            ty: BindingType::Sampler(SamplerBindingType::Filtering),
+            count: None,
+          },
+        ],
+        label: Some("light_texture_layout"),
       }),
     }
   }

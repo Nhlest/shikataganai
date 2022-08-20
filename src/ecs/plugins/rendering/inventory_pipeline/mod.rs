@@ -26,6 +26,10 @@ pub const INVENTORY_SHADER_VERTEX_HANDLE: HandleUntyped =
   HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 2763343953151595899);
 pub const INVENTORY_SHADER_FRAGMENT_HANDLE: HandleUntyped =
   HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 2763343953151596999);
+pub const INVENTORY_MESH_SHADER_VERTEX_HANDLE: HandleUntyped =
+  HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 2763343953151295899);
+pub const INVENTORY_MESH_SHADER_FRAGMENT_HANDLE: HandleUntyped =
+  HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 2763343953151196999);
 
 pub const INVENTORY_PASS: &'static str = "Inventory Pass";
 pub const TEXTURE_NODE_OUTPUT_SLOT: &'static str = "Texture Slot Output";
@@ -44,6 +48,12 @@ impl Plugin for InventoryRendererPlugin {
       Shader::from_spirv(include_bytes!("../../../../../shaders/output/offscreen.frag.spv").as_slice());
     shaders.set_untracked(INVENTORY_SHADER_VERTEX_HANDLE, voxel_shader_vertex);
     shaders.set_untracked(INVENTORY_SHADER_FRAGMENT_HANDLE, voxel_shader_fragment);
+    let voxel_shader_vertex =
+      Shader::from_spirv(include_bytes!("../../../../../shaders/output/inventory_mesh.vert.spv").as_slice());
+    let voxel_shader_fragment =
+      Shader::from_spirv(include_bytes!("../../../../../shaders/output/inventory_mesh.frag.spv").as_slice());
+    shaders.set_untracked(INVENTORY_MESH_SHADER_VERTEX_HANDLE, voxel_shader_vertex);
+    shaders.set_untracked(INVENTORY_MESH_SHADER_FRAGMENT_HANDLE, voxel_shader_fragment);
 
     app.init_resource::<RerenderInventory>();
     app.init_resource::<ExtractedItems>();
