@@ -1,48 +1,10 @@
-[package]
-name = "shikataganai"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-wgpu = "0.13.*"
-toml = "0.5.*"
-gltf = "1.0.0"
-image = "0.24.*"
-imgui = "0.8.*"
-winit = "0.26.1"
-serde = "1.0.*"
-noise = "0.7.*"
-strum = "0.24.*"
-base64 = "0.13.*"
-anyhow = "1.0.*"
-tracing = "0.1.*"
-bytemuck = "1.12.*"
-imgui-sys = "0.8.*"
-duplicate = "0.4.*"
-itertools = "0.10.*"
-num-traits = "0.2.*"
-strum_macros = "0.24.*"
-futures-lite = "1.12.*"
-iyes_loopless = "0.7.*"
-bevy_framepace = "0.6.*"
-bytemuck_derive = "1.2.*"
-percent-encoding = "2.1.*"
-bevy_embedded_assets = "0.4.*"
-imgui-wgpu = { git = "https://github.com/Nhlest/imgui-wgpu-rs", branch = "master" }
-imgui-winit-support = { version = "0.8.1", default-features = false, features = [ "winit-26" ] }
-
-[dependencies.bevy_rapier3d]
-version = "0.16.*"
-default-features = false
-features = ["simd-stable", "dim3"]
-
-[dependencies.bevy]
-version = "0.8.*"
-default-features = false
-features = ["x11", "bevy_winit", "png", "bevy_core_pipeline"]
-
-[build-dependencies]
-glsl-to-spirv = "0.1.*"
+[workspace]
+resolver = "2"
+members = [
+  "shikataganai_client",
+  "shikataganai_server",
+  "shikataganai_common",
+]
 
 # Profile
 
@@ -58,9 +20,3 @@ overflow-checks = false
 #strip = true
 opt-level = 3
 overflow-checks = false
-
-# Features
-
-[features]
-default = []
-trace = ["bevy/trace", "bevy/trace_tracy"]

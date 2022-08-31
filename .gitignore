@@ -1,6 +1,6 @@
 /target
-shaders/output
+shikataganai_client/shaders/output
 .idea
 shikataganai.toml
 Cargo.lock
-.cargo/config.toml
+#.cargo/config.toml
