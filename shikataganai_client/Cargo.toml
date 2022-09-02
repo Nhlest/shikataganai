@@ -29,9 +29,11 @@ strum_macros = "0.24.*"
 futures-lite = "1.12.*"
 iyes_loopless = "0.7.*"
 bevy_framepace = "0.7.*"
+bevy_atmosphere = "0.4.*"
 bytemuck_derive = "1.2.*"
 percent-encoding = "2.1.*"
 shikataganai_common = { path = "../shikataganai_common" }
+shikataganai_server = { path = "../shikataganai_server" }
 bevy_embedded_assets = "0.4.*"
 imgui-wgpu = { git = "https://github.com/Nhlest/imgui-wgpu-rs", branch = "master" }
 imgui-winit-support = { version = "0.8.1", default-features = false, features = [ "winit-26" ] }

@@ -7,6 +7,7 @@ edition = "2021"
 [dependencies]
 serde = "1.0.*"
 bevy_renet = "0.0.5"
+noise = "0.7.*"
 
 [dependencies.bevy]
 version = "0.8.*"

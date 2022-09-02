@@ -1,4 +1,3 @@
-use crate::ecs::components::chunk::{Chunk, ChunkTask};
 use crate::ecs::resources::light::LightLevel;
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
@@ -8,6 +7,7 @@ use duplicate::duplicate_item;
 use shikataganai_common::ecs::components::blocks::Block;
 use shikataganai_common::util::array::{ImmediateNeighbours, DD, DDD};
 use std::mem::MaybeUninit;
+use shikataganai_common::ecs::components::chunk::Chunk;
 
 pub struct ChunkMeta {
   pub entity: Option<Entity>,
@@ -62,10 +62,10 @@ impl<'w, 's> BlockAccessorInternal<'w, 's> for BlockAccessorSpawner<'w, 's> {
       None => {
         let task = dispatcher.spawn(Chunk::generate(chunk_coord));
         self.chunk_map.map.insert(chunk_coord, ChunkMeta::generating());
-        self.commands.spawn().insert(ChunkTask {
-          task,
-          coord: chunk_coord,
-        });
+        // self.commands.spawn().insert(ChunkTask {
+        //   task,
+        //   coord: chunk_coord,
+        // });
         None
       }
       Some(ChunkMeta { entity: None }) => None,
@@ -110,7 +110,7 @@ impl<'w, 's> BlockAccessorReadOnly<'w, 's> {
       .get_chunk_entity_or_queue(c)
       .map(|entity| {
         let chunk = self.chunks.get(entity).unwrap();
-        (!chunk.grid[c].visible()).then_some(chunk.light_map[c])
+        (!chunk.grid[c].visible()).then_some(chunk.light_map[c].into())
       })
       .flatten()
   }
@@ -176,7 +176,7 @@ impl<'w, 's> BlockAccessor for T<'w, 's> {
       .get_chunk_entity_or_queue(c)
       .map(|entity| {
         let chunk = self.chunks.get(entity).unwrap();
-        (!chunk.grid[c].visible()).then_some(chunk.light_map[c])
+        (!chunk.grid[c].visible()).then_some(chunk.light_map[c].into())
       })
       .flatten()
   }
@@ -184,7 +184,7 @@ impl<'w, 's> BlockAccessor for T<'w, 's> {
     self.get_chunk_entity_or_queue(c).map(|entity| {
       let mut chunk = self.chunks.get_mut(entity).unwrap();
       if !chunk.grid[c].visible() {
-        chunk.light_map[c] = light;
+        chunk.light_map[c] = light.into();
       }
     });
   }

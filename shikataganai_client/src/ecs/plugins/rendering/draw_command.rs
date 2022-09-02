@@ -1,11 +1,12 @@
 use bevy::ecs::system::lifetimeless::{Read, SQuery, SRes};
 use bevy::ecs::system::SystemParamItem;
 use bevy::prelude::*;
-use bevy::render::render_phase::{PhaseItem, RenderCommand, RenderCommandResult, TrackedRenderPass};
+use bevy::render::render_phase::{EntityRenderCommand, PhaseItem, RenderCommand, RenderCommandResult, TrackedRenderPass};
 use bevy::render::render_resource::BindGroup;
 use bevy::render::view::ViewUniformOffset;
 use std::marker::PhantomData;
 use std::ops::Deref;
+use crate::ecs::plugins::rendering::mesh_pipeline::pipeline::RenderTextures;
 
 pub struct SetBindGroup<const I: usize, T: Deref<Target = BindGroup> + Send + Sync + 'static> {
   _phantom: PhantomData<T>,
@@ -47,3 +48,20 @@ impl<P: PhaseItem, const I: usize, T: Deref<Target = BindGroup> + Send + Sync + 
     RenderCommandResult::Success
   }
 }
+
+pub struct SetTextureBindGroup<const I: usize>;
+impl<const I: usize> EntityRenderCommand for SetTextureBindGroup<I> {
+  type Param = (SRes<RenderTextures>, SQuery<Read<Handle<Image>>>);
+  fn render<'w>(
+    _view: Entity,
+    item: Entity,
+    (textures, query): SystemParamItem<'w, '_, Self::Param>,
+    pass: &mut TrackedRenderPass<'w>,
+  ) -> RenderCommandResult {
+    let texture_handle = query.get(item).unwrap();
+    let texture = textures.into_inner().get(texture_handle).unwrap();
+    pass.set_bind_group(I, &texture, &[]);
+    RenderCommandResult::Success
+  }
+}
+

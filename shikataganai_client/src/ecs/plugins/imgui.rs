@@ -1,6 +1,8 @@
 #![allow(deprecated)]
 use std::io::Cursor;
+use std::ops::Deref;
 use std::sync::{Arc, Mutex};
+use bevy::core_pipeline::core_2d::graph::node::MAIN_PASS;
 
 use bevy::input::keyboard::KeyboardInput;
 use bevy::input::mouse::{MouseButtonInput, MouseWheel};
@@ -63,6 +65,8 @@ fn start_frame(
   // mut ev_window_created: EventReader<WindowCreated>,
   mut ev_keyboard_input: EventReader<KeyboardInput>,
   mut ev_received_character: EventReader<ReceivedCharacter>,
+  mut keys: Res<Input<KeyCode>>,
+  mut modifiers : Local<ModifiersState>,
   windows: Res<Windows>,
   winit_windows: NonSend<WinitWindows>,
 ) {
@@ -153,23 +157,41 @@ fn start_frame(
       platform.handle_event(ctx.io_mut(), window, &event);
     }
     for i in ev_keyboard_input.iter() {
-      let event: Event<()> = Event::WindowEvent {
-        window_id: window.id(),
-        event: WindowEvent::KeyboardInput {
-          device_id: DeviceId::dummy(),
-          input: winit::event::KeyboardInput {
-            scancode: i.scan_code,
-            state: match i.state {
-              ButtonState::Pressed => ElementState::Pressed,
-              ButtonState::Released => ElementState::Released,
+      match i.key_code {
+        Some(KeyCode::RShift | KeyCode::LShift) => {
+          if i.state == ButtonState::Pressed {
+            modifiers.insert(ModifiersState::SHIFT);
+          } else {
+            modifiers.remove(ModifiersState::SHIFT);
+          }
+        }
+        Some(KeyCode::RControl | KeyCode::LControl) => {
+          if i.state == ButtonState::Pressed {
+            modifiers.insert(ModifiersState::CTRL);
+          } else {
+            modifiers.remove(ModifiersState::CTRL);
+          }
+        }
+        _ => {
+          let event: Event<()> = Event::WindowEvent {
+            window_id: window.id(),
+            event: WindowEvent::KeyboardInput {
+              device_id: DeviceId::dummy(),
+              input: winit::event::KeyboardInput {
+                scancode: i.scan_code,
+                state: match i.state {
+                  ButtonState::Pressed => ElementState::Pressed,
+                  ButtonState::Released => ElementState::Released,
+                },
+                virtual_keycode: i.key_code.map(|key_code|std::mem::transmute(key_code)),
+                modifiers: *modifiers
+              },
+              is_synthetic: false,
             },
-            virtual_keycode: i.key_code.map(|x| std::mem::transmute(x as u32)),
-            modifiers: Default::default(),
-          },
-          is_synthetic: false,
-        },
-      };
-      platform.handle_event(ctx.io_mut(), window, &event);
+          };
+          platform.handle_event(ctx.io_mut(), window, &event);
+        }
+      }
     }
     for i in ev_received_character.iter() {
       let event: Event<()> = Event::WindowEvent {
@@ -294,6 +316,7 @@ impl Plugin for ImguiPlugin {
     if let Ok(render_app) = app.get_sub_app_mut(RenderApp) {
       let mut render_graph = render_app.world.get_resource_mut::<RenderGraph>().unwrap();
       render_graph.add_node(IMGUI_PASS, ImguiNode::new(renderer));
+      render_graph.add_node_edge(MAIN_PASS, IMGUI_PASS);
     }
   }
 }

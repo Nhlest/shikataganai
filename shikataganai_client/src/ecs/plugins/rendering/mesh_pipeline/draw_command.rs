@@ -1,4 +1,4 @@
-use crate::ecs::plugins::rendering::draw_command::{SetBindGroup, SetViewBindGroup};
+use crate::ecs::plugins::rendering::draw_command::{SetBindGroup, SetTextureBindGroup, SetViewBindGroup};
 use crate::ecs::plugins::rendering::mesh_pipeline::bind_groups::{
   MeshLightBindGroup, MeshLightTextureBindGroup, MeshPositionBindGroup, MeshViewBindGroup,
 };
@@ -13,6 +13,7 @@ use bevy::render::render_phase::{EntityRenderCommand, RenderCommandResult, SetIt
 use bevy::render::render_resource::{BindGroup, IndexFormat};
 use std::marker::PhantomData;
 use std::ops::Deref;
+use bevy::pbr::DrawMesh;
 
 pub type DrawMeshFull = (
   SetItemPipeline,
@@ -21,24 +22,8 @@ pub type DrawMeshFull = (
   SetMeshDynamicBindGroup<2, MeshPositionBindGroup, PositionUniform>,
   SetMeshDynamicBindGroup<3, MeshLightBindGroup, LightLevel>,
   SetBindGroup<4, MeshLightTextureBindGroup>,
-  DrawMeshes,
+  DrawMesh,
 );
-
-pub struct SetTextureBindGroup<const I: usize>;
-impl<const I: usize> EntityRenderCommand for SetTextureBindGroup<I> {
-  type Param = (SRes<RenderTextures>, SQuery<Read<Handle<Image>>>);
-  fn render<'w>(
-    _view: Entity,
-    item: Entity,
-    (textures, query): SystemParamItem<'w, '_, Self::Param>,
-    pass: &mut TrackedRenderPass<'w>,
-  ) -> RenderCommandResult {
-    let texture_handle = query.get(item).unwrap();
-    let texture = textures.into_inner().get(texture_handle).unwrap();
-    pass.set_bind_group(I, &texture, &[]);
-    RenderCommandResult::Success
-  }
-}
 
 pub struct SetMeshDynamicBindGroup<const I: usize, B, U> {
   _b: PhantomData<B>,
@@ -71,9 +56,9 @@ impl EntityRenderCommand for DrawMeshes {
     param: SystemParamItem<'w, '_, Self::Param>,
     pass: &mut TrackedRenderPass<'w>,
   ) -> RenderCommandResult {
-    let MeshBuffer(buf, idx_buffer, indicies) = param.get_inner(item).unwrap();
+    let MeshBuffer(buf, idx_buffer, indicies, index_format) = param.get_inner(item).unwrap();
     pass.set_vertex_buffer(0, buf.slice(..));
-    pass.set_index_buffer(idx_buffer.slice(..), 0, IndexFormat::Uint32);
+    pass.set_index_buffer(idx_buffer.slice(..), 0, *index_format);
     pass.draw_indexed(0..*indicies as u32, 0, 0..1 as u32);
     RenderCommandResult::Success
   }

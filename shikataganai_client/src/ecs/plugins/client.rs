@@ -283,8 +283,8 @@ fn send_shit(
   );
 }
 
-pub fn spawn_client(mut commands: Commands) {
-  let server_addr = "127.0.0.1:8181".parse().unwrap();
+pub fn spawn_client(mut commands: Commands, address: String) {
+  let server_addr = address.parse().unwrap();
   let socket = UdpSocket::bind("0.0.0.0:0").unwrap();
   let current_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap();
   let client_id = current_time.as_millis() as u64;

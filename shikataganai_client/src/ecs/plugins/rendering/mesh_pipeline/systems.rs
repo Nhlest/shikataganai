@@ -12,16 +12,18 @@ use bevy::render::extract_component::ComponentUniforms;
 use bevy::render::mesh::GpuBufferInfo;
 use bevy::render::render_asset::RenderAssets;
 use bevy::render::render_phase::{DrawFunctions, RenderPhase};
-use bevy::render::render_resource::ShaderType;
+use bevy::render::render_resource::{IndexFormat, ShaderType};
 use bevy::render::render_resource::{Buffer, PipelineCache, SpecializedRenderPipelines};
 use bevy::render::renderer::RenderDevice;
 use bevy::render::view::ViewUniforms;
 use bevy::render::Extract;
+use bevy_atmosphere::skybox::SkyBoxMaterial;
 use shikataganai_common::util::array::to_ddd;
 use wgpu::{BindGroupDescriptor, BindGroupEntry, BindingResource};
+use crate::ecs::plugins::rendering::skybox_pipeline::systems::{ExtractedAtmosphereSkyBoxMaterial, ExtractedSkybox};
 
 #[derive(Component)]
-pub struct MeshBuffer(pub Buffer, pub Buffer, pub usize);
+pub struct MeshBuffer(pub Buffer, pub Buffer, pub usize, pub IndexFormat);
 
 #[derive(Component, ShaderType, Clone)]
 pub struct PositionUniform {
@@ -54,10 +56,10 @@ pub fn prepare_textures(
   render_device: Res<RenderDevice>,
   mesh_pipeline: Res<MeshPipeline>,
   mut render_textures: ResMut<RenderTextures>,
+  query: Query<&Handle<Image>>
 ) {
-  for (handle, gpu_image) in gpu_images.iter() {
-    if render_textures.get(handle).is_none() {
-      //TODO: utilise asset events to not load it 100 times per second
+  for handle in query.iter() {
+    if let Some(gpu_image) = gpu_images.get(handle) {
       let bind_group = render_device.create_bind_group(&BindGroupDescriptor {
         entries: &[
           BindGroupEntry {
@@ -87,7 +89,7 @@ pub fn queue_meshes(
   render_device: Res<RenderDevice>,
   view_uniforms: Res<ViewUniforms>,
   qq: Res<RenderAssets<Mesh>>,
-  q: Query<(Entity, &Handle<Mesh>)>,
+  q: Query<(Entity, &Handle<Mesh>), Without<ExtractedSkybox>>,
 ) {
   if let Some(view_binding) = view_uniforms.uniforms.binding() {
     commands.insert_resource(MeshViewBindGroup {
@@ -108,23 +110,13 @@ pub fn queue_meshes(
   let pipeline = pipelines.specialize(&mut pipeline_cache, &chunk_pipeline, ());
 
   for (entity, i) in q.iter() {
-    if let Some(i) = qq.get(i) {
-      match &i.buffer_info {
-        GpuBufferInfo::Indexed { buffer, count, .. } => {
-          commands
-            .entity(entity)
-            .insert(MeshBuffer(i.vertex_buffer.clone(), buffer.clone(), *count as usize));
-          for mut view in views.iter_mut() {
-            view.add(Opaque3d {
-              distance: -0.2,
-              draw_function,
-              pipeline,
-              entity,
-            });
-          }
-        }
-        GpuBufferInfo::NonIndexed { .. } => {}
-      }
+    for mut view in views.iter_mut() {
+      view.add(Opaque3d {
+        distance: -0.2,
+        draw_function,
+        pipeline,
+        entity,
+      });
     }
   }
 }

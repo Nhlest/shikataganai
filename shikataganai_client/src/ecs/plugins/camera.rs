@@ -6,9 +6,14 @@ use crate::ecs::plugins::settings::MouseSensitivity;
 use crate::ecs::resources::chunk_map::{BlockAccessor, BlockAccessorInternal, BlockAccessorSpawner};
 use crate::GltfMeshStorage;
 use bevy::input::mouse::MouseMotion;
+use bevy::pbr::{NotShadowCaster, NotShadowReceiver};
 use bevy::prelude::*;
 use bevy::render::camera::{CameraProjection, Projection};
 use bevy::render::primitives::Frustum;
+use bevy_atmosphere::plugin::AtmosphereSkyBox;
+use bevy_atmosphere::prelude::AtmosphereCamera;
+use bevy_atmosphere::skybox;
+use bevy_atmosphere::skybox::AtmosphereSkyBoxMaterial;
 use bevy_rapier3d::prelude::TOIStatus::Converged;
 use bevy_rapier3d::prelude::*;
 use iyes_loopless::prelude::{ConditionSet, CurrentState, IntoConditionalSystem};
@@ -64,42 +69,9 @@ pub struct PlayerPreviousPosition(pub DDD);
 
 impl Plugin for CameraPlugin {
   fn build(&self, app: &mut App) {
-    let camera = {
-      let perspective_projection = PerspectiveProjection {
-        fov: std::f32::consts::PI / 1.8,
-        near: 0.001,
-        far: 1000.0,
-        aspect_ratio: 1.0,
-      };
-      let view_projection = perspective_projection.get_projection_matrix();
-      let frustum =
-        Frustum::from_view_projection(&view_projection, &Vec3::ZERO, &Vec3::Z, perspective_projection.far());
-      Camera3dBundle {
-        projection: Projection::Perspective(perspective_projection),
-        frustum,
-        ..default()
-      }
-    };
     app
       .init_resource::<Recollide>()
       .init_resource::<PlayerPreviousPosition>();
-
-    // Spawn player
-    app
-      .world
-      .spawn()
-      .insert(Transform::from_xyz(10.1, 45.0, 10.0))
-      .insert(GlobalTransform::default())
-      .insert(Player)
-      .with_children(|c| {
-        c.spawn()
-          .insert(GlobalTransform::default())
-          .insert(Transform::from_xyz(0.0, -0.5, 0.0))
-          .insert(Collider::cylinder(0.8, 0.2))
-          .insert(SolverGroups::new(0b01, 0b10))
-          .insert(CollisionGroups::new(0b01, 0b10));
-        c.spawn().insert(FPSCamera::default()).insert_bundle(camera);
-      });
 
     let on_game_simulation_continuous = ConditionSet::new()
       .run_in_state(ShikataganaiGameState::Simulation)
@@ -111,10 +83,56 @@ impl Plugin for CameraPlugin {
       .run_in_state(ShikataganaiGameState::Simulation)
       .with_system(block_pick)
       .into();
+    let on_pre_simulation = ConditionSet::new()
+      .run_in_state(ShikataganaiGameState::PreSimulation)
+      .with_system(spawn_camera)
+      .into();
     app.add_system(cursor_grab_system.run_if(in_game));
+    app.add_system_set(on_pre_simulation);
     app.add_system_set(on_game_simulation_continuous);
     app.add_system_set_to_stage(CoreStage::PreUpdate, on_simulation_pre_update);
   }
+}
+
+fn spawn_camera(
+  mut commands: Commands,
+  mut local: Local<bool>
+) {
+  if *local { return; }
+  *local = true;
+  let camera = {
+    let perspective_projection = PerspectiveProjection {
+      fov: std::f32::consts::PI / 1.8,
+      near: 0.001,
+      far: 1000.0,
+      aspect_ratio: 1.0,
+    };
+    let view_projection = perspective_projection.get_projection_matrix();
+    let frustum =
+      Frustum::from_view_projection(&view_projection, &Vec3::ZERO, &Vec3::Z, perspective_projection.far());
+    Camera3dBundle {
+      projection: Projection::Perspective(perspective_projection),
+      frustum,
+      ..default()
+    }
+  };
+  commands
+    .spawn()
+    .insert(Transform::from_xyz(10.1, 45.0, 10.0))
+    .insert(GlobalTransform::default())
+    .insert(Player)
+    .with_children(|c| {
+      c.spawn()
+        .insert(GlobalTransform::default())
+        .insert(Transform::from_xyz(0.0, -0.5, 0.0))
+        .insert(Collider::cylinder(0.8, 0.2))
+        .insert(SolverGroups::new(0b01, 0b10))
+        .insert(CollisionGroups::new(0b01, 0b10));
+      c.spawn()
+        .insert(FPSCamera::default())
+        .insert_bundle(camera)
+        .insert(AtmosphereCamera(None));
+    });
 }
 
 fn movement_input_system(
@@ -131,9 +149,9 @@ fn movement_input_system(
 ) {
   let translation = player_position.single().translation;
 
-  if block_accessor.get_chunk_entity_or_queue(to_ddd(translation)).is_none() {
-    return;
-  }
+  // if block_accessor.get_chunk_entity_or_queue(to_ddd(translation)).is_none() {
+  //   return;
+  // }
 
   let window = windows.get_primary_mut().unwrap();
   let mut movement = Vec3::default();
@@ -288,12 +306,12 @@ fn collision_movement_system(
   let player_translation = transforms.get(entity_player).unwrap().translation;
 
   // Don't move if chunk is not yet generated. TODO: check if this still works after move to client-server architecture
-  if block_accessor
-    .get_chunk_entity_or_queue(to_ddd(player_translation))
-    .is_none()
-  {
-    return;
-  }
+  // if block_accessor
+  //   .get_chunk_entity_or_queue(to_ddd(player_translation))
+  //   .is_none()
+  // {
+  //   return;
+  // }
 
   let looking_at = Vec3::new(
     10.0 * fps_camera.phi.cos() * fps_camera.theta.sin(),

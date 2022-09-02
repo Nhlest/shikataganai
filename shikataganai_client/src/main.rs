@@ -10,6 +10,7 @@
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::prelude::App;
 use bevy::DefaultPlugins;
+use bevy_atmosphere::prelude::AtmospherePlugin;
 use bevy_embedded_assets::EmbeddedAssetPlugin;
 use bevy_framepace::FramepacePlugin;
 use bevy_rapier3d::prelude::{NoUserData, RapierPhysicsPlugin};
@@ -33,6 +34,7 @@ fn main() {
     .add_plugins_with(DefaultPlugins, |group| {
       group.add_before::<bevy::asset::AssetPlugin, _>(EmbeddedAssetPlugin)
     })
+    .add_plugin(AtmospherePlugin)
     .add_plugin(GamePlugin)
     .add_plugin(CameraPlugin)
     .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())

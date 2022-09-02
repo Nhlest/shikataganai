@@ -11,6 +11,7 @@ use shikataganai_common::networking::{
 };
 use std::net::UdpSocket;
 use std::time::{Duration, SystemTime};
+use bevy::app::ScheduleRunnerSettings;
 
 pub struct ShikataganaiServerPlugin;
 
@@ -35,17 +36,14 @@ pub struct ShikataganaiServerAddress {
 impl Plugin for ShikataganaiServerPlugin {
   fn build(&self, app: &mut App) {
     let address = app.world.resource::<ShikataganaiServerAddress>().address.as_str();
-    let socket = UdpSocket::bind(address).unwrap();
-    let server_addr = socket.local_addr().unwrap();
+    let server_addr = address.parse().unwrap();
+    let socket = UdpSocket::bind(server_addr).unwrap();
     println!("{}", server_addr);
     let current_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap();
 
-    let on_fixed_step_simulation: SystemSet = ConditionSet::new()
-      .with_system(sync_frame)
-      .with_system(handle_events)
-      .with_system(panic_handler)
-      .into();
-    let on_fixed_step_simulation_stage = SystemStage::parallel().with_system_set(on_fixed_step_simulation);
+    // let on_fixed_step_simulation: SystemSet = ConditionSet::new()
+    //   .into();
+    // let on_fixed_step_simulation_stage = SystemStage::parallel().with_system_set(on_fixed_step_simulation);
 
     let server = RenetServer::new(
       current_time,
@@ -56,15 +54,21 @@ impl Plugin for ShikataganaiServerPlugin {
     .unwrap();
 
     app
-      .add_stage_after(
-        CoreStage::PostUpdate,
-        FixedUpdate,
-        FixedTimestepStage::from_stage(Duration::from_millis(10), on_fixed_step_simulation_stage),
-      )
+      // .add_stage_after(
+      //   CoreStage::PostUpdate,
+      //   FixedUpdate,
+      //   FixedTimestepStage::from_stage(Duration::from_millis(10), on_fixed_step_simulation_stage),
+      // )
+      .insert_resource(ScheduleRunnerSettings::run_loop(Duration::from_secs_f64(
+        1.0 / 60.0,
+      )))
       .add_plugin(RenetServerPlugin)
       .init_resource::<ServerTick>()
       .init_resource::<PlayerEntities>()
-      .insert_resource(server);
+      .insert_resource(server)
+      .add_system(handle_events)
+      .add_system(sync_frame)
+      .add_system(panic_handler);
   }
 }
 

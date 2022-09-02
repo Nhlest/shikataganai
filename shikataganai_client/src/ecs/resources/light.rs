@@ -2,6 +2,7 @@ use bevy::ecs::component::Component;
 use bevy::render::render_resource::encase::internal::{BufferMut, WriteInto, Writer};
 use bevy::render::render_resource::encase::private::Metadata;
 use bevy::render::render_resource::ShaderType;
+use shikataganai_common::ecs::resources::light::LightLevel as LightLevelForeign;
 
 impl ShaderType for LightLevel {
   type ExtraMetadata = ();
@@ -29,5 +30,17 @@ impl LightLevel {
   }
   pub fn dark() -> Self {
     Self { heaven: 0, hearth: 0 }
+  }
+}
+
+impl Into<LightLevel> for LightLevelForeign {
+  fn into(self) -> LightLevel {
+    unsafe { std::mem::transmute(self) }
+  }
+}
+
+impl Into<LightLevelForeign> for LightLevel {
+  fn into(self) -> LightLevelForeign {
+    unsafe { std::mem::transmute(self) }
   }
 }
