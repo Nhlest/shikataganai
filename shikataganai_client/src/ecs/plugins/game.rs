@@ -1,5 +1,5 @@
 use crate::ecs::plugins::camera::Selection;
-use crate::ecs::resources::chunk_map::ChunkMap;
+use crate::ecs::resources::chunk_map::{BlockAccessorSpawner, ChunkMap};
 use crate::ecs::resources::player::{PlayerInventory, SelectedHotBar};
 use crate::ecs::systems::input::{action_input, hot_bar_scroll_input};
 use crate::ecs::systems::light::relight_system;
@@ -8,6 +8,7 @@ use crate::ecs::systems::user_interface::connecting::connecting_window;
 use crate::ecs::systems::user_interface::game_menu::game_menu;
 use crate::ecs::systems::user_interface::hot_bar::hot_bar;
 use crate::ecs::systems::user_interface::main_menu::main_menu;
+use crate::ecs::resources::chunk_map::BlockAccessor;
 use bevy::prelude::*;
 use bevy::render::{Extract, RenderApp, RenderStage};
 use bevy_rapier3d::plugin::RapierConfiguration;
@@ -51,23 +52,23 @@ pub fn init_game(mut commands: Commands) {
 
 pub fn transition_to_simulation(
   mut commands: Commands,
-  client: Res<RenetClient>,
+  // client: Res<RenetClient>,
   mut window: ResMut<Windows>,
   mut physics_system: ResMut<RapierConfiguration>,
-  // mut r: BlockAccessorSpawner,
+  mut r: BlockAccessorSpawner,
 ) {
   let active_window = window.get_primary_mut().unwrap();
-  if client.is_connected() {
+  if r.client.is_connected() {
     commands.insert_resource(NextState(ShikataganaiGameState::Simulation));
     active_window.set_cursor_lock_mode(true);
     active_window.set_cursor_visibility(false);
     physics_system.physics_pipeline_active = true;
+    // for i in -10..=10 {
+    //   for j in -10..=10 {
+    //     r.get_single((i * 16, 0, j * 16));
+    //   }
+    // }
   }
-  // for i in -10..=10 {
-  //   for j in -10..=10 {
-  //     r.get_single((i * 16, 0, j * 16));
-  //   }
-  // }
 }
 
 pub fn cleanup_game(mut commands: Commands) {

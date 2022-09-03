@@ -2,7 +2,10 @@ use bevy::prelude::Vec3;
 use std::alloc::Layout;
 use std::array::IntoIter;
 use std::fmt::Debug;
+use std::mem::ManuallyDrop;
 use std::ops::{Index, IndexMut};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::ser::SerializeTuple;
 
 pub type DD = (i32, i32);
 pub type DDD = (i32, i32, i32);
@@ -140,9 +143,29 @@ impl ArrayIndex for DD {
   }
 }
 
-pub struct Array<I: ArrayIndex + Copy + Debug, T> {
+pub struct Array<I: ArrayIndex + Copy + Debug + Serialize, T: Serialize> {
   data: *mut T,
   pub bounds: (I, I),
+}
+
+impl<I: ArrayIndex + Copy + Debug + Serialize, T: Serialize> Serialize for Array<I, T> {
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+    let mut tuple = serializer.serialize_tuple(2)?;
+    tuple.serialize_element(&self.bounds)?;
+    unsafe { tuple.serialize_element(&std::slice::from_raw_parts(self.data, ArrayIndex::size(&self.bounds)))?; }
+    tuple.end()
+  }
+}
+
+impl<'de, I: ArrayIndex + Copy + Debug + Serialize + Deserialize<'de>, T: Serialize + Deserialize<'de>> Deserialize<'de> for Array<I, T> {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer<'de> {
+    let (bounds, mut data): ((I, I), Vec<T>) = Deserialize::deserialize(deserializer)?;
+    let capacity = ArrayIndex::size(&bounds);
+    assert_eq!(capacity, data.len(), "Vector bounds mismatch");
+    let mut array = Array::new_zeroed(bounds);
+    unsafe { std::ptr::copy_nonoverlapping(data.as_ptr(), array.data, capacity) };
+    Ok(array)
+  }
 }
 
 impl ArrayIndex for DDD {
@@ -190,7 +213,7 @@ impl ArrayIndex for DDD {
 pub type Array2d<T> = Array<DD, T>;
 pub type Array3d<T> = Array<DDD, T>;
 
-impl<I: Copy + ArrayIndex + Debug, T: Copy> Clone for Array<I, T> {
+impl<I: Copy + ArrayIndex + Debug + Serialize, T: Copy + Serialize> Clone for Array<I, T> {
   fn clone(&self) -> Self {
     let ptr = unsafe {
       let size = ArrayIndex::size(&self.bounds);
@@ -205,20 +228,20 @@ impl<I: Copy + ArrayIndex + Debug, T: Copy> Clone for Array<I, T> {
   }
 }
 
-impl<I: Copy + ArrayIndex + Debug, T> Drop for Array<I, T> {
+impl<I: Copy + ArrayIndex + Debug + Serialize, T: Serialize> Drop for Array<I, T> {
   fn drop(&mut self) {
-    let size = ArrayIndex::size(&self.bounds) * std::mem::size_of::<T>();
+    let size = ArrayIndex::size(&self.bounds);
     unsafe { std::alloc::dealloc(self.data as *mut u8, Layout::array::<T>(size).unwrap()) };
   }
 }
 
-impl<I: Copy + ArrayIndex + Debug, T: Default> Array<I, T> {
+impl<I: Copy + ArrayIndex + Debug + Serialize, T: Default + Serialize> Array<I, T> {
   pub fn zero_out(&mut self) {
     self.map_in_place(|_, _| T::default())
   }
 }
 
-impl<I: Copy + ArrayIndex + Debug, T> Array<I, T> {
+impl<I: Copy + ArrayIndex + Debug + Serialize, T: Serialize> Array<I, T> {
   pub fn new_zeroed((from, to): (I, I)) -> Array<I, T> {
     let size = ArrayIndex::size(&(from, to));
     let ptr = unsafe { std::alloc::alloc_zeroed(Layout::array::<T>(size).unwrap()) } as *mut T;
@@ -258,7 +281,7 @@ impl<I: Copy + ArrayIndex + Debug, T> Array<I, T> {
       };
     }
   }
-  pub fn map<O, F: Fn(I, &T) -> O>(&self, f: F) -> Array<I, O> {
+  pub fn map<O: Serialize, F: Fn(I, &T) -> O>(&self, f: F) -> Array<I, O> {
     Array::new_init(self.bounds, |x| f(x, &self[x]))
   }
   pub fn foreach<F: FnMut(I, &T)>(&self, mut f: F) {
@@ -277,7 +300,7 @@ impl<I: Copy + ArrayIndex + Debug, T> Array<I, T> {
   }
 }
 
-impl<I: Copy + ArrayIndex + Debug, T> Index<I> for Array<I, T> {
+impl<I: Copy + ArrayIndex + Debug + Serialize, T: Serialize> Index<I> for Array<I, T> {
   type Output = T;
 
   fn index(&self, i: I) -> &Self::Output {
@@ -285,11 +308,11 @@ impl<I: Copy + ArrayIndex + Debug, T> Index<I> for Array<I, T> {
   }
 }
 
-impl<I: Copy + ArrayIndex + Debug, T> IndexMut<I> for Array<I, T> {
+impl<I: Copy + ArrayIndex + Debug + Serialize, T: Serialize> IndexMut<I> for Array<I, T> {
   fn index_mut(&mut self, i: I) -> &mut Self::Output {
     unsafe { &mut *self.data.add(i.idx(&self.bounds)) }
   }
 }
 
-unsafe impl<I: Copy + ArrayIndex + Debug, T> Send for Array<I, T> {}
-unsafe impl<I: Copy + ArrayIndex + Debug, T> Sync for Array<I, T> {}
+unsafe impl<I: Copy + ArrayIndex + Debug + Serialize, T: Serialize> Send for Array<I, T> {}
+unsafe impl<I: Copy + ArrayIndex + Debug + Serialize, T: Serialize> Sync for Array<I, T> {}

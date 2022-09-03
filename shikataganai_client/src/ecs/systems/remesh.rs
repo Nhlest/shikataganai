@@ -9,6 +9,7 @@ use bevy::prelude::*;
 use itertools::Itertools;
 use num_traits::FloatConst;
 use shikataganai_common::util::array::{from_ddd, ArrayIndex};
+use crate::ecs::plugins::rendering::mesh_pipeline::systems::MeshMarker;
 
 pub fn remesh_system_auxiliary(
   mut commands: Commands,
@@ -45,6 +46,7 @@ pub fn remesh_system_auxiliary(
               let e = commands
                 .spawn()
                 .insert(render_mesh.clone())
+                .insert(MeshMarker)
                 .insert(
                   Transform::from_translation(from_ddd(i) + Vec3::new(0.5, 0.5, 0.5))
                     .with_rotation(Quat::from_rotation_y(f32::PI() / 2.0 * rotation as i32 as f32)),
@@ -62,6 +64,7 @@ pub fn remesh_system_auxiliary(
                 let render_mesh = mesh.render.as_ref().unwrap();
                 commands
                   .entity(block.entity)
+                  .insert(MeshMarker)
                   .insert(render_mesh.clone())
                   .insert(Transform::from_translation(from_ddd(i) + Vec3::new(0.5, 0.5, 0.5)))
                   .insert(GlobalTransform::default());

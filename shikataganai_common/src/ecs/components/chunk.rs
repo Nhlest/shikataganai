@@ -5,10 +5,11 @@ use crate::ecs::components::blocks::Block;
 use crate::ecs::components::blocks::block_id::BlockId;
 use crate::ecs::resources::light::LightLevel;
 use crate::util::array::{Array, Array2d, Array3d, Bounds, DD, DDD};
+use serde::{Serialize, Deserialize};
 
 pub const CHUNK_MAX_HEIGHT: i32 = 127;
 
-#[derive(Component)]
+#[derive(Component, Serialize, Deserialize)]
 pub struct Chunk {
   pub grid: Array3d<Block>,
   pub light_map: Array3d<LightLevel>,

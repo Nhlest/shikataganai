@@ -21,9 +21,6 @@ use crate::ecs::plugins::rendering::skybox_pipeline::pipeline::SkyboxPipeline;
 
 pub struct ExtractedAtmosphereSkyBoxMaterial(pub Handle<SkyBoxMaterial>);
 
-#[derive(Component)]
-pub struct ExtractedSkybox;
-
 pub fn extract_skybox_material_handle(
   mut commands: Commands,
   skybox_material_handle: Extract<Res<AtmosphereSkyBoxMaterial>>,
@@ -38,8 +35,7 @@ pub fn extract_skybox_material_handle(
         inverse_transpose_model: transform.compute_matrix().inverse().transpose(),
         flags: 0
       })
-      .insert(handle.clone())
-      .insert(ExtractedSkybox);
+      .insert(handle.clone());
   }
 }
 
@@ -74,7 +70,7 @@ pub fn queue_skybox(
   skybox_pipeline: Res<SkyboxPipeline>,
   render_device: Res<RenderDevice>,
   view_uniforms: Res<ViewUniforms>,
-  skybox_meshes: Query<Entity, With<ExtractedSkybox>>,
+  skybox_meshes: Query<Entity, With<MeshUniform>>,
   skybox_texture: Res<AtmosphereImage>,
   gpu_images: Res<RenderAssets<Image>>
 ) {

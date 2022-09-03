@@ -7,6 +7,7 @@ use crate::ecs::plugins::rendering::voxel_pipeline::bind_groups::{LightTextureHa
 use crate::ecs::resources::chunk_map::BlockAccessorReadOnly;
 use crate::ecs::resources::light::LightLevel;
 use bevy::core_pipeline::core_3d::Opaque3d;
+use bevy::pbr::MeshUniform;
 use bevy::prelude::*;
 use bevy::render::extract_component::ComponentUniforms;
 use bevy::render::mesh::GpuBufferInfo;
@@ -20,10 +21,13 @@ use bevy::render::Extract;
 use bevy_atmosphere::skybox::SkyBoxMaterial;
 use shikataganai_common::util::array::to_ddd;
 use wgpu::{BindGroupDescriptor, BindGroupEntry, BindingResource};
-use crate::ecs::plugins::rendering::skybox_pipeline::systems::{ExtractedAtmosphereSkyBoxMaterial, ExtractedSkybox};
+use crate::ecs::plugins::rendering::skybox_pipeline::systems::{ExtractedAtmosphereSkyBoxMaterial};
 
 #[derive(Component)]
 pub struct MeshBuffer(pub Buffer, pub Buffer, pub usize, pub IndexFormat);
+
+#[derive(Component)]
+pub struct MeshMarker;
 
 #[derive(Component, ShaderType, Clone)]
 pub struct PositionUniform {
@@ -32,7 +36,7 @@ pub struct PositionUniform {
 
 pub fn extract_meshes(
   mut commands: Commands,
-  meshes: Extract<Query<(&Handle<Mesh>, &GlobalTransform, Option<&Handle<Image>>)>>,
+  meshes: Extract<Query<(&Handle<Mesh>, &GlobalTransform, Option<&Handle<Image>>), With<MeshMarker>>>,
   block_accessor: Extract<BlockAccessorReadOnly>,
   default_texture: Res<TextureHandle>,
 ) {
@@ -44,6 +48,7 @@ pub fn extract_meshes(
           // transform: Mat4::from_rotation_translation(transform, transform.translation),
           transform: transform.compute_matrix(),
         })
+        .insert(MeshMarker)
         .insert(mesh.clone())
         .insert(light_level)
         .insert(image.cloned().unwrap_or(default_texture.0.clone()));
@@ -88,8 +93,7 @@ pub fn queue_meshes(
   chunk_pipeline: Res<MeshPipeline>,
   render_device: Res<RenderDevice>,
   view_uniforms: Res<ViewUniforms>,
-  qq: Res<RenderAssets<Mesh>>,
-  q: Query<(Entity, &Handle<Mesh>), Without<ExtractedSkybox>>,
+  q: Query<(Entity, &Handle<Mesh>), With<MeshMarker>>,
 ) {
   if let Some(view_binding) = view_uniforms.uniforms.binding() {
     commands.insert_resource(MeshViewBindGroup {

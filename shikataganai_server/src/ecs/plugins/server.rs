@@ -12,6 +12,9 @@ use shikataganai_common::networking::{
 use std::net::UdpSocket;
 use std::time::{Duration, SystemTime};
 use bevy::app::ScheduleRunnerSettings;
+use bevy::tasks::AsyncComputeTaskPool;
+use shikataganai_common::ecs::components::chunk::Chunk;
+use crate::ecs::systems::chunkgen::{ChunkTask, collect_async_chunks};
 
 pub struct ShikataganaiServerPlugin;
 
@@ -62,12 +65,13 @@ impl Plugin for ShikataganaiServerPlugin {
       .insert_resource(ScheduleRunnerSettings::run_loop(Duration::from_secs_f64(
         1.0 / 60.0,
       )))
-      .add_plugin(RenetServerPlugin)
+      .add_plugin(RenetServerPlugin { clear_events: false })
       .init_resource::<ServerTick>()
       .init_resource::<PlayerEntities>()
       .insert_resource(server)
       .add_system(handle_events)
       .add_system(sync_frame)
+      .add_system(collect_async_chunks)
       .add_system(panic_handler);
   }
 }
@@ -160,6 +164,16 @@ pub fn handle_events(
               );
             }
           }
+        }
+        PlayerCommand::RequestChunk { coord } => {
+          let dispatcher = AsyncComputeTaskPool::get();
+          commands
+            .spawn()
+            .insert(ChunkTask {
+              task: dispatcher.spawn(Chunk::generate(coord)),
+              coord,
+              client
+            });
         }
       }
     }

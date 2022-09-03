@@ -202,6 +202,10 @@ fn movement_input_system(
   fps_camera.velocity = movement.into();
   fps_camera.velocity *= 5.0;
   fps_camera.velocity.y = y;
+
+  if block_accessor.get_chunk_entity_or_queue(to_ddd(translation)).is_none() {
+    return;
+  }
   fps_camera.velocity.y -= 19.8 * time.delta().as_secs_f32().clamp(0.0, 0.1);
 }
 

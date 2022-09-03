@@ -7,9 +7,3 @@ use shikataganai_common::ecs::components::blocks::Block;
 use shikataganai_common::ecs::components::chunk::Chunk;
 use shikataganai_common::util::array::{Array, Array2d, Array3d, Bounds, DD, DDD};
 
-#[derive(Component)]
-pub struct ChunkTask {
-  pub task: Task<Chunk>,
-  pub coord: DD,
-}
-

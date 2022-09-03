@@ -12,13 +12,15 @@ use shikataganai_common::networking::{
 };
 use std::net::UdpSocket;
 use std::time::SystemTime;
+use shikataganai_common::ecs::components::chunk::Chunk;
+use shikataganai_common::util::array::{Bounds, DD};
 
 use crate::ecs::plugins::camera::{FPSCamera, Player};
 use crate::ecs::plugins::game::in_game;
 use crate::ecs::plugins::rendering::mesh_pipeline::loader::{get_mesh_from_storage, GltfMeshStorageHandle, Meshes};
 use crate::ecs::plugins::rendering::mesh_pipeline::AmongerTextureHandle;
-use crate::ecs::plugins::rendering::voxel_pipeline::meshing::{RelightEvent, RelightType};
-use crate::ecs::resources::chunk_map::BlockAccessor;
+use crate::ecs::plugins::rendering::voxel_pipeline::meshing::{RelightEvent, RelightType, RemeshEvent};
+use crate::ecs::resources::chunk_map::{BlockAccessor, ChunkMap};
 use crate::ecs::resources::chunk_map::BlockAccessorStatic;
 use crate::GltfMeshStorage;
 
@@ -52,12 +54,12 @@ impl Plugin for ShikataganaiClientPlugin {
   fn build(&self, app: &mut App) {
     let on_game_simulation_continuous = ConditionSet::new()
       .run_if(in_game)
-      .with_system(send_shit)
-      .with_system(receive_shit)
+      .with_system(send_system)
+      .with_system(receive_system)
       .into();
 
     app
-      .add_plugin(RenetClientPlugin)
+      .add_plugin(RenetClientPlugin { clear_events: false })
       .init_resource::<ClientLobby>()
       .init_resource::<NetworkMapping>()
       .add_system(panic_handler)
@@ -128,7 +130,7 @@ fn spawn_amonger(
   client_entity
 }
 
-fn receive_shit(
+fn receive_system(
   mut commands: Commands,
   mut client: ResMut<RenetClient>,
   mut lobby: ResMut<ClientLobby>,
@@ -142,8 +144,26 @@ fn receive_shit(
   mut block_accessor: BlockAccessorStatic,
   mut relight: EventWriter<RelightEvent>,
   time: Res<Time>,
+  mut remesh: EventWriter<RemeshEvent>
 ) {
   let client_id = client.client_id();
+  while let Some(message) = client.receive_message(ServerChannel::ChunkTransfer.id()) {
+    let chunk : Chunk = deserialize(&message).unwrap();
+    // dbg!(&message);
+    // let chunk : DD = deserialize(&message).unwrap();
+    // println!("Received {:?}", chunk);
+    let dd = ChunkMap::get_chunk_coord(chunk.grid.bounds.0);
+    println!("Received {:?}", dd);
+    let chunk_entity = commands.spawn().insert(chunk).id();
+    block_accessor.chunk_map.map.get_mut(&dd).unwrap().entity = Some(chunk_entity);
+
+    for i in dd.0 - 1..=dd.0 + 1 {
+      for j in dd.1 - 1..=dd.1 + 1 {
+        remesh.send(RemeshEvent::Remesh((i, j)));
+      }
+    }
+  }
+
   while let Some(message) = client.receive_message(ServerChannel::GameEvent.id()) {
     let server_message: ServerMessage = deserialize(&message).unwrap();
     match server_message {
@@ -261,7 +281,7 @@ fn receive_shit(
   }
 }
 
-fn send_shit(
+fn send_system(
   mut client: ResMut<RenetClient>,
   query_player: Query<&Transform, With<Player>>,
   query_camera: Query<&FPSCamera>,
@@ -292,7 +312,6 @@ pub fn spawn_client(mut commands: Commands, address: String) {
   let client = RenetClient::new(
     current_time,
     socket,
-    client_id,
     client_connection_config(),
     ClientAuthentication::Unsecure {
       protocol_id: PROTOCOL_ID,
