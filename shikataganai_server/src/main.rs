@@ -1,3 +1,4 @@
+#![feature(let_chains)]
 use shikataganai_server::ecs::plugins::server::ShikataganaiServerAddress;
 use shikataganai_server::spawn_server;
 use std::env;

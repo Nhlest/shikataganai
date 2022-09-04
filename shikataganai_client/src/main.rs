@@ -1,8 +1,5 @@
 #![feature(const_fn_floating_point_arithmetic)]
 #![feature(negative_impls)]
-#![feature(vec_into_raw_parts)]
-#![feature(box_syntax)]
-#![feature(slice_as_chunks)]
 #![feature(array_methods)]
 #![allow(irrefutable_let_patterns)]
 

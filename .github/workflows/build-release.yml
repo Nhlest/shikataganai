@@ -19,9 +19,12 @@ jobs:
           - { os: 'windows-latest', target: 'x86_64-pc-windows-msvc', ext: '.exe' , env: '' }
     
     env:
-      SOURCE_FILE_UNIX: target/${{ matrix.arch.target }}/release/shikataganai${{ matrix.arch.ext }}
-      SOURCE_FILE_WIN: target\${{ matrix.arch.target }}\release\shikataganai${{ matrix.arch.ext }}
-      TARGET_FILE: shikataganai-${{ matrix.arch.target }}${{ matrix.arch.ext }}
+      SOURCE_FILE_UNIX_CLIENT: target/${{ matrix.arch.target }}/release/shikataganai_client${{ matrix.arch.ext }}
+      SOURCE_FILE_WIN_CLIENT: target\${{ matrix.arch.target }}\release\shikataganai_client${{ matrix.arch.ext }}
+      SOURCE_FILE_UNIX_SERVER: target/${{ matrix.arch.target }}/release/shikataganai_server${{ matrix.arch.ext }}
+      SOURCE_FILE_WIN_SERVER: target\${{ matrix.arch.target }}\release\shikataganai_server${{ matrix.arch.ext }}
+      TARGET_FILE_CLIENT: shikataganai_client-${{ matrix.arch.target }}${{ matrix.arch.ext }}
+      TARGET_FILE_SERVER: shikataganai_server-${{ matrix.arch.target }}${{ matrix.arch.ext }}
 
     steps:
       - uses: actions/checkout@v2
@@ -30,13 +33,21 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: nightly
+          toolchain: nightly-2022-08-29
           target: ${{ matrix.arch.target }}
           override: true
 
       - name: export additional environment
         if: ${{ runner.os != 'Windows' && matrix.arch.env != '' }}
         run: export ${{ matrix.arch.env }}
+
+      - name: ignore .cargo WIN
+        if: ${{ runner.os == 'Windows' }}
+        run: move .cargo .cargo.bak
+
+      - name: ignore .cargo
+        if: ${{ runner.os != 'Windows' }}
+        run: mv .cargo .cargo.bak
 
       - name: build release
         uses: actions-rs/cargo@v1
@@ -46,15 +57,17 @@ jobs:
 
       - name: rename files unix
         if: runner.os != 'Windows'
-        run: mv ${{ env.SOURCE_FILE_UNIX }} ${{ env.TARGET_FILE }}
+        run: mv ${{ env.SOURCE_FILE_UNIX_CLIENT }} ${{ env.TARGET_FILE_CLIENT }} && mv ${{ env.SOURCE_FILE_UNIX_SERVER }} ${{ env.TARGET_FILE_SERVER }}
 
       - name: rename files windows
         if: runner.os == 'Windows'
-        run: move ${{ env.SOURCE_FILE_WIN }} ${{ env.TARGET_FILE }}
+        run: move ${{ env.SOURCE_FILE_WIN_CLIENT }} ${{ env.TARGET_FILE_CLIENT }} && move ${{ env.SOURCE_FILE_WIN_SERVER }} ${{ env.TARGET_FILE_SERVER }}
 
       - name: upload release assets
         uses: softprops/action-gh-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          files: ${{ env.TARGET_FILE }}
+          files: |
+            ${{ env.TARGET_FILE_CLIENT }} 
+            ${{ env.TARGET_FILE_SERVER }} 
