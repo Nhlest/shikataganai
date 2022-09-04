@@ -1,12 +1,14 @@
+use crate::ecs::plugins::rendering::mesh_pipeline::pipeline::RenderTextures;
 use bevy::ecs::system::lifetimeless::{Read, SQuery, SRes};
 use bevy::ecs::system::SystemParamItem;
 use bevy::prelude::*;
-use bevy::render::render_phase::{EntityRenderCommand, PhaseItem, RenderCommand, RenderCommandResult, TrackedRenderPass};
+use bevy::render::render_phase::{
+  EntityRenderCommand, PhaseItem, RenderCommand, RenderCommandResult, TrackedRenderPass,
+};
 use bevy::render::render_resource::BindGroup;
 use bevy::render::view::ViewUniformOffset;
 use std::marker::PhantomData;
 use std::ops::Deref;
-use crate::ecs::plugins::rendering::mesh_pipeline::pipeline::RenderTextures;
 
 pub struct SetBindGroup<const I: usize, T: Deref<Target = BindGroup> + Send + Sync + 'static> {
   _phantom: PhantomData<T>,
@@ -64,4 +66,3 @@ impl<const I: usize> EntityRenderCommand for SetTextureBindGroup<I> {
     RenderCommandResult::Success
   }
 }
-

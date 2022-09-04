@@ -1,13 +1,12 @@
 #![allow(deprecated)]
 use std::io::Cursor;
-use std::ops::Deref;
 use std::sync::{Arc, Mutex};
-use bevy::core_pipeline::core_2d::graph::node::MAIN_PASS;
 
 use bevy::input::keyboard::KeyboardInput;
 use bevy::input::mouse::{MouseButtonInput, MouseWheel};
 use bevy::input::{ButtonState, InputSystem};
 use bevy::prelude::*;
+use bevy::render::main_graph::node::CAMERA_DRIVER;
 use bevy::render::render_graph::{Node, NodeRunError, RenderGraph, RenderGraphContext, SlotInfo, SlotType};
 use bevy::render::renderer::{RenderContext, RenderDevice, RenderQueue};
 use bevy::render::view::ExtractedWindows;
@@ -65,8 +64,7 @@ fn start_frame(
   // mut ev_window_created: EventReader<WindowCreated>,
   mut ev_keyboard_input: EventReader<KeyboardInput>,
   mut ev_received_character: EventReader<ReceivedCharacter>,
-  mut keys: Res<Input<KeyCode>>,
-  mut modifiers : Local<ModifiersState>,
+  mut modifiers: Local<ModifiersState>,
   windows: Res<Windows>,
   winit_windows: NonSend<WinitWindows>,
 ) {
@@ -183,8 +181,8 @@ fn start_frame(
                   ButtonState::Pressed => ElementState::Pressed,
                   ButtonState::Released => ElementState::Released,
                 },
-                virtual_keycode: i.key_code.map(|key_code|std::mem::transmute(key_code)),
-                modifiers: *modifiers
+                virtual_keycode: i.key_code.map(|key_code| std::mem::transmute(key_code)),
+                modifiers: *modifiers,
               },
               is_synthetic: false,
             },
@@ -316,7 +314,7 @@ impl Plugin for ImguiPlugin {
     if let Ok(render_app) = app.get_sub_app_mut(RenderApp) {
       let mut render_graph = render_app.world.get_resource_mut::<RenderGraph>().unwrap();
       render_graph.add_node(IMGUI_PASS, ImguiNode::new(renderer));
-      render_graph.add_node_edge(MAIN_PASS, IMGUI_PASS);
+      render_graph.add_node_edge(CAMERA_DRIVER, IMGUI_PASS).unwrap();
     }
   }
 }

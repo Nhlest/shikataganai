@@ -63,6 +63,8 @@ fn compute_light(
   return (h1 * 0.5 / mix + h2 * 0.5 * (1.0 - 0.5) / mix).floor() as u8;
 }
 
+// TODO: implement
+#[allow(dead_code)]
 pub fn recalculate_light_map(
   light_texture_handle: Res<LightTextureHandle>,
   mut images: ResMut<Assets<Image>>,

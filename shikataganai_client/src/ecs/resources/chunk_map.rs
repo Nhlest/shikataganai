@@ -1,17 +1,14 @@
 use crate::ecs::resources::light::LightLevel;
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
-use bevy::tasks::AsyncComputeTaskPool;
 use bevy::utils::{HashMap, HashSet};
+use bevy_renet::renet::RenetClient;
 use duplicate::duplicate_item;
 use shikataganai_common::ecs::components::blocks::Block;
-use shikataganai_common::util::array::{ImmediateNeighbours, DD, DDD};
-use std::mem::MaybeUninit;
-use bevy_renet::renet::RenetClient;
-use winit::platform::unix::x11::ffi::ClientMessage;
 use shikataganai_common::ecs::components::chunk::Chunk;
 use shikataganai_common::networking::{ClientChannel, PlayerCommand};
-use crate::ecs::plugins::camera::Player;
+use shikataganai_common::util::array::{ImmediateNeighbours, DD, DDD};
+use std::mem::MaybeUninit;
 
 pub struct ChunkMeta {
   pub entity: Option<Entity>,
@@ -28,7 +25,7 @@ pub struct BlockAccessorSpawner<'w, 's> {
   pub chunk_map: ResMut<'w, ChunkMap>,
   pub chunks: Query<'w, 's, &'static mut Chunk>,
   pub commands: Commands<'w, 's>,
-  pub client: ResMut<'w, RenetClient>
+  pub client: ResMut<'w, RenetClient>,
 }
 
 #[derive(SystemParam)]
@@ -60,19 +57,14 @@ impl<'w, 's> BlockAccessorInternal<'w, 's> for BlockAccessorStatic<'w, 's> {
 
 impl<'w, 's> BlockAccessorInternal<'w, 's> for BlockAccessorSpawner<'w, 's> {
   fn get_chunk_entity_or_queue(&mut self, c: DDD) -> Option<Entity> {
-    let dispatcher = AsyncComputeTaskPool::get();
-
     let chunk_coord = ChunkMap::get_chunk_coord(c);
     match self.chunk_map.map.get(&chunk_coord) {
       None => {
-        // let task = dispatcher.spawn(Chunk::generate(chunk_coord));
         self.chunk_map.map.insert(chunk_coord, ChunkMeta::generating());
-        self.client.send_message(ClientChannel::ClientCommand.id(), bincode::serialize(&PlayerCommand::RequestChunk { coord: chunk_coord }).unwrap());
-        println!("REQUESTED {:?}", chunk_coord);
-        // self.commands.spawn().insert(ChunkTask {
-        //   task,
-        //   coord: chunk_coord,
-        // });
+        self.client.send_message(
+          ClientChannel::ClientCommand.id(),
+          bincode::serialize(&PlayerCommand::RequestChunk { coord: chunk_coord }).unwrap(),
+        );
         None
       }
       Some(ChunkMeta { entity: None }) => None,

@@ -6,14 +6,10 @@ use crate::ecs::plugins::settings::MouseSensitivity;
 use crate::ecs::resources::chunk_map::{BlockAccessor, BlockAccessorInternal, BlockAccessorSpawner};
 use crate::GltfMeshStorage;
 use bevy::input::mouse::MouseMotion;
-use bevy::pbr::{NotShadowCaster, NotShadowReceiver};
 use bevy::prelude::*;
 use bevy::render::camera::{CameraProjection, Projection};
 use bevy::render::primitives::Frustum;
-use bevy_atmosphere::plugin::AtmosphereSkyBox;
 use bevy_atmosphere::prelude::AtmosphereCamera;
-use bevy_atmosphere::skybox;
-use bevy_atmosphere::skybox::AtmosphereSkyBoxMaterial;
 use bevy_rapier3d::prelude::TOIStatus::Converged;
 use bevy_rapier3d::prelude::*;
 use iyes_loopless::prelude::{ConditionSet, CurrentState, IntoConditionalSystem};
@@ -94,11 +90,10 @@ impl Plugin for CameraPlugin {
   }
 }
 
-fn spawn_camera(
-  mut commands: Commands,
-  mut local: Local<bool>
-) {
-  if *local { return; }
+fn spawn_camera(mut commands: Commands, mut local: Local<bool>) {
+  if *local {
+    return;
+  }
   *local = true;
   let camera = {
     let perspective_projection = PerspectiveProjection {
@@ -108,8 +103,7 @@ fn spawn_camera(
       aspect_ratio: 1.0,
     };
     let view_projection = perspective_projection.get_projection_matrix();
-    let frustum =
-      Frustum::from_view_projection(&view_projection, &Vec3::ZERO, &Vec3::Z, perspective_projection.far());
+    let frustum = Frustum::from_view_projection(&view_projection, &Vec3::ZERO, &Vec3::Z, perspective_projection.far());
     Camera3dBundle {
       projection: Projection::Perspective(perspective_projection),
       frustum,
@@ -301,21 +295,11 @@ fn collision_movement_system(
   mut camera: Query<(Entity, &mut FPSCamera)>,
   player: Query<Entity, With<Player>>,
   mut transforms: Query<&mut Transform>,
-  mut block_accessor: BlockAccessorSpawner,
   time: Res<Time>,
   rapier_context: Res<RapierContext>,
 ) {
   let (entity_camera, mut fps_camera): (Entity, Mut<FPSCamera>) = camera.single_mut();
   let entity_player = player.single();
-  let player_translation = transforms.get(entity_player).unwrap().translation;
-
-  // Don't move if chunk is not yet generated. TODO: check if this still works after move to client-server architecture
-  // if block_accessor
-  //   .get_chunk_entity_or_queue(to_ddd(player_translation))
-  //   .is_none()
-  // {
-  //   return;
-  // }
 
   let looking_at = Vec3::new(
     10.0 * fps_camera.phi.cos() * fps_camera.theta.sin(),

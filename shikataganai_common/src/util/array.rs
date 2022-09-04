@@ -1,11 +1,10 @@
 use bevy::prelude::Vec3;
+use serde::ser::SerializeTuple;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::alloc::Layout;
 use std::array::IntoIter;
 use std::fmt::Debug;
-use std::mem::ManuallyDrop;
 use std::ops::{Index, IndexMut};
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use serde::ser::SerializeTuple;
 
 pub type DD = (i32, i32);
 pub type DDD = (i32, i32, i32);
@@ -149,20 +148,30 @@ pub struct Array<I: ArrayIndex + Copy + Debug + Serialize, T: Serialize> {
 }
 
 impl<I: ArrayIndex + Copy + Debug + Serialize, T: Serialize> Serialize for Array<I, T> {
-  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: Serializer,
+  {
     let mut tuple = serializer.serialize_tuple(2)?;
     tuple.serialize_element(&self.bounds)?;
-    unsafe { tuple.serialize_element(&std::slice::from_raw_parts(self.data, ArrayIndex::size(&self.bounds)))?; }
+    unsafe {
+      tuple.serialize_element(&std::slice::from_raw_parts(self.data, ArrayIndex::size(&self.bounds)))?;
+    }
     tuple.end()
   }
 }
 
-impl<'de, I: ArrayIndex + Copy + Debug + Serialize + Deserialize<'de>, T: Serialize + Deserialize<'de>> Deserialize<'de> for Array<I, T> {
-  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer<'de> {
-    let (bounds, mut data): ((I, I), Vec<T>) = Deserialize::deserialize(deserializer)?;
+impl<'de, I: ArrayIndex + Copy + Debug + Serialize + Deserialize<'de>, T: Serialize + Deserialize<'de>> Deserialize<'de>
+  for Array<I, T>
+{
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    let (bounds, data): ((I, I), Vec<T>) = Deserialize::deserialize(deserializer)?;
     let capacity = ArrayIndex::size(&bounds);
     assert_eq!(capacity, data.len(), "Vector bounds mismatch");
-    let mut array = Array::new_zeroed(bounds);
+    let array = Array::new_zeroed(bounds);
     unsafe { std::ptr::copy_nonoverlapping(data.as_ptr(), array.data, capacity) };
     Ok(array)
   }

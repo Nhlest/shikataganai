@@ -3,25 +3,27 @@ use bevy::utils::hashbrown::HashMap;
 use bevy_renet::renet::{ClientAuthentication, RenetClient, RenetError};
 use bevy_renet::RenetClientPlugin;
 use bincode::*;
+use flate2::read::ZlibDecoder;
 use iyes_loopless::prelude::ConditionSet;
 use num_traits::{Float, FloatConst};
 use shikataganai_common::ecs::components::blocks::block_id::BlockId;
+use shikataganai_common::ecs::components::chunk::Chunk;
 use shikataganai_common::networking::{
   client_connection_config, ClientChannel, NetworkFrame, PlayerCommand, PolarRotation, ServerChannel, ServerMessage,
   PROTOCOL_ID,
 };
+use std::io::Read;
 use std::net::UdpSocket;
 use std::time::SystemTime;
-use shikataganai_common::ecs::components::chunk::Chunk;
-use shikataganai_common::util::array::{Bounds, DD};
 
 use crate::ecs::plugins::camera::{FPSCamera, Player};
 use crate::ecs::plugins::game::in_game;
 use crate::ecs::plugins::rendering::mesh_pipeline::loader::{get_mesh_from_storage, GltfMeshStorageHandle, Meshes};
+use crate::ecs::plugins::rendering::mesh_pipeline::systems::MeshMarker;
 use crate::ecs::plugins::rendering::mesh_pipeline::AmongerTextureHandle;
 use crate::ecs::plugins::rendering::voxel_pipeline::meshing::{RelightEvent, RelightType, RemeshEvent};
-use crate::ecs::resources::chunk_map::{BlockAccessor, ChunkMap};
 use crate::ecs::resources::chunk_map::BlockAccessorStatic;
+use crate::ecs::resources::chunk_map::{BlockAccessor, ChunkMap};
 use crate::GltfMeshStorage;
 
 #[derive(Default)]
@@ -30,7 +32,6 @@ struct NetworkMapping(HashMap<Entity, Entity>);
 #[derive(Debug)]
 struct PlayerInfo {
   client_entity: Entity,
-  server_entity: Entity,
 }
 
 #[derive(Debug, Default)]
@@ -94,12 +95,14 @@ fn spawn_amonger(
         .insert(GlobalTransform::default())
         .insert(Transform::from_translation(body.1))
         .insert(body.0.clone())
+        .insert(MeshMarker)
         .insert(amonger_texture.0.clone());
       let legl = c
         .spawn()
         .insert(GlobalTransform::default())
         .insert(Transform::from_translation(legl.1))
         .insert(legl.0.clone())
+        .insert(MeshMarker)
         .insert(amonger_texture.0.clone())
         .id();
       let legr = c
@@ -107,18 +110,21 @@ fn spawn_amonger(
         .insert(GlobalTransform::default())
         .insert(Transform::from_translation(legr.1))
         .insert(legr.0.clone())
+        .insert(MeshMarker)
         .insert(amonger_texture.0.clone())
         .id();
       c.spawn()
         .insert(GlobalTransform::default())
         .insert(Transform::from_translation(backpack.1))
         .insert(backpack.0.clone())
+        .insert(MeshMarker)
         .insert(amonger_texture.0.clone());
       let visor = c
         .spawn()
         .insert(GlobalTransform::default())
         .insert(Transform::from_translation(visor.1))
         .insert(visor.0.clone())
+        .insert(MeshMarker)
         .insert(amonger_texture.0.clone())
         .id();
       (c.parent_entity(), legl, legr, visor)
@@ -144,25 +150,9 @@ fn receive_system(
   mut block_accessor: BlockAccessorStatic,
   mut relight: EventWriter<RelightEvent>,
   time: Res<Time>,
-  mut remesh: EventWriter<RemeshEvent>
+  mut remesh: EventWriter<RemeshEvent>,
 ) {
   let client_id = client.client_id();
-  while let Some(message) = client.receive_message(ServerChannel::ChunkTransfer.id()) {
-    let chunk : Chunk = deserialize(&message).unwrap();
-    // dbg!(&message);
-    // let chunk : DD = deserialize(&message).unwrap();
-    // println!("Received {:?}", chunk);
-    let dd = ChunkMap::get_chunk_coord(chunk.grid.bounds.0);
-    println!("Received {:?}", dd);
-    let chunk_entity = commands.spawn().insert(chunk).id();
-    block_accessor.chunk_map.map.get_mut(&dd).unwrap().entity = Some(chunk_entity);
-
-    for i in dd.0 - 1..=dd.0 + 1 {
-      for j in dd.1 - 1..=dd.1 + 1 {
-        remesh.send(RemeshEvent::Remesh((i, j)));
-      }
-    }
-  }
 
   while let Some(message) = client.receive_message(ServerChannel::GameEvent.id()) {
     let server_message: ServerMessage = deserialize(&message).unwrap();
@@ -182,13 +172,7 @@ fn receive_system(
           translation.0,
           amonger_texture.as_ref(),
         );
-        lobby.players.insert(
-          id,
-          PlayerInfo {
-            client_entity,
-            server_entity: entity,
-          },
-        );
+        lobby.players.insert(id, PlayerInfo { client_entity });
         network_mapping.0.insert(entity, client_entity);
       }
       ServerMessage::PlayerDespawn { id } => {
@@ -202,6 +186,21 @@ fn receive_system(
       ServerMessage::BlockPlace { location, block } => {
         block_accessor.get_mut(location).map(|b| *b = block);
         relight.send(RelightEvent::Relight(RelightType::BlockAdded, location));
+      }
+      ServerMessage::ChunkData { chunk } => {
+        let mut decoder = ZlibDecoder::new(chunk.as_slice());
+        let mut message = Vec::new();
+        decoder.read_to_end(&mut message).unwrap();
+        let chunk: Chunk = deserialize(&message).unwrap();
+        let dd = ChunkMap::get_chunk_coord(chunk.grid.bounds.0);
+        let chunk_entity = commands.spawn().insert(chunk).id();
+        block_accessor.chunk_map.map.get_mut(&dd).unwrap().entity = Some(chunk_entity);
+
+        for i in dd.0 - 1..=dd.0 + 1 {
+          for j in dd.1 - 1..=dd.1 + 1 {
+            remesh.send(RemeshEvent::Remesh((i, j)));
+          }
+        }
       }
     }
   }

@@ -1,20 +1,18 @@
+use crate::ecs::systems::chunkgen::{collect_async_chunks, ChunkTask};
+use bevy::app::ScheduleRunnerSettings;
 use bevy::prelude::*;
+use bevy::tasks::AsyncComputeTaskPool;
 use bevy::utils::hashbrown::HashMap;
 use bevy_renet::renet::{RenetError, RenetServer, ServerAuthentication, ServerConfig, ServerEvent};
 use bevy_renet::RenetServerPlugin;
 use bincode::*;
-use iyes_loopless::condition::ConditionSet;
-use iyes_loopless::prelude::FixedTimestepStage;
+use shikataganai_common::ecs::components::chunk::Chunk;
 use shikataganai_common::networking::{
   server_connection_config, NetworkFrame, NetworkedEntities, PlayerCommand, PolarRotation, ServerChannel,
   ServerMessage, PROTOCOL_ID,
 };
 use std::net::UdpSocket;
 use std::time::{Duration, SystemTime};
-use bevy::app::ScheduleRunnerSettings;
-use bevy::tasks::AsyncComputeTaskPool;
-use shikataganai_common::ecs::components::chunk::Chunk;
-use crate::ecs::systems::chunkgen::{ChunkTask, collect_async_chunks};
 
 pub struct ShikataganaiServerPlugin;
 
@@ -33,7 +31,7 @@ pub struct PlayerEntities {
 pub struct ClientId(u64);
 
 pub struct ShikataganaiServerAddress {
-  pub address: String
+  pub address: String,
 }
 
 impl Plugin for ShikataganaiServerPlugin {
@@ -62,9 +60,7 @@ impl Plugin for ShikataganaiServerPlugin {
       //   FixedUpdate,
       //   FixedTimestepStage::from_stage(Duration::from_millis(10), on_fixed_step_simulation_stage),
       // )
-      .insert_resource(ScheduleRunnerSettings::run_loop(Duration::from_secs_f64(
-        1.0 / 60.0,
-      )))
+      .insert_resource(ScheduleRunnerSettings::run_loop(Duration::from_secs_f64(1.0 / 60.0)))
       .add_plugin(RenetServerPlugin { clear_events: false })
       .init_resource::<ServerTick>()
       .init_resource::<PlayerEntities>()
@@ -167,13 +163,11 @@ pub fn handle_events(
         }
         PlayerCommand::RequestChunk { coord } => {
           let dispatcher = AsyncComputeTaskPool::get();
-          commands
-            .spawn()
-            .insert(ChunkTask {
-              task: dispatcher.spawn(Chunk::generate(coord)),
-              coord,
-              client
-            });
+          commands.spawn().insert(ChunkTask {
+            task: dispatcher.spawn(Chunk::generate(coord)),
+            coord,
+            client,
+          });
         }
       }
     }

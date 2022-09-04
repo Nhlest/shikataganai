@@ -7,21 +7,17 @@ use crate::ecs::plugins::rendering::voxel_pipeline::bind_groups::{LightTextureHa
 use crate::ecs::resources::chunk_map::BlockAccessorReadOnly;
 use crate::ecs::resources::light::LightLevel;
 use bevy::core_pipeline::core_3d::Opaque3d;
-use bevy::pbr::MeshUniform;
 use bevy::prelude::*;
 use bevy::render::extract_component::ComponentUniforms;
-use bevy::render::mesh::GpuBufferInfo;
 use bevy::render::render_asset::RenderAssets;
 use bevy::render::render_phase::{DrawFunctions, RenderPhase};
-use bevy::render::render_resource::{IndexFormat, ShaderType};
 use bevy::render::render_resource::{Buffer, PipelineCache, SpecializedRenderPipelines};
+use bevy::render::render_resource::{IndexFormat, ShaderType};
 use bevy::render::renderer::RenderDevice;
 use bevy::render::view::ViewUniforms;
 use bevy::render::Extract;
-use bevy_atmosphere::skybox::SkyBoxMaterial;
 use shikataganai_common::util::array::to_ddd;
 use wgpu::{BindGroupDescriptor, BindGroupEntry, BindingResource};
-use crate::ecs::plugins::rendering::skybox_pipeline::systems::{ExtractedAtmosphereSkyBoxMaterial};
 
 #[derive(Component)]
 pub struct MeshBuffer(pub Buffer, pub Buffer, pub usize, pub IndexFormat);
@@ -61,7 +57,7 @@ pub fn prepare_textures(
   render_device: Res<RenderDevice>,
   mesh_pipeline: Res<MeshPipeline>,
   mut render_textures: ResMut<RenderTextures>,
-  query: Query<&Handle<Image>>
+  query: Query<&Handle<Image>>,
 ) {
   for handle in query.iter() {
     if let Some(gpu_image) = gpu_images.get(handle) {
@@ -93,7 +89,7 @@ pub fn queue_meshes(
   chunk_pipeline: Res<MeshPipeline>,
   render_device: Res<RenderDevice>,
   view_uniforms: Res<ViewUniforms>,
-  q: Query<(Entity, &Handle<Mesh>), With<MeshMarker>>,
+  q: Query<Entity, With<MeshMarker>>,
 ) {
   if let Some(view_binding) = view_uniforms.uniforms.binding() {
     commands.insert_resource(MeshViewBindGroup {
@@ -113,7 +109,7 @@ pub fn queue_meshes(
   let draw_function = draw_functions.read().get_id::<DrawMeshFull>().unwrap();
   let pipeline = pipelines.specialize(&mut pipeline_cache, &chunk_pipeline, ());
 
-  for (entity, i) in q.iter() {
+  for entity in q.iter() {
     for mut view in views.iter_mut() {
       view.add(Opaque3d {
         distance: -0.2,

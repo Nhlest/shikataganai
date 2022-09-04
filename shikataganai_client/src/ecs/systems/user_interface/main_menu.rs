@@ -1,4 +1,3 @@
-use std::ops::DerefMut;
 use crate::ecs::plugins::client::spawn_client;
 use crate::ecs::plugins::game::ShikataganaiGameState;
 use crate::ecs::plugins::imgui::BigFont;
@@ -6,10 +5,11 @@ use crate::ecs::plugins::settings::{AmbientOcclusion, FullScreen, MouseSensitivi
 use crate::ImguiState;
 use bevy::app::AppExit;
 use bevy::prelude::*;
-use imgui::{ComboBoxPreviewMode, Condition, InputTextFlags};
+use imgui::{ComboBoxPreviewMode, Condition};
 use iyes_loopless::state::NextState;
 use shikataganai_server::ecs::plugins::server::ShikataganaiServerAddress;
 use shikataganai_server::spawn_server;
+use std::ops::DerefMut;
 
 pub fn main_menu(
   mut commands: Commands,
@@ -23,7 +23,7 @@ pub fn main_menu(
   mut vsync: ResMut<VSync>,
   mut fullscreen: ResMut<FullScreen>,
   mut ambient_occlusion: ResMut<AmbientOcclusion>,
-  mut address_string: Local<String>
+  mut address_string: Local<String>,
 ) {
   let active_window = window.get_primary_mut().unwrap();
   let ui = imgui.get_current_frame();
@@ -60,7 +60,9 @@ pub fn main_menu(
       }
 
       ui.set_next_item_width(ui.window_content_region_width());
-      ui.input_text("##Server Address:", address_string.deref_mut()).hint("127.0.0.1:8181").build();
+      ui.input_text("##Server Address:", address_string.deref_mut())
+        .hint("127.0.0.1:8181")
+        .build();
 
       let w = ui.calc_text_size("Start Server");
       ui.set_cursor_pos([((x2 - x1) - w[0]) / 2.0, ui.cursor_pos()[1]]);

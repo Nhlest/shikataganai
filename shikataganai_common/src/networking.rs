@@ -40,6 +40,8 @@ impl ServerChannel {
       ReliableChannelConfig {
         channel_id: Self::GameEvent.id(),
         message_resend_time: Duration::ZERO,
+        max_message_size: 10000,
+        packet_budget: 20000,
         ..Default::default()
       }
       .into(),
@@ -47,24 +49,22 @@ impl ServerChannel {
         channel_id: Self::GameFrame.id(),
         message_send_queue_size: 2048,
         message_receive_queue_size: 2048,
-        .. Default::default()
+        ..Default::default()
       }
       .into(),
       BlockChannelConfig {
         channel_id: Self::ChunkTransfer.id(),
-        max_message_size: 1024*1024*16,
+        // max_message_size: 1024*1024,
         // slice_size: 2048,
-        // sent_packet_buffer_size: 100000,
-        message_send_queue_size: 2048,
-        // packet_budget: 8 * 1024 * 1024,
-        .. Default::default()
-
-            // slice_size: 400,
-            // resend_time: Duration::from_millis(300),
-            // sent_packet_buffer_size: 256,
-            // packet_budget: 8 * 1024,
-            // max_message_size: 256 * 1024,
-            // message_send_queue_size: 8,
+        // sent_packet_buffer_size: 1000,
+        // message_send_queue_size: 10000,
+        // resend_time: Duration::from_millis(2000),
+        // packet_budget: 10240,
+        ..Default::default() // slice_size: 400,
+                             // sent_packet_buffer_size: 256,
+                             // packet_budget: 8 * 1024,
+                             // max_message_size: 256 * 1024,
+                             // message_send_queue_size: 8,
       }
       .into(),
     ]
@@ -96,6 +96,9 @@ pub enum ServerMessage {
     location: DDD,
     block: Block,
   },
+  ChunkData {
+    chunk: Vec<u8>,
+  },
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]
@@ -122,13 +125,12 @@ impl ClientChannel {
   }
 
   pub fn channels_config() -> Vec<ChannelConfig> {
-    vec![
-      ReliableChannelConfig {
-        channel_id: Self::ClientCommand.id(),
-        message_resend_time: Duration::ZERO,
-        ..Default::default()
-      }.into(),
-    ]
+    vec![ReliableChannelConfig {
+      channel_id: Self::ClientCommand.id(),
+      message_resend_time: Duration::ZERO,
+      ..Default::default()
+    }
+    .into()]
   }
 }
 
@@ -153,5 +155,5 @@ pub enum PlayerCommand {
   PlayerMove { translation: TranslationRotation },
   BlockRemove { location: DDD },
   BlockPlace { location: DDD, block: Block },
-  RequestChunk { coord: DD }
+  RequestChunk { coord: DD },
 }

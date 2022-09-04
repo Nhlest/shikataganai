@@ -1,39 +1,37 @@
-use bevy::core_pipeline::core_3d::Opaque3d;
-use bevy::pbr::{MeshUniform, RenderMaterials};
-use bevy::prelude::*;
-use bevy::render::Extract;
-use bevy::render::extract_component::ComponentUniforms;
-use bevy::render::mesh::GpuBufferInfo;
-use bevy::render::render_asset::RenderAssets;
-use bevy::render::render_phase::{DrawFunctions, RenderPhase};
-use bevy::render::render_resource::{BufferUsages, PipelineCache, SpecializedRenderPipelines};
-use bevy::render::renderer::RenderDevice;
-use bevy::render::texture::GpuImage;
-use bevy::render::view::ViewUniforms;
-use bevy_atmosphere::pipeline::AtmosphereImage;
-use bevy_atmosphere::plugin::AtmosphereSkyBox;
-use bevy_atmosphere::skybox::{AtmosphereSkyBoxMaterial, SkyBoxMaterial};
-use wgpu::{BindGroupDescriptor, BindGroupEntry, BindingResource, BufferDescriptor};
-use crate::ecs::plugins::rendering::mesh_pipeline::systems::{MeshBuffer, PositionUniform};
-use crate::ecs::plugins::rendering::skybox_pipeline::bind_groups::{SkyboxMeshPositionBindGroup, SkyboxTextureBindGroup, SkyboxViewBindGroup};
+use crate::ecs::plugins::rendering::skybox_pipeline::bind_groups::{
+  SkyboxMeshPositionBindGroup, SkyboxTextureBindGroup, SkyboxViewBindGroup,
+};
 use crate::ecs::plugins::rendering::skybox_pipeline::draw_command::DrawSkyboxFull;
 use crate::ecs::plugins::rendering::skybox_pipeline::pipeline::SkyboxPipeline;
+use bevy::core_pipeline::core_3d::Opaque3d;
+use bevy::pbr::MeshUniform;
+use bevy::prelude::*;
+use bevy::render::extract_component::ComponentUniforms;
+use bevy::render::render_asset::RenderAssets;
+use bevy::render::render_phase::{DrawFunctions, RenderPhase};
+use bevy::render::render_resource::{PipelineCache, SpecializedRenderPipelines};
+use bevy::render::renderer::RenderDevice;
+use bevy::render::view::ViewUniforms;
+use bevy::render::Extract;
+use bevy_atmosphere::pipeline::AtmosphereImage;
+use bevy_atmosphere::skybox::{AtmosphereSkyBoxMaterial, SkyBoxMaterial};
+use wgpu::{BindGroupDescriptor, BindGroupEntry, BindingResource};
 
 pub struct ExtractedAtmosphereSkyBoxMaterial(pub Handle<SkyBoxMaterial>);
 
 pub fn extract_skybox_material_handle(
   mut commands: Commands,
   skybox_material_handle: Extract<Res<AtmosphereSkyBoxMaterial>>,
-  skybox_material: Extract<Query<(&Handle<Mesh>, &GlobalTransform), With<Handle<SkyBoxMaterial>>>>
+  skybox_material: Extract<Query<(&Handle<Mesh>, &GlobalTransform), With<Handle<SkyBoxMaterial>>>>,
 ) {
   commands.insert_resource(ExtractedAtmosphereSkyBoxMaterial(skybox_material_handle.0.clone()));
-  for (handle, transform) in skybox_material.iter(){
+  for (handle, transform) in skybox_material.iter() {
     commands
       .spawn()
       .insert(MeshUniform {
         transform: transform.compute_matrix(),
         inverse_transpose_model: transform.compute_matrix().inverse().transpose(),
-        flags: 0
+        flags: 0,
       })
       .insert(handle.clone());
   }
@@ -60,7 +58,6 @@ pub fn queue_skybox_mesh_position_bind_group(
   }
 }
 
-
 pub fn queue_skybox(
   mut commands: Commands,
   mut views: Query<&mut RenderPhase<Opaque3d>>,
@@ -72,7 +69,7 @@ pub fn queue_skybox(
   view_uniforms: Res<ViewUniforms>,
   skybox_meshes: Query<Entity, With<MeshUniform>>,
   skybox_texture: Res<AtmosphereImage>,
-  gpu_images: Res<RenderAssets<Image>>
+  gpu_images: Res<RenderAssets<Image>>,
 ) {
   if let Some(gpu_image) = gpu_images.get(&skybox_texture.handle) {
     commands.insert_resource(SkyboxTextureBindGroup {

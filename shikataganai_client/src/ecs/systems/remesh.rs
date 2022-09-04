@@ -1,6 +1,7 @@
 use crate::ecs::components::blocks::BlockRenderInfo;
 use crate::ecs::components::blocks::DerefExt;
 use crate::ecs::plugins::rendering::mesh_pipeline::loader::GltfMeshStorageHandle;
+use crate::ecs::plugins::rendering::mesh_pipeline::systems::MeshMarker;
 use crate::ecs::plugins::rendering::voxel_pipeline::meshing::RemeshEvent;
 use crate::ecs::resources::chunk_map::BlockAccessor;
 use crate::ecs::resources::chunk_map::BlockAccessorStatic;
@@ -9,7 +10,6 @@ use bevy::prelude::*;
 use itertools::Itertools;
 use num_traits::FloatConst;
 use shikataganai_common::util::array::{from_ddd, ArrayIndex};
-use crate::ecs::plugins::rendering::mesh_pipeline::systems::MeshMarker;
 
 pub fn remesh_system_auxiliary(
   mut commands: Commands,

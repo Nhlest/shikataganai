@@ -1,4 +1,5 @@
 use crate::ecs::plugins::camera::Selection;
+use crate::ecs::resources::chunk_map::BlockAccessor;
 use crate::ecs::resources::chunk_map::{BlockAccessorSpawner, ChunkMap};
 use crate::ecs::resources::player::{PlayerInventory, SelectedHotBar};
 use crate::ecs::systems::input::{action_input, hot_bar_scroll_input};
@@ -8,11 +9,9 @@ use crate::ecs::systems::user_interface::connecting::connecting_window;
 use crate::ecs::systems::user_interface::game_menu::game_menu;
 use crate::ecs::systems::user_interface::hot_bar::hot_bar;
 use crate::ecs::systems::user_interface::main_menu::main_menu;
-use crate::ecs::resources::chunk_map::BlockAccessor;
 use bevy::prelude::*;
 use bevy::render::{Extract, RenderApp, RenderStage};
 use bevy_rapier3d::plugin::RapierConfiguration;
-use bevy_renet::renet::RenetClient;
 use iyes_loopless::prelude::*;
 use std::time::Duration;
 
@@ -52,7 +51,6 @@ pub fn init_game(mut commands: Commands) {
 
 pub fn transition_to_simulation(
   mut commands: Commands,
-  // client: Res<RenetClient>,
   mut window: ResMut<Windows>,
   mut physics_system: ResMut<RapierConfiguration>,
   mut r: BlockAccessorSpawner,
@@ -63,11 +61,11 @@ pub fn transition_to_simulation(
     active_window.set_cursor_lock_mode(true);
     active_window.set_cursor_visibility(false);
     physics_system.physics_pipeline_active = true;
-    // for i in -10..=10 {
-    //   for j in -10..=10 {
-    //     r.get_single((i * 16, 0, j * 16));
-    //   }
-    // }
+    for i in -5..=5 {
+      for j in -5..=5 {
+        r.get_single((i * 16, 0, j * 16));
+      }
+    }
   }
 }
 
@@ -100,7 +98,6 @@ impl Plugin for GamePlugin {
       .with_system(action_input)
       .with_system(hot_bar_scroll_input)
       .with_system(hot_bar)
-      // .with_system(collect_async_chunks)
       // .with_system(recalculate_light_map)
       .into();
     let on_game_simulation_continuous_post_update = ConditionSet::new()

@@ -1,18 +1,16 @@
-use bevy::pbr::{MESH_SHADER_HANDLE, MeshUniform, PBR_SHADER_HANDLE};
-use crate::ecs::plugins::rendering::mesh_pipeline::{MESH_SHADER_FRAGMENT_HANDLE, MESH_SHADER_VERTEX_HANDLE};
+use bevy::pbr::{MeshUniform, MESH_SHADER_HANDLE};
 use bevy::prelude::*;
 use bevy::render::mesh::PrimitiveTopology;
-use bevy::render::render_resource::{BindGroup, ShaderType};
+use bevy::render::render_resource::ShaderType;
 use bevy::render::render_resource::{
   BindGroupLayout, BindGroupLayoutEntry, BindingType, BlendState, BufferBindingType, ColorTargetState, ColorWrites,
-  CompareFunction, DepthStencilState, Face, FragmentState, FrontFace, MultisampleState, PolygonMode, PrimitiveState,
+  CompareFunction, DepthStencilState, FragmentState, FrontFace, MultisampleState, PolygonMode, PrimitiveState,
   RenderPipelineDescriptor, SamplerBindingType, ShaderStages, SpecializedRenderPipeline, TextureFormat,
   TextureSampleType, TextureViewDimension, VertexBufferLayout, VertexFormat, VertexState, VertexStepMode,
 };
 use bevy::render::renderer::RenderDevice;
 use bevy::render::texture::BevyDefault;
 use bevy::render::view::ViewUniform;
-use bevy::utils::hashbrown::HashMap;
 use bevy_atmosphere::skybox::ATMOSPHERE_SKYBOX_SHADER_HANDLE;
 use wgpu::BindGroupLayoutDescriptor;
 

@@ -1,11 +1,11 @@
 use bevy::prelude::*;
-use noise::{Perlin, Seedable, NoiseFn};
+use noise::{NoiseFn, Perlin, Seedable};
 
-use crate::ecs::components::blocks::Block;
 use crate::ecs::components::blocks::block_id::BlockId;
+use crate::ecs::components::blocks::Block;
 use crate::ecs::resources::light::LightLevel;
 use crate::util::array::{Array, Array2d, Array3d, Bounds, DD, DDD};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 pub const CHUNK_MAX_HEIGHT: i32 = 127;
 
