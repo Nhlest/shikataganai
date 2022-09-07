@@ -24,7 +24,7 @@ impl Chunk {
   pub fn new<F: Fn(DDD) -> BlockId>(bounds: Bounds<DDD>, block_f: F) -> Self {
     let mut chunk = Self {
       grid: Array::new_init(bounds, |c| Block::new(block_f(c))),
-      light_map: Array::new_init(bounds, |_| LightLevel::new(0, 0)),
+      light_map: Array::new_init(bounds, |_| LightLevel::new(0, 0, 0)),
     };
     for ix in bounds.0 .0..=bounds.1 .0 {
       for iz in bounds.0 .2..=bounds.1 .2 {
@@ -32,7 +32,7 @@ impl Chunk {
           if chunk.grid[(ix, iy, iz)].visible() {
             break;
           }
-          chunk.light_map[(ix, iy, iz)] = LightLevel::new(16, 0);
+          chunk.light_map[(ix, iy, iz)] = LightLevel::new(16, 0, 0);
         }
       }
     }

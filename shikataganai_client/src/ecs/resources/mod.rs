@@ -1,4 +1,4 @@
 pub mod block;
-pub mod chunk_map;
+pub mod world;
 pub mod light;
 pub mod player;

@@ -3,7 +3,6 @@ use crate::ecs::plugins::rendering::mesh_pipeline::bind_groups::{
   MeshLightBindGroup, MeshLightTextureBindGroup, MeshPositionBindGroup, MeshViewBindGroup,
 };
 use crate::ecs::plugins::rendering::mesh_pipeline::systems::{MeshBuffer, PositionUniform};
-use crate::ecs::resources::light::LightLevel;
 use bevy::ecs::system::lifetimeless::{Read, SQuery, SRes};
 use bevy::ecs::system::SystemParamItem;
 use bevy::pbr::DrawMesh;
@@ -13,6 +12,7 @@ use bevy::render::render_phase::{EntityRenderCommand, RenderCommandResult, SetIt
 use bevy::render::render_resource::BindGroup;
 use std::marker::PhantomData;
 use std::ops::Deref;
+use shikataganai_common::ecs::resources::light::LightLevel;
 
 pub type DrawMeshFull = (
   SetItemPipeline,

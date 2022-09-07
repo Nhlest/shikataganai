@@ -2,6 +2,7 @@ use crate::ecs::components::blocks::block_id::BlockId;
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::ops::Deref;
+use crate::networking::BlockTransfer;
 
 pub mod block_id;
 pub mod regular_blocks;
@@ -49,6 +50,25 @@ pub struct Block {
   pub block: BlockId,
   pub meta: BlockMeta,
   pub entity: Entity,
+}
+
+impl Into<BlockTransfer> for Block {
+  fn into(self) -> BlockTransfer {
+    BlockTransfer {
+      block: self.block,
+      meta: self.meta
+    }
+  }
+}
+
+impl From<BlockTransfer> for Block {
+  fn from(block: BlockTransfer) -> Self {
+    Self {
+      block: block.block,
+      meta: block.meta,
+      entity: Entity::from_bits(0)
+    }
+  }
 }
 
 impl Block {

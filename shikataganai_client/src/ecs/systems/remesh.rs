@@ -3,19 +3,18 @@ use crate::ecs::components::blocks::DerefExt;
 use crate::ecs::plugins::rendering::mesh_pipeline::loader::GltfMeshStorageHandle;
 use crate::ecs::plugins::rendering::mesh_pipeline::systems::MeshMarker;
 use crate::ecs::plugins::rendering::voxel_pipeline::meshing::RemeshEvent;
-use crate::ecs::resources::chunk_map::BlockAccessor;
-use crate::ecs::resources::chunk_map::BlockAccessorStatic;
 use crate::GltfMeshStorage;
 use bevy::prelude::*;
 use itertools::Itertools;
 use num_traits::FloatConst;
+use shikataganai_common::ecs::resources::world::GameWorld;
 use shikataganai_common::util::array::{from_ddd, ArrayIndex};
 
 pub fn remesh_system_auxiliary(
   mut commands: Commands,
   mesh_query: Query<&Handle<Mesh>>,
   mut transform_query: Query<&mut Transform>,
-  mut block_accessor: BlockAccessorStatic,
+  mut game_world: ResMut<GameWorld>,
   mut remesh_events: EventReader<RemeshEvent>,
   storage: Res<GltfMeshStorageHandle>,
   mesh_storage_assets: Res<Assets<GltfMeshStorage>>,
@@ -25,17 +24,13 @@ pub fn remesh_system_auxiliary(
     .filter_map(|p| if let RemeshEvent::Remesh(d) = p { Some(d) } else { None })
     .unique()
   {
-    if !block_accessor.chunk_map.map.contains_key(ch) {
+    if !game_world.chunks.contains_key(ch) {
       continue;
     }
-    if block_accessor.chunk_map.map[ch].entity.is_none() {
-      continue;
-    }
-    let entity = block_accessor.chunk_map.map[ch].entity.unwrap();
-    let bounds = block_accessor.chunks.get(entity).unwrap().grid.bounds;
+    let bounds = game_world.chunks.get(ch).unwrap().grid.bounds;
     let mut i = bounds.0;
     loop {
-      let mut block = block_accessor.get_mut(i).unwrap();
+      let mut block = game_world.get_mut(i).unwrap();
       match block.deref_ext().render_info() {
         BlockRenderInfo::AsMesh(mesh) => {
           if block.entity == Entity::from_bits(0) {

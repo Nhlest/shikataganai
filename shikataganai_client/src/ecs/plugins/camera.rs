@@ -3,7 +3,6 @@ use crate::ecs::components::blocks::DerefExt;
 use crate::ecs::plugins::game::{in_game, ShikataganaiGameState};
 use crate::ecs::plugins::rendering::mesh_pipeline::loader::GltfMeshStorageHandle;
 use crate::ecs::plugins::settings::MouseSensitivity;
-use crate::ecs::resources::chunk_map::{BlockAccessor, BlockAccessorInternal, BlockAccessorSpawner};
 use crate::GltfMeshStorage;
 use bevy::input::mouse::MouseMotion;
 use bevy::prelude::*;
@@ -15,7 +14,9 @@ use bevy_rapier3d::prelude::*;
 use iyes_loopless::prelude::{ConditionSet, CurrentState, IntoConditionalSystem};
 use iyes_loopless::state::NextState;
 use num_traits::float::FloatConst;
+use shikataganai_common::ecs::resources::world::GameWorld;
 use shikataganai_common::util::array::{to_ddd, DDD};
+use crate::ecs::resources::world::ClientGameWorld;
 
 pub struct CameraPlugin;
 
@@ -130,7 +131,7 @@ fn spawn_camera(mut commands: Commands, mut local: Local<bool>) {
 }
 
 fn movement_input_system(
-  mut block_accessor: BlockAccessorSpawner,
+  mut game_world: ResMut<GameWorld>,
   mut player: Query<&mut FPSCamera>,
   player_position: Query<&Transform, With<Player>>,
   camera_transform: Query<&Transform, With<Camera>>,
@@ -197,7 +198,7 @@ fn movement_input_system(
   fps_camera.velocity *= 5.0;
   fps_camera.velocity.y = y;
 
-  if block_accessor.get_chunk_entity_or_queue(to_ddd(translation)).is_none() {
+  if game_world.get(to_ddd(translation)).is_none() {
     return;
   }
   fps_camera.velocity.y -= 19.8 * time.delta().as_secs_f32().clamp(0.0, 0.1);
@@ -236,7 +237,7 @@ impl ProximityColliderBundle {
 
 fn update_colliders(
   mut commands: Commands,
-  mut block_accessor: BlockAccessorSpawner,
+  mut game_world: ResMut<GameWorld>,
   proximity_colliders: Query<Entity, With<ProximityCollider>>,
   player_transform: Query<&Transform, With<Player>>,
   mut player_previous_position: ResMut<PlayerPreviousPosition>,
@@ -254,12 +255,11 @@ fn update_colliders(
         for iz in -3..=3 {
           let c = player_new_position_translation + Vec3::new(ix as f32, iy as f32, iz as f32);
           let c = to_ddd(c);
-          if let Some(block) = block_accessor.get_single(c) {
+          if let Some(block) = game_world.get(c) {
             if !block.passable() {
               match block.deref_ext().render_info() {
                 BlockRenderInfo::AsBlock(_) => {
-                  block_accessor
-                    .commands
+                  commands
                     .spawn_bundle(ProximityColliderBundle::proximity_collider(
                       Collider::cuboid(0.5, 0.5, 0.5),
                       Transform::from_xyz(c.0 as f32 + 0.5, c.1 as f32 + 0.5, c.2 as f32 + 0.5),
@@ -270,8 +270,7 @@ fn update_colliders(
                     let mesh = &mesh_assets_hash_map[&mesh];
                     let collider_mesh = mesh_assets.get(&mesh.collision.as_ref().unwrap()).unwrap();
                     let meta = block.meta.v as f32;
-                    block_accessor
-                      .commands
+                    commands
                       .spawn_bundle(ProximityColliderBundle::proximity_collider(
                         Collider::from_bevy_mesh(collider_mesh, &ComputedColliderShape::TriMesh).unwrap(), // TODO: cache this
                         Transform::from_xyz(c.0 as f32 + 0.5, c.1 as f32 + 0.5, c.2 as f32 + 0.5)

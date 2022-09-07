@@ -4,8 +4,6 @@ use crate::ecs::plugins::rendering::mesh_pipeline::bind_groups::{
 use crate::ecs::plugins::rendering::mesh_pipeline::draw_command::DrawMeshFull;
 use crate::ecs::plugins::rendering::mesh_pipeline::pipeline::{MeshPipeline, RenderTextures};
 use crate::ecs::plugins::rendering::voxel_pipeline::bind_groups::{LightTextureHandle, TextureHandle};
-use crate::ecs::resources::chunk_map::BlockAccessorReadOnly;
-use crate::ecs::resources::light::LightLevel;
 use bevy::core_pipeline::core_3d::Opaque3d;
 use bevy::prelude::*;
 use bevy::render::extract_component::ComponentUniforms;
@@ -18,6 +16,8 @@ use bevy::render::view::ViewUniforms;
 use bevy::render::Extract;
 use shikataganai_common::util::array::to_ddd;
 use wgpu::{BindGroupDescriptor, BindGroupEntry, BindingResource};
+use shikataganai_common::ecs::resources::light::LightLevel;
+use shikataganai_common::ecs::resources::world::GameWorld;
 
 #[derive(Component)]
 pub struct MeshBuffer(pub Buffer, pub Buffer, pub usize, pub IndexFormat);
@@ -33,11 +33,11 @@ pub struct PositionUniform {
 pub fn extract_meshes(
   mut commands: Commands,
   meshes: Extract<Query<(&Handle<Mesh>, &GlobalTransform, Option<&Handle<Image>>), With<MeshMarker>>>,
-  block_accessor: Extract<BlockAccessorReadOnly>,
+  game_world: Extract<Res<GameWorld>>,
   default_texture: Res<TextureHandle>,
 ) {
   for (mesh, transform, image) in meshes.iter() {
-    if let Some(light_level) = block_accessor.get_light_level(to_ddd(transform.translation())) {
+    if let Some(light_level) = game_world.get_light_level(to_ddd(transform.translation())) {
       commands
         .spawn()
         .insert(PositionUniform {

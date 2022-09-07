@@ -6,7 +6,6 @@ use crate::ecs::plugins::rendering::mesh_pipeline::systems::{
   extract_meshes, prepare_textures, queue_light_levels_bind_group, queue_light_texture_bind_group,
   queue_mesh_position_bind_group, queue_meshes, PositionUniform,
 };
-use crate::ecs::resources::light::LightLevel;
 use bevy::core_pipeline::core_3d::Opaque3d;
 use bevy::prelude::*;
 use bevy::reflect::TypeUuid;
@@ -17,6 +16,7 @@ use bevy::render::render_phase::AddRenderCommand;
 use bevy::render::render_resource::SpecializedRenderPipelines;
 use bevy::render::{RenderApp, RenderStage};
 use iyes_loopless::prelude::IntoConditionalSystem;
+use shikataganai_common::ecs::resources::light::LightLevel;
 
 pub mod bind_groups;
 pub mod draw_command;

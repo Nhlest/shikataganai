@@ -1,7 +1,5 @@
 use crate::ecs::components::block_or_item::BlockOrItem;
 use crate::ecs::plugins::camera::{FPSCamera, Recollide, Selection};
-use crate::ecs::plugins::rendering::voxel_pipeline::meshing::{RelightEvent, RelightType};
-use crate::ecs::resources::chunk_map::{BlockAccessor, BlockAccessorStatic};
 use crate::ecs::resources::player::{PlayerInventory, QuantifiedBlockOrItem, RerenderInventory, SelectedHotBar};
 use bevy::input::mouse::MouseWheel;
 use bevy::prelude::*;
@@ -12,6 +10,8 @@ use bincode::serialize;
 use num_traits::FloatConst;
 use shikataganai_common::ecs::components::blocks::block_id::BlockId;
 use shikataganai_common::ecs::components::blocks::{Block, BlockRotation};
+use shikataganai_common::ecs::resources::light::{LightLevel, RelightEvent};
+use shikataganai_common::ecs::resources::world::GameWorld;
 use shikataganai_common::networking::{ClientChannel, PlayerCommand};
 use shikataganai_common::util::array::DDD;
 
@@ -19,7 +19,7 @@ fn place_item_from_inventory(
   player_inventory: &mut PlayerInventory,
   item_idx: usize,
   coord: DDD,
-  block_accessor: &mut BlockAccessorStatic,
+  game_world: &mut GameWorld,
   rapier_context: &RapierContext,
   camera: &FPSCamera,
 ) -> Option<Block> {
@@ -28,7 +28,7 @@ fn place_item_from_inventory(
     quant,
   })) = player_inventory.items.get_mut(item_idx)
   {
-    if let Some([target_negative_block]) = block_accessor.get_many_mut([coord]) {
+    if let Some(target_negative_block) = game_world.get_mut(coord) {
       let shape = Collider::cuboid(0.5, 0.5, 0.5);
       let shape_pos = Vec3::new(coord.0 as f32 + 0.5, coord.1 as f32 + 0.5, coord.2 as f32 + 0.5);
       let shape_rot = Quat::IDENTITY;
@@ -81,10 +81,10 @@ fn pick_up_block(
   mut commands: Commands,
   player_inventory: &mut PlayerInventory,
   coord: DDD,
-  block_accessor: &mut BlockAccessorStatic,
+  game_world: &mut GameWorld,
   rerender_inventory: &mut ResMut<RerenderInventory>,
 ) {
-  if let Some([source_block]) = block_accessor.get_many_mut([coord]) {
+  if let Some(source_block) = game_world.get_mut(coord) {
     let block: BlockId = std::mem::replace(&mut source_block.block, BlockId::Air);
 
     // Check for the first slot in inventory containing required block or the next empty slot to insert that block into.
@@ -134,7 +134,7 @@ pub fn action_input(
   selection: Res<Option<Selection>>,
   mut player_inventory: ResMut<PlayerInventory>,
   hotbar_selection: Res<SelectedHotBar>,
-  mut block_accessor: BlockAccessorStatic,
+  mut game_world: ResMut<GameWorld>,
   mut relight_events: EventWriter<RelightEvent>,
   rapier_context: Res<RapierContext>,
   mut rerender_inventory: ResMut<RerenderInventory>,
@@ -151,7 +151,7 @@ pub fn action_input(
           commands,
           player_inventory.as_mut(),
           source,
-          &mut block_accessor,
+          &mut game_world,
           &mut rerender_inventory,
         );
 
@@ -160,19 +160,15 @@ pub fn action_input(
           serialize(&PlayerCommand::BlockRemove { location: source }).unwrap(),
         );
 
-        relight_events.send(RelightEvent::Relight(RelightType::BlockRemoved, source));
+        relight_events.send(RelightEvent::Relight(source));
         recollide.0 = true;
       }
       if mouse.just_pressed(MouseButton::Right) {
-        let block = player_inventory.items[hotbar_selection.0 as usize]
-          .as_ref()
-          .map(|x| x.block_or_item == BlockOrItem::Block(BlockId::LightEmitter))
-          .unwrap_or(false);
         let block_copy = place_item_from_inventory(
           player_inventory.as_mut(),
           hotbar_selection.0 as usize,
           target_negative,
-          &mut block_accessor,
+          &mut game_world,
           &rapier_context,
           &camera.single(),
         );
@@ -182,17 +178,15 @@ pub fn action_input(
             ClientChannel::ClientCommand.id(),
             serialize(&PlayerCommand::BlockPlace {
               location: target_negative,
-              block,
+              block_transfer: block.into(),
             })
             .unwrap(),
           );
         });
 
-        if block {
-          relight_events.send(RelightEvent::Relight(RelightType::LightSourceAdded, target_negative));
-        } else {
-          relight_events.send(RelightEvent::Relight(RelightType::BlockAdded, target_negative));
-        }
+        game_world.set_light_level(target_negative, LightLevel::dark());
+
+        relight_events.send(RelightEvent::Relight(target_negative));
         recollide.0 = true;
       }
     }

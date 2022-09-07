@@ -1,4 +1,4 @@
-use crate::ecs::components::blocks::Block;
+use crate::ecs::components::blocks::{Block, BlockMeta};
 use crate::util::array::{DD, DDD};
 use bevy::prelude::*;
 use bevy_renet::renet::{
@@ -6,6 +6,8 @@ use bevy_renet::renet::{
 };
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
+use crate::ecs::components::blocks::block_id::BlockId;
+use crate::ecs::resources::light::LightLevel;
 
 // -------------------------------------------------------------------------------------------
 // -- ###  #    #   ###   ####   #####  #     #  #####  #    #  #####        #     #  ##### --
@@ -19,11 +21,11 @@ use std::time::Duration;
 // -- ###  #    #   ###   #   #  #####  #     #  #####  #    #    #          #     #  ##### --
 // -------------------------------------------------------------------------------------------
 pub const PROTOCOL_ID: u64 = 42;
+pub const RELIABLE_CHANNEL_MAX_LENGTH: u64 = 10240;
 
 pub enum ServerChannel {
   GameEvent,
   GameFrame,
-  ChunkTransfer,
 }
 
 impl ServerChannel {
@@ -31,7 +33,6 @@ impl ServerChannel {
     match self {
       Self::GameEvent => 0,
       Self::GameFrame => 1,
-      Self::ChunkTransfer => 2,
     }
   }
 
@@ -40,8 +41,8 @@ impl ServerChannel {
       ReliableChannelConfig {
         channel_id: Self::GameEvent.id(),
         message_resend_time: Duration::ZERO,
-        max_message_size: 10000,
-        packet_budget: 20000,
+        max_message_size: RELIABLE_CHANNEL_MAX_LENGTH,
+        packet_budget: RELIABLE_CHANNEL_MAX_LENGTH * 2,
         ..Default::default()
       }
       .into(),
@@ -50,21 +51,6 @@ impl ServerChannel {
         message_send_queue_size: 2048,
         message_receive_queue_size: 2048,
         ..Default::default()
-      }
-      .into(),
-      BlockChannelConfig {
-        channel_id: Self::ChunkTransfer.id(),
-        // max_message_size: 1024*1024,
-        // slice_size: 2048,
-        // sent_packet_buffer_size: 1000,
-        // message_send_queue_size: 10000,
-        // resend_time: Duration::from_millis(2000),
-        // packet_budget: 10240,
-        ..Default::default() // slice_size: 400,
-                             // sent_packet_buffer_size: 256,
-                             // packet_budget: 8 * 1024,
-                             // max_message_size: 256 * 1024,
-                             // message_send_queue_size: 8,
       }
       .into(),
     ]
@@ -94,10 +80,13 @@ pub enum ServerMessage {
   },
   BlockPlace {
     location: DDD,
-    block: Block,
+    block_transfer: BlockTransfer,
   },
   ChunkData {
     chunk: Vec<u8>,
+  },
+  Relight {
+    relights: Vec<(DDD, LightLevel)>,
   },
 }
 
@@ -150,10 +139,16 @@ pub fn client_connection_config() -> RenetConnectionConfig {
   }
 }
 
+#[derive(Debug, Serialize, Deserialize, Copy, Clone)]
+pub struct BlockTransfer {
+  pub block: BlockId,
+  pub meta: BlockMeta,
+}
+
 #[derive(Debug, Serialize, Deserialize, Component)]
 pub enum PlayerCommand {
   PlayerMove { translation: TranslationRotation },
   BlockRemove { location: DDD },
-  BlockPlace { location: DDD, block: Block },
-  RequestChunk { coord: DD },
+  BlockPlace { location: DDD, block_transfer: BlockTransfer },
+  RequestChunk { chunk_coord: DD },
 }

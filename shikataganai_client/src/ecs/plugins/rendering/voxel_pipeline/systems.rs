@@ -8,7 +8,6 @@ use crate::ecs::plugins::rendering::voxel_pipeline::draw_command::DrawVoxelsFull
 use crate::ecs::plugins::rendering::voxel_pipeline::meshing::{ChunkMeshBuffer, RemeshEvent, SingleSide};
 use crate::ecs::plugins::rendering::voxel_pipeline::pipeline::VoxelPipeline;
 use crate::ecs::plugins::settings::AmbientOcclusion;
-use crate::ecs::resources::chunk_map::BlockAccessorReadOnly;
 use bevy::core_pipeline::core_3d::Opaque3d;
 use bevy::prelude::*;
 use bevy::render::render_asset::RenderAssets;
@@ -23,6 +22,7 @@ use shikataganai_common::ecs::components::blocks::Block;
 use shikataganai_common::util::array::{sub_ddd, ArrayIndex, ImmediateNeighbours, DD};
 use wgpu::util::BufferInitDescriptor;
 use wgpu::{BindGroupDescriptor, BindGroupEntry, BindingResource};
+use shikataganai_common::ecs::resources::world::GameWorld;
 
 pub struct ExtractedBlocks {
   pub blocks: HashMap<DD, BufferVec<SingleSide>>,
@@ -36,7 +36,7 @@ impl Default for ExtractedBlocks {
 
 pub fn extract_chunks(
   mut commands: Commands,
-  block_accessor: Extract<BlockAccessorReadOnly>,
+  game_world: Extract<Res<GameWorld>>,
   selection: Extract<Res<Option<Selection>>>,
   mut remesh_events: Extract<EventReader<RemeshEvent>>,
   ambient_occlusion: Extract<Res<AmbientOcclusion>>,
@@ -50,10 +50,7 @@ pub fn extract_chunks(
     .filter_map(|p| if let RemeshEvent::Remesh(d) = p { Some(d) } else { None })
     .unique()
   {
-    if !block_accessor.chunk_map.map.contains_key(ch) {
-      continue;
-    }
-    if block_accessor.chunk_map.map[ch].entity.is_none() {
+    if !game_world.chunks.contains_key(&ch) {
       continue;
     }
     updated.push(*ch);
@@ -61,18 +58,17 @@ pub fn extract_chunks(
       .blocks
       .insert(*ch, BufferVec::new(BufferUsages::VERTEX));
     let extracted_blocks = extracted_blocks.blocks.get_mut(ch).unwrap();
-    let entity = block_accessor.chunk_map.map[ch].entity.unwrap();
-    let bounds = block_accessor.chunks.get(entity).unwrap().grid.bounds;
+    let bounds = game_world.chunks[ch].grid.bounds;
     let mut i = bounds.0;
     loop {
-      let block: Block = block_accessor.get_single(i).unwrap().clone();
+      let block: Block = game_world.get(i).unwrap().clone();
       match block.deref_ext().render_info() {
         BlockRenderInfo::Nothing => {}
         BlockRenderInfo::AsBlock(block_sprites) => {
           if block.visible() {
             for neighbour in i.immediate_neighbours() {
-              if block_accessor.get_single(neighbour).map_or(true, |b| !b.visible()) {
-                let light_level = block_accessor.get_light_level(neighbour);
+              if game_world.get(neighbour).map_or(true, |b| !b.visible()) {
+                let light_level = game_world.get_light_level(neighbour);
                 let lighting = match light_level {
                   Some(light_level) => (light_level.heaven, light_level.hearth),
                   None => (0, 0),
@@ -83,7 +79,7 @@ pub fn extract_chunks(
                   sub_ddd(neighbour, i),
                   block_sprites,
                   lighting,
-                  &block_accessor,
+                  &game_world,
                   ambient_occlusion.0,
                 ));
               }

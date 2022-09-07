@@ -15,15 +15,15 @@ use shikataganai_common::networking::{
 use std::io::Read;
 use std::net::UdpSocket;
 use std::time::SystemTime;
+use shikataganai_common::ecs::resources::light::RelightEvent;
+use shikataganai_common::ecs::resources::world::GameWorld;
 
 use crate::ecs::plugins::camera::{FPSCamera, Player};
 use crate::ecs::plugins::game::in_game;
 use crate::ecs::plugins::rendering::mesh_pipeline::loader::{get_mesh_from_storage, GltfMeshStorageHandle, Meshes};
 use crate::ecs::plugins::rendering::mesh_pipeline::systems::MeshMarker;
 use crate::ecs::plugins::rendering::mesh_pipeline::AmongerTextureHandle;
-use crate::ecs::plugins::rendering::voxel_pipeline::meshing::{RelightEvent, RelightType, RemeshEvent};
-use crate::ecs::resources::chunk_map::BlockAccessorStatic;
-use crate::ecs::resources::chunk_map::{BlockAccessor, ChunkMap};
+use crate::ecs::plugins::rendering::voxel_pipeline::meshing::{RemeshEvent};
 use crate::GltfMeshStorage;
 
 #[derive(Default)]
@@ -72,6 +72,13 @@ fn panic_handler(mut events: EventReader<RenetError>) {
   for i in events.iter() {
     println!("{}", i);
   }
+}
+
+pub fn send_message(client: &mut RenetClient, message: PlayerCommand) {
+  client.send_message(
+    ClientChannel::ClientCommand.id(),
+    serialize(&message).unwrap(),
+  );
 }
 
 fn spawn_amonger(
@@ -147,7 +154,7 @@ fn receive_system(
   mesh_storage: Res<Assets<GltfMeshStorage>>,
   mesh_storage_handle: Res<GltfMeshStorageHandle>,
   amonger_texture: Res<AmongerTextureHandle>,
-  mut block_accessor: BlockAccessorStatic,
+  mut game_world: ResMut<GameWorld>,
   mut relight: EventWriter<RelightEvent>,
   time: Res<Time>,
   mut remesh: EventWriter<RemeshEvent>,
@@ -180,26 +187,35 @@ fn receive_system(
         commands.entity(client_entity).despawn_recursive();
       }
       ServerMessage::BlockRemove { location } => {
-        block_accessor.get_mut(location).map(|b| b.block = BlockId::Air);
-        relight.send(RelightEvent::Relight(RelightType::BlockRemoved, location));
+        game_world.get_mut(location).map(|b| b.block = BlockId::Air);
+        remesh.send(RemeshEvent::Remesh(GameWorld::get_chunk_coord(location)));
+        // relight.send(RelightEvent::Relight(location));
       }
-      ServerMessage::BlockPlace { location, block } => {
-        block_accessor.get_mut(location).map(|b| *b = block);
-        relight.send(RelightEvent::Relight(RelightType::BlockAdded, location));
+      ServerMessage::BlockPlace { location, block_transfer  } => {
+        game_world.get_mut(location).map(|b| *b = block_transfer.into());
+        remesh.send(RemeshEvent::Remesh(GameWorld::get_chunk_coord(location)));
+        // relight.send(RelightEvent::Relight(location));
       }
       ServerMessage::ChunkData { chunk } => {
         let mut decoder = ZlibDecoder::new(chunk.as_slice());
         let mut message = Vec::new();
         decoder.read_to_end(&mut message).unwrap();
         let chunk: Chunk = deserialize(&message).unwrap();
-        let dd = ChunkMap::get_chunk_coord(chunk.grid.bounds.0);
-        let chunk_entity = commands.spawn().insert(chunk).id();
-        block_accessor.chunk_map.map.get_mut(&dd).unwrap().entity = Some(chunk_entity);
+        let chunk_coord = GameWorld::get_chunk_coord(chunk.grid.bounds.0);
+        // let chunk_entity = commands.spawn().insert(chunk).id();
+        game_world.chunks.insert(chunk_coord, chunk);
+        game_world.remove_from_generating(chunk_coord);
 
-        for i in dd.0 - 1..=dd.0 + 1 {
-          for j in dd.1 - 1..=dd.1 + 1 {
+        for i in chunk_coord.0 - 1..=chunk_coord.0 + 1 {
+          for j in chunk_coord.1 - 1..=chunk_coord.1 + 1 {
             remesh.send(RemeshEvent::Remesh((i, j)));
           }
+        }
+      }
+      ServerMessage::Relight { relights } => {
+        for (coord, light) in relights {
+          game_world.set_light_level(coord, light);
+          relight.send(RelightEvent::Relight(coord));
         }
       }
     }

@@ -1,3 +1,4 @@
+use std::io::Write;
 use crate::ecs::systems::chunkgen::{collect_async_chunks, ChunkTask};
 use bevy::app::ScheduleRunnerSettings;
 use bevy::prelude::*;
@@ -13,6 +14,14 @@ use shikataganai_common::networking::{
 };
 use std::net::UdpSocket;
 use std::time::{Duration, SystemTime};
+use flate2::Compression;
+use flate2::write::ZlibEncoder;
+use shikataganai_common::ecs::components::blocks::block_id::BlockId;
+use shikataganai_common::ecs::components::blocks::BlockMeta;
+use shikataganai_common::ecs::resources::light::{LightLevel, relight_helper, RelightEvent};
+use crate::ecs::resources::world::{send_chunk_data, ServerGameWorld};
+use shikataganai_common::ecs::resources::world::GameWorld;
+use shikataganai_common::util::array::{DD, DDD, ImmediateNeighbours};
 
 pub struct ShikataganaiServerPlugin;
 
@@ -54,6 +63,8 @@ impl Plugin for ShikataganaiServerPlugin {
     )
     .unwrap();
 
+    app.add_event::<RelightEvent>();
+
     app
       // .add_stage_after(
       //   CoreStage::PostUpdate,
@@ -68,8 +79,22 @@ impl Plugin for ShikataganaiServerPlugin {
       .add_system(handle_events)
       .add_system(sync_frame)
       .add_system(collect_async_chunks)
-      .add_system(panic_handler);
+      .add_system(panic_handler)
+      .add_system_to_stage(CoreStage::PostUpdate, relight_system);
   }
+}
+
+pub fn relight_system(
+  mut relight: EventReader<RelightEvent>,
+  mut game_world: ResMut<GameWorld>,
+  mut server: ResMut<RenetServer>
+) {
+  let mut relights = vec![];
+  for coord in relight_helper(&mut relight, game_world.as_mut())
+    .iter() {
+    relights.push((*coord, game_world.get_light_level(*coord).unwrap()))
+  }
+  server.broadcast_message(ServerChannel::GameEvent.id(), serialize(&ServerMessage::Relight { relights }).unwrap())
 }
 
 pub fn panic_handler(mut events: EventReader<RenetError>) {
@@ -82,8 +107,10 @@ pub fn handle_events(
   mut commands: Commands,
   mut server: ResMut<RenetServer>,
   mut server_events: EventReader<ServerEvent>,
+  mut relight: EventWriter<RelightEvent>,
   mut player_entities: ResMut<PlayerEntities>,
   mut query: Query<(&mut Transform, &mut PolarRotation)>,
+  mut world: ResMut<GameWorld>
 ) {
   for event in server_events.iter() {
     match event {
@@ -136,40 +163,38 @@ pub fn handle_events(
           *query.get_mut(player_entity).unwrap().1 = translation.1;
         }
         PlayerCommand::BlockRemove { location } => {
-          for broadcast_client in server.clients_id().into_iter() {
-            if client != broadcast_client {
-              server.send_message(
-                broadcast_client,
-                ServerChannel::GameEvent.id(),
-                serialize(&ServerMessage::BlockRemove { location }).unwrap(),
-              );
-            }
+          if let Some(block) = world.get_mut(location) {
+            *block = BlockId::Air.into();
+            relight.send(RelightEvent::Relight(location));
+            broadcast_but(server.as_mut(), client, ServerMessage::BlockRemove { location })
           }
         }
-        PlayerCommand::BlockPlace { location, block } => {
-          for broadcast_client in server.clients_id().into_iter() {
-            if client != broadcast_client {
-              server.send_message(
-                broadcast_client,
-                ServerChannel::GameEvent.id(),
-                serialize(&ServerMessage::BlockPlace {
-                  location,
-                  block: block.clone(),
-                })
-                .unwrap(),
-              );
-            }
+        PlayerCommand::BlockPlace { location, block_transfer } => {
+          if let Some(block) = world.get_mut(location) {
+            *block = block_transfer.into();
+            relight.send(RelightEvent::Relight(location));
+            world.set_light_level(location, LightLevel::dark());
+            broadcast_but(server.as_mut(), client, ServerMessage::BlockPlace { location, block_transfer })
           }
         }
-        PlayerCommand::RequestChunk { coord } => {
-          let dispatcher = AsyncComputeTaskPool::get();
-          commands.spawn().insert(ChunkTask {
-            task: dispatcher.spawn(Chunk::generate(coord)),
-            coord,
-            client,
-          });
+        PlayerCommand::RequestChunk { chunk_coord: coord } => {
+          if let Some(chunk) = world.get_chunk_or_spawn(coord, &mut commands, client) {
+            send_chunk_data(server.as_mut(), chunk, client);
+          }
         }
       }
+    }
+  }
+}
+
+pub fn broadcast_but(server: &mut RenetServer, client_exclude: u64, message: ServerMessage) {
+  for broadcast_client in server.clients_id().into_iter() {
+    if client_exclude != broadcast_client {
+      server.send_message(
+        broadcast_client,
+        ServerChannel::GameEvent.id(),
+        serialize(&message).unwrap(),
+      );
     }
   }
 }
@@ -191,4 +216,14 @@ pub fn sync_frame(
   };
   tick.0 += 1;
   server.broadcast_message(ServerChannel::GameFrame.id(), serialize(&frame).unwrap())
+}
+
+pub fn get_chunk_coord(mut coord: DDD) -> DD {
+  if coord.0 < 0 {
+    coord.0 -= 15;
+  }
+  if coord.2 < 0 {
+    coord.2 -= 15;
+  }
+  (coord.0 / 16, coord.2 / 16)
 }
