@@ -15,10 +15,12 @@ use shikataganai_common::networking::{
 use std::io::Read;
 use std::net::UdpSocket;
 use std::time::SystemTime;
+use shikataganai_common::ecs::components::blocks::Block;
 use shikataganai_common::ecs::resources::light::RelightEvent;
 use shikataganai_common::ecs::resources::world::GameWorld;
 
-use crate::ecs::plugins::camera::{FPSCamera, Player};
+use crate::ecs::components::blocks::{BlockTraitExt, DerefExt};
+use crate::ecs::plugins::camera::{FPSCamera, Player, Recollide};
 use crate::ecs::plugins::game::in_game;
 use crate::ecs::plugins::rendering::mesh_pipeline::loader::{get_mesh_from_storage, GltfMeshStorageHandle, Meshes};
 use crate::ecs::plugins::rendering::mesh_pipeline::systems::MeshMarker;
@@ -158,6 +160,7 @@ fn receive_system(
   mut relight: EventWriter<RelightEvent>,
   time: Res<Time>,
   mut remesh: EventWriter<RemeshEvent>,
+  mut recollide: ResMut<Recollide>
 ) {
   let client_id = client.client_id();
 
@@ -187,14 +190,20 @@ fn receive_system(
         commands.entity(client_entity).despawn_recursive();
       }
       ServerMessage::BlockRemove { location } => {
-        game_world.get_mut(location).map(|b| b.block = BlockId::Air);
+        game_world.get_mut(location).map(|b| {
+          b.block = BlockId::Air;
+          if b.entity != Entity::from_bits(0) {
+            commands.entity(b.entity).despawn_recursive();
+            b.entity = Entity::from_bits(0);
+            recollide.0 = true;
+          }
+        });
         remesh.send(RemeshEvent::Remesh(GameWorld::get_chunk_coord(location)));
-        // relight.send(RelightEvent::Relight(location));
       }
       ServerMessage::BlockPlace { location, block_transfer  } => {
         game_world.get_mut(location).map(|b| *b = block_transfer.into());
         remesh.send(RemeshEvent::Remesh(GameWorld::get_chunk_coord(location)));
-        // relight.send(RelightEvent::Relight(location));
+        recollide.0 = true;
       }
       ServerMessage::ChunkData { chunk } => {
         let mut decoder = ZlibDecoder::new(chunk.as_slice());
@@ -202,7 +211,6 @@ fn receive_system(
         decoder.read_to_end(&mut message).unwrap();
         let chunk: Chunk = deserialize(&message).unwrap();
         let chunk_coord = GameWorld::get_chunk_coord(chunk.grid.bounds.0);
-        // let chunk_entity = commands.spawn().insert(chunk).id();
         game_world.chunks.insert(chunk_coord, chunk);
         game_world.remove_from_generating(chunk_coord);
 

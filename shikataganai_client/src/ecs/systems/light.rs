@@ -5,7 +5,7 @@ use bevy::utils::HashSet;
 use itertools::Itertools;
 use shikataganai_common::ecs::resources::light::{relight_helper, RelightEvent};
 use shikataganai_common::ecs::resources::world::GameWorld;
-use shikataganai_common::util::array::ImmediateNeighbours;
+use shikataganai_common::util::array::{FlatFullNeighbours, ImmediateNeighbours};
 
 pub fn religh_system(
   mut relight: EventReader<RelightEvent>,
@@ -14,7 +14,7 @@ pub fn religh_system(
 ) {
   for coord in relight_helper(&mut relight, game_world.as_mut())
     .iter() {
-    coord.immediate_neighbours().map(|coord|GameWorld::get_chunk_coord(coord)).unique().for_each(|chunk_coord| remesh.send(RemeshEvent::Remesh(chunk_coord)));
+    coord.flat_full_neighbours().map(|coord|GameWorld::get_chunk_coord(coord)).unique().for_each(|chunk_coord| remesh.send(RemeshEvent::Remesh(chunk_coord)));
   }
 }
 //

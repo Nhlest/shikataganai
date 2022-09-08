@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use crate::ecs::components::block_or_item::BlockOrItem;
 use crate::ecs::plugins::camera::{FPSCamera, Recollide, Selection};
 use crate::ecs::resources::player::{PlayerInventory, QuantifiedBlockOrItem, RerenderInventory, SelectedHotBar};
@@ -7,6 +8,7 @@ use bevy_rapier3d::pipeline::QueryFilter;
 use bevy_rapier3d::prelude::{Collider, InteractionGroups, RapierContext};
 use bevy_renet::renet::RenetClient;
 use bincode::serialize;
+use itertools::Itertools;
 use num_traits::FloatConst;
 use shikataganai_common::ecs::components::blocks::block_id::BlockId;
 use shikataganai_common::ecs::components::blocks::{Block, BlockRotation};
@@ -96,6 +98,19 @@ fn pick_up_block(
           .as_ref()
           .map(|item| item.block_or_item == BlockOrItem::Block(block))
           .unwrap_or(true)
+      })
+      .sorted_by(|slot1, slot2| {
+        if let Some(slot1) = slot1 && let Some(slot2) = slot2 {
+          if slot1.block_or_item == BlockOrItem::Block(block) {
+            Ordering::Greater
+          } else {
+            Ordering::Less
+          }
+        } else if slot1.is_some() {
+          Ordering::Less
+        } else {
+          Ordering::Greater
+        }
       })
       .next()
       .map(|slot| {

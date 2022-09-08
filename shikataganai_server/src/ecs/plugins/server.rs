@@ -22,6 +22,7 @@ use shikataganai_common::ecs::resources::light::{LightLevel, relight_helper, Rel
 use crate::ecs::resources::world::{send_chunk_data, ServerGameWorld};
 use shikataganai_common::ecs::resources::world::GameWorld;
 use shikataganai_common::util::array::{DD, DDD, ImmediateNeighbours};
+use crate::ecs::systems::light::relight_system;
 
 pub struct ShikataganaiServerPlugin;
 
@@ -82,19 +83,6 @@ impl Plugin for ShikataganaiServerPlugin {
       .add_system(panic_handler)
       .add_system_to_stage(CoreStage::PostUpdate, relight_system);
   }
-}
-
-pub fn relight_system(
-  mut relight: EventReader<RelightEvent>,
-  mut game_world: ResMut<GameWorld>,
-  mut server: ResMut<RenetServer>
-) {
-  let mut relights = vec![];
-  for coord in relight_helper(&mut relight, game_world.as_mut())
-    .iter() {
-    relights.push((*coord, game_world.get_light_level(*coord).unwrap()))
-  }
-  server.broadcast_message(ServerChannel::GameEvent.id(), serialize(&ServerMessage::Relight { relights }).unwrap())
 }
 
 pub fn panic_handler(mut events: EventReader<RenetError>) {

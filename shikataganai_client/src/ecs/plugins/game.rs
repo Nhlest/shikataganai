@@ -104,7 +104,7 @@ impl Plugin for GamePlugin {
       // .with_system(recalculate_light_map)
       .into();
     let on_game_simulation_continuous_post_update = ConditionSet::new()
-      .run_in_state(ShikataganaiGameState::Simulation)
+      .run_if(in_game)
       .with_system(remesh_system_auxiliary)
       .into();
     let on_pause = ConditionSet::new()
