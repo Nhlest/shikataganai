@@ -1,4 +1,3 @@
-use crate::ecs::components::block_or_item::BlockOrItem;
 use crate::ecs::plugins::game::{in_game, in_game_extract};
 use crate::ecs::plugins::imgui::{IMGUI_PASS, TEXTURE_NODE_INPUT_SLOT};
 use crate::ecs::plugins::rendering::inventory_pipeline::pipeline::InventoryNode;
@@ -15,6 +14,7 @@ use bevy::render::{RenderApp, RenderStage};
 use bevy::utils::hashbrown::HashMap;
 use iyes_loopless::prelude::IntoConditionalSystem;
 use std::ops::{Deref, DerefMut};
+use shikataganai_common::ecs::components::blocks::BlockOrItem;
 
 pub mod node;
 pub mod pipeline;

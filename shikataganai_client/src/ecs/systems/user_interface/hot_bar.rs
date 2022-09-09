@@ -1,9 +1,10 @@
 use crate::ecs::plugins::imgui::GUITextureAtlas;
 use crate::ecs::plugins::rendering::inventory_pipeline::ExtractedItems;
-use crate::ecs::resources::player::{PlayerInventory, QuantifiedBlockOrItem, SelectedHotBar};
+use crate::ecs::resources::player::{PlayerInventory, SelectedHotBar};
 use crate::ImguiState;
 use bevy::prelude::*;
 use imgui::{Condition, StyleVar};
+use shikataganai_common::ecs::components::blocks::QuantifiedBlockOrItem;
 
 pub fn hot_bar(
   imgui: NonSendMut<ImguiState>,

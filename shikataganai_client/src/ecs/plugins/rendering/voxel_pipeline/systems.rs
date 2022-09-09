@@ -87,6 +87,7 @@ pub fn extract_chunks(
           }
         }
         BlockRenderInfo::AsMesh(_) => {}
+        BlockRenderInfo::AsSkeleton(_) => {}
       }
       i = match i.next(&bounds) {
         None => break,

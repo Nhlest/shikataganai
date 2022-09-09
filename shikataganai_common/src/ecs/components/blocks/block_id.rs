@@ -12,6 +12,7 @@ pub enum BlockId {
   Cobble,
   Stair,
   LightEmitter,
+  Chest
 }
 
 impl Into<Block> for BlockId {
@@ -24,13 +25,14 @@ impl Into<Block> for BlockId {
   }
 }
 
-static BLOCK_TRAITS: [&(dyn BlockTrait + Sync); 6] = [
+static BLOCK_TRAITS: [&(dyn BlockTrait + Sync); 7] = [
   &regular_blocks::Air,
   &regular_blocks::Dirt,
   &regular_blocks::Grass,
   &regular_blocks::Cobblestone,
   &regular_meshes::Stair,
   &regular_blocks::LightEmitter,
+  &regular_meshes::Chest
 ];
 
 impl Deref for BlockId {

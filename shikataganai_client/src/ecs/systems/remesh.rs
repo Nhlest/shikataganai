@@ -1,10 +1,11 @@
-use crate::ecs::components::blocks::BlockRenderInfo;
+use crate::ecs::components::blocks::{BlockRenderInfo, ChestSkeleton, Skeleton, SkeletonAnimationFrame};
 use crate::ecs::components::blocks::DerefExt;
 use crate::ecs::plugins::rendering::mesh_pipeline::loader::GltfMeshStorageHandle;
 use crate::ecs::plugins::rendering::mesh_pipeline::systems::MeshMarker;
 use crate::ecs::plugins::rendering::voxel_pipeline::meshing::RemeshEvent;
 use crate::GltfMeshStorage;
 use bevy::prelude::*;
+use bevy::utils::hashbrown::HashMap;
 use itertools::Itertools;
 use num_traits::FloatConst;
 use shikataganai_common::ecs::resources::world::GameWorld;
@@ -13,6 +14,7 @@ use shikataganai_common::util::array::{from_ddd, ArrayIndex};
 pub fn remesh_system_auxiliary(
   mut commands: Commands,
   mesh_query: Query<&Handle<Mesh>>,
+  skeleton_query: Query<&Skeleton>,
   mut transform_query: Query<&mut Transform>,
   mut game_world: ResMut<GameWorld>,
   mut remesh_events: EventReader<RemeshEvent>,
@@ -66,6 +68,52 @@ pub fn remesh_system_auxiliary(
               }
             }
           }
+        }
+        BlockRenderInfo::AsSkeleton(skeleton) => {
+          let rotation = block.meta.get_rotation();
+          if block.entity == Entity::from_bits(0) {
+            Some(commands.spawn())
+          } else {
+            if skeleton_query.get(block.entity).is_ok() {
+              transform_query.get_mut(block.entity).unwrap().translation = from_ddd(i) + Vec3::new(0.5, 0.5, 0.5);
+              None
+            } else {
+              Some(commands.entity(block.entity))
+            }
+          }.map(|mut commands| {
+            if let Some(mesh_assets_hash_map) = mesh_storage_assets.get(&storage.0) {
+              let mut hash_map = HashMap::new();
+              let id = commands
+                .insert(
+                  Transform::from_translation(from_ddd(i) + Vec3::new(0.5, 0.5, 0.5))
+                    .with_rotation(Quat::from_rotation_y(f32::PI() / 2.0 * rotation as i32 as f32))
+                )
+                .insert(GlobalTransform::default())
+                .with_children(|c| {
+                  for (i, mesh) in skeleton.to_skeleton_def().skeleton {
+                    let mesh = &mesh_assets_hash_map[&mesh];
+                    let render_mesh = mesh.render.as_ref().unwrap();
+                    let transform = if ChestSkeleton::ChestLid as u16 == i {
+                      Transform::from_xyz(7.0/16.0, 2.0/16.0, 0.0)
+                    } else {
+                      Transform::identity()
+                    };
+                    let id = c
+                      .spawn()
+                      .insert(MeshMarker)
+                      .insert(render_mesh.clone())
+                      .insert(transform)
+                      .insert(GlobalTransform::default())
+                      .id();
+                    hash_map.insert(i, id);
+                  }
+                })
+                .insert(SkeletonAnimationFrame(0.0))
+                .insert(Skeleton { skeleton: hash_map })
+                .id();
+              block.entity = id;
+            }
+          });
         }
         _ => {}
       }

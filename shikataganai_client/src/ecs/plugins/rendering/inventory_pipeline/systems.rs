@@ -1,7 +1,8 @@
 use crate::ecs::plugins::rendering::inventory_pipeline::{ExtractedItems, INVENTORY_OUTPUT_TEXTURE_WIDTH};
-use crate::ecs::resources::player::{PlayerInventory, QuantifiedBlockOrItem, RerenderInventory};
+use crate::ecs::resources::player::{PlayerInventory, RerenderInventory};
 use bevy::prelude::*;
 use bevy::render::Extract;
+use shikataganai_common::ecs::components::blocks::QuantifiedBlockOrItem;
 
 pub fn prepare_extracted_inventory(
   player_inventory: Res<PlayerInventory>,

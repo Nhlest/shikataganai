@@ -88,6 +88,11 @@ pub enum ServerMessage {
   Relight {
     relights: Vec<(DDD, LightLevel)>,
   },
+  // TODO: figure out rare cases when these commands happen right after client updates block state (chops down / puts a new one)
+  // AddFunctor {
+  //   location: DDD,
+  //   functor: Functor
+  // }
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]

@@ -12,7 +12,9 @@ use bevy_rapier3d::plugin::RapierConfiguration;
 use iyes_loopless::prelude::*;
 use std::time::Duration;
 use bevy_renet::renet::RenetClient;
+use num_traits::FloatConst;
 use shikataganai_common::ecs::resources::world::GameWorld;
+use crate::ecs::components::blocks::{ChestSkeleton, Skeleton, SkeletonAnimationFrame};
 use crate::ecs::resources::world::ClientGameWorld;
 use crate::ecs::systems::light::religh_system;
 
@@ -83,6 +85,18 @@ pub fn extract_loopless_state(mut commands: Commands, state: Extract<Res<Current
   commands.insert_resource(state.clone());
 }
 
+pub fn animate_chests(
+  mut transform_query: Query<&mut Transform>,
+  mut skeletons: Query<(&mut SkeletonAnimationFrame, &Skeleton)>,
+  time: Res<Time>
+) {
+  for (mut animation, skeleton) in skeletons.iter_mut() {
+    let entity = skeleton.skeleton.get(&(ChestSkeleton::ChestLid as u16)).unwrap();
+    transform_query.get_mut(*entity).unwrap().rotation = Quat::from_rotation_z(animation.0.sin() * f32::FRAC_PI_4() - f32::FRAC_PI_4());
+    animation.0 += 1.5 * time.delta().as_secs_f32();
+  }
+}
+
 impl Plugin for GamePlugin {
   fn build(&self, app: &mut App) {
     let on_main_menu = ConditionSet::new()
@@ -101,6 +115,7 @@ impl Plugin for GamePlugin {
       .with_system(action_input)
       .with_system(hot_bar_scroll_input)
       .with_system(hot_bar)
+      .with_system(animate_chests)
       // .with_system(recalculate_light_map)
       .into();
     let on_game_simulation_continuous_post_update = ConditionSet::new()

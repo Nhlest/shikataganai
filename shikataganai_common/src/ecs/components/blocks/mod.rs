@@ -2,7 +2,9 @@ use crate::ecs::components::blocks::block_id::BlockId;
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::ops::Deref;
+use crate::ecs::components::item::ItemId;
 use crate::networking::BlockTransfer;
+use crate::util::array::DDD;
 
 pub mod block_id;
 pub mod regular_blocks;
@@ -15,6 +17,8 @@ pub trait BlockTrait {
   fn passable(&self) -> bool {
     false
   }
+  fn spawn_functors(&self, entity: Entity, location: DDD, commands: &mut Commands) {}
+  fn spawn_or_add_functors(&self, block: &mut Block, location: DDD, commands: &mut Commands) {}
   // fn render_info(&self) -> BlockRenderInfo;
 }
 
@@ -88,4 +92,15 @@ impl Deref for Block {
   fn deref(&self) -> &Self::Target {
     self.block.deref()
   }
+}
+
+#[derive(Component, Copy, Clone, Debug, Eq, Hash, PartialEq)]
+pub enum BlockOrItem {
+  Block(BlockId),
+  Item(ItemId),
+}
+
+pub struct QuantifiedBlockOrItem {
+  pub block_or_item: BlockOrItem,
+  pub quant: u32,
 }

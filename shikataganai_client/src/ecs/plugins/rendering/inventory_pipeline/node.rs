@@ -1,4 +1,3 @@
-use crate::ecs::components::block_or_item::BlockOrItem;
 use crate::ecs::components::blocks::{BlockRenderInfo, DerefExt};
 use crate::ecs::plugins::rendering::inventory_pipeline::pipeline::InventoryNode;
 use crate::ecs::plugins::rendering::inventory_pipeline::{
@@ -19,6 +18,7 @@ use num_traits::FloatConst;
 use std::collections::HashMap;
 use wgpu::util::BufferInitDescriptor;
 use wgpu::IndexFormat;
+use shikataganai_common::ecs::components::blocks::BlockOrItem;
 
 const HEX_CC: [f32; 2] = [0.000000, -0.000000];
 const HEX_NN: [f32; 2] = [0.000000, -1.000000];
@@ -129,6 +129,13 @@ impl Node for InventoryNode {
                 meshes_to_render.push((mesh_handle.clone(), [x, y]));
               }
               BlockRenderInfo::Nothing => {}
+              BlockRenderInfo::AsSkeleton(skeleton) => {
+                println!("KEK");
+                for (_, mesh) in skeleton.to_skeleton_def().skeleton {
+                  let mesh_handle = &mesh_storage[&mesh].render.as_ref().unwrap();
+                  meshes_to_render.push((mesh_handle.clone(), [x, y]));
+                }
+              }
             }
           }
           BlockOrItem::Item(_) => {}

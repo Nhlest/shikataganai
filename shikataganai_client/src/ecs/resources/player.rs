@@ -1,16 +1,11 @@
-use crate::ecs::components::block_or_item::BlockOrItem;
 use shikataganai_common::ecs::components::blocks::block_id::BlockId;
+use shikataganai_common::ecs::components::blocks::{BlockOrItem, QuantifiedBlockOrItem};
 
 #[derive(Default)]
 pub struct SelectedHotBar(pub i32);
 
 #[derive(Default)]
 pub struct RerenderInventory(pub bool);
-
-pub struct QuantifiedBlockOrItem {
-  pub block_or_item: BlockOrItem,
-  pub quant: u32,
-}
 
 pub struct PlayerInventory {
   pub items: Vec<Option<QuantifiedBlockOrItem>>,
@@ -28,7 +23,10 @@ impl Default for PlayerInventory {
           block_or_item: BlockOrItem::Block(BlockId::LightEmitter),
           quant: 100,
         }),
-        None,
+        Some(QuantifiedBlockOrItem {
+          block_or_item: BlockOrItem::Block(BlockId::Chest),
+          quant: 100,
+        }),
         None,
         None,
       ],

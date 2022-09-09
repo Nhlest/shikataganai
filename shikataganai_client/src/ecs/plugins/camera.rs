@@ -278,6 +278,20 @@ fn update_colliders(
                       ));
                   }
                 }
+                BlockRenderInfo::AsSkeleton(skeleton) => {
+                  if let Some(mesh_assets_hash_map) = mesh_storage_assets.get(&storage.0) {
+                    let mesh = skeleton.to_skeleton_def().collider;
+                    let mesh = &mesh_assets_hash_map[&mesh];
+                    let collider_mesh = mesh_assets.get(&mesh.collision.as_ref().unwrap()).unwrap();
+                    let meta = block.meta.v as f32;
+                    commands
+                      .spawn_bundle(ProximityColliderBundle::proximity_collider(
+                        Collider::from_bevy_mesh(collider_mesh, &ComputedColliderShape::TriMesh).unwrap(), // TODO: cache this
+                        Transform::from_xyz(c.0 as f32 + 0.5, c.1 as f32 + 0.5, c.2 as f32 + 0.5)
+                          .with_rotation(Quat::from_rotation_y(f32::FRAC_PI_2() * meta)),
+                      ));
+                  }
+                }
                 _ => {}
               }
             }

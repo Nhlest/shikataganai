@@ -1,7 +1,6 @@
 use std::cmp::Ordering;
-use crate::ecs::components::block_or_item::BlockOrItem;
 use crate::ecs::plugins::camera::{FPSCamera, Recollide, Selection};
-use crate::ecs::resources::player::{PlayerInventory, QuantifiedBlockOrItem, RerenderInventory, SelectedHotBar};
+use crate::ecs::resources::player::{PlayerInventory, RerenderInventory, SelectedHotBar};
 use bevy::input::mouse::MouseWheel;
 use bevy::prelude::*;
 use bevy_rapier3d::pipeline::QueryFilter;
@@ -11,7 +10,7 @@ use bincode::serialize;
 use itertools::Itertools;
 use num_traits::FloatConst;
 use shikataganai_common::ecs::components::blocks::block_id::BlockId;
-use shikataganai_common::ecs::components::blocks::{Block, BlockRotation};
+use shikataganai_common::ecs::components::blocks::{Block, BlockOrItem, BlockRotation, QuantifiedBlockOrItem};
 use shikataganai_common::ecs::resources::light::{LightLevel, RelightEvent};
 use shikataganai_common::ecs::resources::world::GameWorld;
 use shikataganai_common::networking::{ClientChannel, PlayerCommand};
@@ -136,7 +135,7 @@ fn pick_up_block(
     }
 
     if source_block.entity != Entity::from_bits(0) {
-      commands.entity(source_block.entity).despawn();
+      commands.entity(source_block.entity).despawn_recursive();
       source_block.entity = Entity::from_bits(0);
     }
   }
