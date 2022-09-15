@@ -1,14 +1,14 @@
+use crate::ecs::plugins::client::send_message;
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use bevy::utils::{HashMap, HashSet};
 use bevy_renet::renet::RenetClient;
 use shikataganai_common::ecs::components::blocks::Block;
 use shikataganai_common::ecs::components::chunk::Chunk;
+use shikataganai_common::ecs::resources::world::GameWorld;
 use shikataganai_common::networking::{ClientChannel, PlayerCommand};
 use shikataganai_common::util::array::{ImmediateNeighbours, DD, DDD};
 use std::mem::MaybeUninit;
-use shikataganai_common::ecs::resources::world::GameWorld;
-use crate::ecs::plugins::client::send_message;
 
 pub trait ClientGameWorld {
   fn get_chunk_or_request(&mut self, chunk_coord: DD, client: &mut RenetClient) -> Option<&Chunk>;
@@ -27,7 +27,7 @@ impl ClientGameWorld for GameWorld {
         }
         None
       }
-      Some(chunk) => Some(chunk)
+      Some(chunk) => Some(chunk),
     }
   }
 
@@ -40,22 +40,22 @@ impl ClientGameWorld for GameWorld {
         }
         None
       }
-      Some(chunk) => Some(chunk)
+      Some(chunk) => Some(chunk),
     }
   }
 
   fn get_block_or_request(&mut self, coord: DDD, client: &mut RenetClient) -> Option<&Block> {
     let chunk_coord = GameWorld::get_chunk_coord(coord);
-    self.get_chunk_or_request(chunk_coord, client).map(|chunk| {
-      &chunk.grid[coord]
-    })
+    self
+      .get_chunk_or_request(chunk_coord, client)
+      .map(|chunk| &chunk.grid[coord])
   }
 
   fn get_block_or_request_mut(&mut self, coord: DDD, client: &mut RenetClient) -> Option<&mut Block> {
     let chunk_coord = GameWorld::get_chunk_coord(coord);
-    self.get_chunk_or_request_mut(chunk_coord, client).map(|chunk| {
-      &mut chunk.grid[coord]
-    })
+    self
+      .get_chunk_or_request_mut(chunk_coord, client)
+      .map(|chunk| &mut chunk.grid[coord])
   }
 }
 

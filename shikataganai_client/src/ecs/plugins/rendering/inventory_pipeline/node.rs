@@ -15,10 +15,10 @@ use bevy::render::render_resource::{BufferUsages, PipelineCache};
 use bevy::render::renderer::{RenderContext, RenderDevice};
 use image::EncodableLayout;
 use num_traits::FloatConst;
+use shikataganai_common::ecs::components::blocks::BlockOrItem;
 use std::collections::HashMap;
 use wgpu::util::BufferInitDescriptor;
 use wgpu::IndexFormat;
-use shikataganai_common::ecs::components::blocks::BlockOrItem;
 
 const HEX_CC: [f32; 2] = [0.000000, -0.000000];
 const HEX_NN: [f32; 2] = [0.000000, -1.000000];
@@ -126,14 +126,13 @@ impl Node for InventoryNode {
               }
               BlockRenderInfo::AsMesh(mesh_handle) => {
                 let mesh_handle = &mesh_storage[&mesh_handle].render.as_ref().unwrap();
-                meshes_to_render.push((mesh_handle.clone(), [x, y]));
+                meshes_to_render.push((mesh_handle.clone(), [*x, *y, 0.0]));
               }
               BlockRenderInfo::Nothing => {}
               BlockRenderInfo::AsSkeleton(skeleton) => {
-                println!("KEK");
                 for (_, mesh) in skeleton.to_skeleton_def().skeleton {
-                  let mesh_handle = &mesh_storage[&mesh].render.as_ref().unwrap();
-                  meshes_to_render.push((mesh_handle.clone(), [x, y]));
+                  let mesh_handle = &mesh_storage[&mesh.mesh].render.as_ref().unwrap();
+                  meshes_to_render.push((mesh_handle.clone(), [*x + mesh.offset.x / INVENTORY_OUTPUT_TEXTURE_WIDTH, *y - mesh.offset.y / INVENTORY_OUTPUT_TEXTURE_WIDTH, mesh.offset.z / INVENTORY_OUTPUT_TEXTURE_WIDTH]));
                 }
               }
             }
@@ -174,11 +173,11 @@ impl Node for InventoryNode {
         });
 
       let mut contents = vec![];
-      for (_, [x, y]) in meshes_to_render.iter() {
+      for (_, [x, y, z]) in meshes_to_render.iter() {
         contents.extend_from_slice(
           &bytemuck::bytes_of(
             &(
-              Mat4::from_translation(Vec3::new(0.5 + *x * INVENTORY_OUTPUT_TEXTURE_WIDTH, 0.5 + *y * INVENTORY_OUTPUT_TEXTURE_WIDTH, 1.0)) *
+              Mat4::from_translation(Vec3::new(0.5 + *x * INVENTORY_OUTPUT_TEXTURE_WIDTH, 0.5 + *y * INVENTORY_OUTPUT_TEXTURE_WIDTH,  1.0 + *z * INVENTORY_OUTPUT_TEXTURE_WIDTH)) *
               Mat4::from_quat(Quat::from_euler(EulerRot::XYZ, -f32::FRAC_PI_4(), f32::FRAC_PI_4(), 0.0)) *
               Mat4::from_scale(Vec3::new(0.55, -0.55, 0.55))
             )

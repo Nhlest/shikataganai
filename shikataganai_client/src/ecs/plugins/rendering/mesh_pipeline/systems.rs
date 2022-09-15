@@ -14,10 +14,10 @@ use bevy::render::render_resource::{IndexFormat, ShaderType};
 use bevy::render::renderer::RenderDevice;
 use bevy::render::view::ViewUniforms;
 use bevy::render::Extract;
-use shikataganai_common::util::array::to_ddd;
-use wgpu::{BindGroupDescriptor, BindGroupEntry, BindingResource};
 use shikataganai_common::ecs::resources::light::LightLevel;
 use shikataganai_common::ecs::resources::world::GameWorld;
+use shikataganai_common::util::array::to_ddd;
+use wgpu::{BindGroupDescriptor, BindGroupEntry, BindingResource};
 
 #[derive(Component)]
 pub struct MeshBuffer(pub Buffer, pub Buffer, pub usize, pub IndexFormat);

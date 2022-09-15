@@ -1,6 +1,7 @@
 #![feature(const_fn_floating_point_arithmetic)]
 #![feature(negative_impls)]
 #![feature(array_methods)]
+#![feature(adt_const_params)]
 #![allow(irrefutable_let_patterns)]
 
 #[allow(unused_imports)]

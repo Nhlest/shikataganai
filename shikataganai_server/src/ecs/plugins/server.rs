@@ -1,28 +1,31 @@
-use std::io::Write;
+use crate::ecs::resources::world::{send_chunk_data, ServerGameWorld};
 use crate::ecs::systems::chunkgen::{collect_async_chunks, ChunkTask};
+use crate::ecs::systems::light::relight_system;
 use bevy::app::ScheduleRunnerSettings;
 use bevy::prelude::*;
 use bevy::tasks::AsyncComputeTaskPool;
-use bevy::utils::hashbrown::HashMap;
+use bevy::utils::hashbrown::{HashMap, HashSet};
 use bevy_renet::renet::{RenetError, RenetServer, ServerAuthentication, ServerConfig, ServerEvent};
 use bevy_renet::RenetServerPlugin;
 use bincode::*;
-use shikataganai_common::ecs::components::chunk::Chunk;
-use shikataganai_common::networking::{
-  server_connection_config, NetworkFrame, NetworkedEntities, PlayerCommand, PolarRotation, ServerChannel,
-  ServerMessage, PROTOCOL_ID,
-};
-use std::net::UdpSocket;
-use std::time::{Duration, SystemTime};
-use flate2::Compression;
 use flate2::write::ZlibEncoder;
+use flate2::Compression;
 use shikataganai_common::ecs::components::blocks::block_id::BlockId;
 use shikataganai_common::ecs::components::blocks::BlockMeta;
-use shikataganai_common::ecs::resources::light::{LightLevel, relight_helper, RelightEvent};
-use crate::ecs::resources::world::{send_chunk_data, ServerGameWorld};
+use shikataganai_common::ecs::components::chunk::Chunk;
+use shikataganai_common::ecs::components::functors::InternalInventory;
+use shikataganai_common::ecs::resources::light::{relight_helper, LightLevel, RelightEvent};
+use shikataganai_common::ecs::resources::player::PlayerNickname;
 use shikataganai_common::ecs::resources::world::GameWorld;
-use shikataganai_common::util::array::{DD, DDD, ImmediateNeighbours};
-use crate::ecs::systems::light::relight_system;
+use shikataganai_common::networking::{
+  server_connection_config, FunctorType, NetworkFrame, NetworkedEntities, PlayerCommand, PolarRotation, ServerChannel,
+  ServerMessage, PROTOCOL_ID,
+};
+use shikataganai_common::util::array::{ImmediateNeighbours, DD, DDD};
+use std::io::Write;
+use std::net::UdpSocket;
+use std::time::{Duration, SystemTime};
+use num_traits::float::FloatConst;
 
 pub struct ShikataganaiServerPlugin;
 
@@ -35,6 +38,11 @@ pub struct ServerTick(u32);
 #[derive(Default)]
 pub struct PlayerEntities {
   pub players: HashMap<u64, Entity>,
+}
+
+#[derive(Default)]
+pub struct UnAuthedPlayers {
+  pub players: HashSet<u64>,
 }
 
 #[derive(Component)]
@@ -65,6 +73,7 @@ impl Plugin for ShikataganaiServerPlugin {
     .unwrap();
 
     app.add_event::<RelightEvent>();
+    app.add_event::<FunctorRequestEvent>();
 
     app
       // .add_stage_after(
@@ -76,8 +85,10 @@ impl Plugin for ShikataganaiServerPlugin {
       .add_plugin(RenetServerPlugin { clear_events: false })
       .init_resource::<ServerTick>()
       .init_resource::<PlayerEntities>()
+      .init_resource::<UnAuthedPlayers>()
       .insert_resource(server)
       .add_system(handle_events)
+      .add_system(handle_functor_requests.after(handle_events))
       .add_system(sync_frame)
       .add_system(collect_async_chunks)
       .add_system(panic_handler)
@@ -91,53 +102,63 @@ pub fn panic_handler(mut events: EventReader<RenetError>) {
   }
 }
 
+#[derive(Debug)]
+pub struct FunctorRequestEvent {
+  pub client: u64,
+  pub location: DDD,
+  pub entity: Entity,
+  pub functor_type: FunctorType,
+}
+
+pub fn handle_functor_requests(
+  mut param_set: ParamSet<(&World, ResMut<RenetServer>)>,
+  mut functor_events: EventReader<FunctorRequestEvent>,
+) {
+  for event in functor_events.iter() {
+    let functor = serialize(match event.functor_type {
+      FunctorType::InternalInventory => {
+        if let Some(functor) = param_set.p0().get::<InternalInventory>(event.entity) {
+          functor
+        } else {
+          return;
+        }
+      }
+    })
+    .unwrap();
+    param_set.p1().send_message(
+      event.client,
+      ServerChannel::GameEvent.id(),
+      serialize(&ServerMessage::Functor {
+        location: event.location,
+        functor_type: event.functor_type,
+        functor,
+      })
+      .unwrap(),
+    );
+  }
+}
+
 pub fn handle_events(
   mut commands: Commands,
   mut server: ResMut<RenetServer>,
   mut server_events: EventReader<ServerEvent>,
   mut relight: EventWriter<RelightEvent>,
+  mut functor_events: EventWriter<FunctorRequestEvent>,
   mut player_entities: ResMut<PlayerEntities>,
-  mut query: Query<(&mut Transform, &mut PolarRotation)>,
-  mut world: ResMut<GameWorld>
+  mut unauthed_players: ResMut<UnAuthedPlayers>,
+  mut query: Query<(Entity, &mut Transform, &mut PolarRotation, &PlayerNickname)>,
+  mut game_world: ResMut<GameWorld>,
 ) {
   for event in server_events.iter() {
     match event {
       ServerEvent::ClientConnected(client_id, _) => {
-        let player_entity = commands
-          .spawn()
-          .insert(Transform::from_xyz(10.1, 45.0, 10.0))
-          .insert(PolarRotation { phi: 0.0, theta: 0.0 })
-          .insert(ClientId(*client_id))
-          .id();
-        for other_client in player_entities.players.keys() {
-          let other_entity = *player_entities.players.get(other_client).unwrap();
-          let (translation, rotation) = query.get(other_entity).unwrap();
-          server.send_message(
-            *client_id,
-            ServerChannel::GameEvent.id(),
-            serialize(&ServerMessage::PlayerSpawn {
-              entity: other_entity,
-              id: *other_client,
-              translation: (translation.translation, rotation.clone()),
-            })
-            .unwrap(),
-          );
-        }
-        player_entities.players.insert(*client_id, player_entity);
-        server.broadcast_message(
-          ServerChannel::GameEvent.id(),
-          serialize(&ServerMessage::PlayerSpawn {
-            entity: player_entity,
-            id: *client_id,
-            translation: (Vec3::new(10.1, 45.0, 10.0), PolarRotation { phi: 0.0, theta: 0.0 }),
-          })
-          .unwrap(),
-        );
+        unauthed_players.players.insert(*client_id);
         println!("Client {} connected", client_id);
       }
       ServerEvent::ClientDisconnected(client_id) => {
+        println!("Client {} disconnected", client_id);
         let entity = player_entities.players.remove(client_id).unwrap();
-        commands.entity(entity).despawn();
+        // commands.entity(entity).despawn();
       }
     }
   }
@@ -147,27 +168,102 @@ pub fn handle_events(
       match command {
         PlayerCommand::PlayerMove { translation } => {
           let player_entity = *player_entities.players.get(&client).unwrap();
-          query.get_mut(player_entity).unwrap().0.translation = translation.0;
-          *query.get_mut(player_entity).unwrap().1 = translation.1;
+          query.get_mut(player_entity).unwrap().1.translation = translation.0;
+          *query.get_mut(player_entity).unwrap().2 = translation.1;
         }
         PlayerCommand::BlockRemove { location } => {
-          if let Some(block) = world.get_mut(location) {
+          if let Some(block) = game_world.get_mut(location) {
             *block = BlockId::Air.into();
             relight.send(RelightEvent::Relight(location));
             broadcast_but(server.as_mut(), client, ServerMessage::BlockRemove { location })
           }
         }
         PlayerCommand::BlockPlace { location, block_transfer } => {
-          if let Some(block) = world.get_mut(location) {
+          if let Some(block) = game_world.get_mut(location) {
             *block = block_transfer.into();
+            if block.need_to_spawn_functors() {
+              block.block.clone().spawn_or_add_functors(block, location, &mut commands);
+            }
             relight.send(RelightEvent::Relight(location));
-            world.set_light_level(location, LightLevel::dark());
+            game_world.set_light_level(location, LightLevel::dark());
             broadcast_but(server.as_mut(), client, ServerMessage::BlockPlace { location, block_transfer })
           }
         }
         PlayerCommand::RequestChunk { chunk_coord: coord } => {
-          if let Some(chunk) = world.get_chunk_or_spawn(coord, &mut commands, client) {
+          if let Some(chunk) = game_world.get_chunk_or_spawn(coord, &mut commands, client) {
             send_chunk_data(server.as_mut(), chunk, client);
+          }
+        }
+        PlayerCommand::RequestFunctor { location, functor } => {
+          if let Some(entity) = game_world.get(location).map(|block| block.entity) && entity != Entity::from_bits(0) {
+            functor_events.send(FunctorRequestEvent {
+              client,
+              location,
+              entity,
+              functor_type: functor
+            });
+          }
+        }
+        PlayerCommand::PlayerAuth { nickname } => {
+          if unauthed_players.players.contains(&client) {
+            unauthed_players.players.remove(&client);
+            let (player_entity, translation, rotation) = query.iter().find(|(_, _, _, player_nickname)| player_nickname.0 == nickname).map(|(entity, transform, rotation, _)| {
+              (entity, transform.translation, *rotation)
+            }).or_else(|| {
+              let player_entity = commands
+                .spawn()
+                .insert(Transform::from_xyz(10.1, 45.0, 10.0))
+                .insert(PolarRotation { phi: 0.0, theta: f32::FRAC_PI_2() })
+                .insert(ClientId(client))
+                .insert(PlayerNickname(nickname))
+                .id();
+              Some((player_entity, Vec3::new(10.1, 45.0, 10.0), PolarRotation { phi: 0.0, theta: f32::FRAC_PI_2() }))
+            }).unwrap();
+
+            if player_entities.players.iter().find(|(_, entity)| **entity == player_entity).is_some() {
+              println!("Client taken!");
+              continue;
+            }
+
+            for other_client in player_entities.players.keys() {
+              let other_entity = *player_entities.players.get(other_client).unwrap();
+              let (_, translation, rotation, _) = query.get(other_entity).unwrap();
+              server.send_message(
+                client,
+                ServerChannel::GameEvent.id(),
+                serialize(&ServerMessage::PlayerSpawn {
+                  entity: other_entity,
+                  id: *other_client,
+                  translation: (translation.translation, *rotation),
+                })
+                .unwrap(),
+              );
+              server.send_message(
+                *other_client,
+                ServerChannel::GameEvent.id(),
+                serialize(&ServerMessage::PlayerSpawn {
+                  entity: player_entity,
+                  id: client,
+                  translation: (translation.translation, *rotation),
+                }).unwrap(),
+              );
+            }
+            server.send_message(
+              client,
+              ServerChannel::GameEvent.id(),
+              serialize(&ServerMessage::AuthConfirmed {
+                translation: (translation, rotation),
+              }).unwrap(),
+            );
+            player_entities.players.insert(client, player_entity);
+          }
+        }
+        PlayerCommand::AnimationStart { location, animation } => {
+          for other_client in player_entities.players.keys() {
+            if *other_client == client {
+              continue;
+            }
+            server.send_message(*other_client, ServerChannel::GameEvent.id(), serialize(&ServerMessage::AnimationStart { location, animation: animation.clone() }).unwrap())
           }
         }
       }

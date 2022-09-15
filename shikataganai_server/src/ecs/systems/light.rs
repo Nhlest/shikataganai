@@ -8,11 +8,10 @@ use shikataganai_common::networking::{ServerChannel, ServerMessage};
 pub fn relight_system(
   mut relight: EventReader<RelightEvent>,
   mut game_world: ResMut<GameWorld>,
-  mut server: ResMut<RenetServer>
+  mut server: ResMut<RenetServer>,
 ) {
   let mut relights = vec![];
-  for coord in relight_helper(&mut relight, game_world.as_mut())
-    .iter() {
+  for coord in relight_helper(&mut relight, game_world.as_mut()).iter() {
     relights.push((*coord, game_world.get_light_level(*coord).unwrap()))
   }
   if !relights.is_empty() {
@@ -23,4 +22,3 @@ pub fn relight_system(
     }
   }
 }
-

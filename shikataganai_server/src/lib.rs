@@ -1,7 +1,7 @@
 use bevy::app::ScheduleRunnerSettings;
 use bevy::prelude::*;
-use std::time::Duration;
 use shikataganai_common::ecs::resources::world::GameWorld;
+use std::time::Duration;
 
 use crate::ecs::plugins::server::{ShikataganaiServerAddress, ShikataganaiServerPlugin};
 

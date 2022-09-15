@@ -1,7 +1,7 @@
-use crate::ecs::components::blocks::{regular_blocks, regular_meshes, BlockTrait, Block, BlockMeta};
+use crate::ecs::components::blocks::{regular_blocks, regular_meshes, Block, BlockMeta, BlockTrait};
+use bevy::prelude::Entity;
 use serde::{Deserialize, Serialize};
 use std::ops::Deref;
-use bevy::prelude::Entity;
 
 #[derive(Copy, Clone, PartialEq, Debug, Eq, Hash, Serialize, Deserialize)]
 #[repr(u32)]
@@ -12,7 +12,7 @@ pub enum BlockId {
   Cobble,
   Stair,
   LightEmitter,
-  Chest
+  Chest,
 }
 
 impl Into<Block> for BlockId {
@@ -20,7 +20,7 @@ impl Into<Block> for BlockId {
     Block {
       block: self,
       meta: BlockMeta { v: 0 },
-      entity: Entity::from_bits(0)
+      entity: Entity::from_bits(0),
     }
   }
 }
@@ -32,7 +32,7 @@ static BLOCK_TRAITS: [&(dyn BlockTrait + Sync); 7] = [
   &regular_blocks::Cobblestone,
   &regular_meshes::Stair,
   &regular_blocks::LightEmitter,
-  &regular_meshes::Chest
+  &regular_meshes::Chest,
 ];
 
 impl Deref for BlockId {

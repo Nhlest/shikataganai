@@ -19,10 +19,10 @@ use bevy::render::Extract;
 use bevy::utils::hashbrown::HashMap;
 use itertools::Itertools;
 use shikataganai_common::ecs::components::blocks::Block;
+use shikataganai_common::ecs::resources::world::GameWorld;
 use shikataganai_common::util::array::{sub_ddd, ArrayIndex, ImmediateNeighbours, DD};
 use wgpu::util::BufferInitDescriptor;
 use wgpu::{BindGroupDescriptor, BindGroupEntry, BindingResource};
-use shikataganai_common::ecs::resources::world::GameWorld;
 
 pub struct ExtractedBlocks {
   pub blocks: HashMap<DD, BufferVec<SingleSide>>,

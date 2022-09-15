@@ -1,23 +1,23 @@
-use std::collections::VecDeque;
-use serde::{Deserialize, Serialize};
+use crate::ecs::components::blocks::Block;
+use crate::ecs::resources::world::GameWorld;
+use crate::util::array::{ImmediateNeighbours, DD, DDD};
 use bevy::prelude::*;
 use bevy::render::render_resource::encase::internal::{BufferMut, WriteInto, Writer};
 use bevy::render::render_resource::encase::private::Metadata;
 use bevy::render::render_resource::ShaderType;
 use bevy::utils::HashSet;
-use crate::ecs::components::blocks::Block;
-use crate::ecs::resources::world::GameWorld;
-use crate::util::array::{DD, DDD, ImmediateNeighbours};
+use serde::{Deserialize, Serialize};
+use std::collections::VecDeque;
 
 pub enum RelightEvent {
-  Relight(DDD)
+  Relight(DDD),
 }
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, Component)]
 pub struct LightLevel {
   pub heaven: u8,
   pub hearth: u8,
-  pub light_source: u8
+  pub light_source: u8,
 }
 
 impl ShaderType for LightLevel {
@@ -26,26 +26,32 @@ impl ShaderType for LightLevel {
 }
 
 impl WriteInto for LightLevel {
-  fn write_into<B>(&self, writer: &mut Writer<B>) where B: BufferMut, {
+  fn write_into<B>(&self, writer: &mut Writer<B>)
+  where
+    B: BufferMut,
+  {
     writer.write(&[self.hearth, 0, 0, 0, self.heaven, 0, 0, 0])
   }
 }
 
 impl LightLevel {
   pub fn new(heaven: u8, hearth: u8, light_source: u8) -> Self {
-    Self { heaven, hearth, light_source }
+    Self {
+      heaven,
+      hearth,
+      light_source,
+    }
   }
   pub fn dark() -> Self {
-    Self { heaven: 0, hearth: 0, light_source: 0 }
+    Self {
+      heaven: 0,
+      hearth: 0,
+      light_source: 0,
+    }
   }
 }
 
-pub fn do_relight(
-  coord: DDD,
-  game_world: &mut GameWorld,
-  remesh: &mut HashSet<DDD>,
-  queue: &mut VecDeque<DDD>
-) {
+pub fn do_relight(coord: DDD, game_world: &mut GameWorld, remesh: &mut HashSet<DDD>, queue: &mut VecDeque<DDD>) {
   if let Some(light_level) = game_world.get_light_level(coord) && let Some(block) = game_world.get(coord) {
     if block.visible() {
       return;
@@ -94,8 +100,8 @@ pub fn relight_helper(
   for RelightEvent::Relight(coord) in relight_events.iter() {
     remesh.insert(*coord);
     let mut queue = VecDeque::new();
-    if game_world.get(*coord).map(|block|block.visible()).unwrap_or(false) {
-      coord.immediate_neighbours().for_each(|coord|queue.push_back(coord));
+    if game_world.get(*coord).map(|block| block.visible()).unwrap_or(false) {
+      coord.immediate_neighbours().for_each(|coord| queue.push_back(coord));
     } else {
       queue.push_back(*coord);
     }

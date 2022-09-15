@@ -10,9 +10,9 @@ use bevy::prelude::*;
 use bevy::render::extract_component::DynamicUniformIndex;
 use bevy::render::render_phase::{EntityRenderCommand, RenderCommandResult, SetItemPipeline, TrackedRenderPass};
 use bevy::render::render_resource::BindGroup;
+use shikataganai_common::ecs::resources::light::LightLevel;
 use std::marker::PhantomData;
 use std::ops::Deref;
-use shikataganai_common::ecs::resources::light::LightLevel;
 
 pub type DrawMeshFull = (
   SetItemPipeline,

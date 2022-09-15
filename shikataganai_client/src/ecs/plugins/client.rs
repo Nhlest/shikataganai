@@ -7,25 +7,27 @@ use flate2::read::ZlibDecoder;
 use iyes_loopless::prelude::ConditionSet;
 use num_traits::{Float, FloatConst};
 use shikataganai_common::ecs::components::blocks::block_id::BlockId;
+use shikataganai_common::ecs::components::blocks::Block;
 use shikataganai_common::ecs::components::chunk::Chunk;
+use shikataganai_common::ecs::components::functors::InternalInventory;
+use shikataganai_common::ecs::resources::light::RelightEvent;
+use shikataganai_common::ecs::resources::player::PlayerNickname;
+use shikataganai_common::ecs::resources::world::GameWorld;
 use shikataganai_common::networking::{
-  client_connection_config, ClientChannel, NetworkFrame, PlayerCommand, PolarRotation, ServerChannel, ServerMessage,
-  PROTOCOL_ID,
+  client_connection_config, ClientChannel, FunctorType, NetworkFrame, PlayerCommand, PolarRotation, ServerChannel,
+  ServerMessage, PROTOCOL_ID,
 };
 use std::io::Read;
 use std::net::UdpSocket;
 use std::time::SystemTime;
-use shikataganai_common::ecs::components::blocks::Block;
-use shikataganai_common::ecs::resources::light::RelightEvent;
-use shikataganai_common::ecs::resources::world::GameWorld;
 
-use crate::ecs::components::blocks::{BlockTraitExt, DerefExt};
+use crate::ecs::components::blocks::{animate, BlockTraitExt, DerefExt};
 use crate::ecs::plugins::camera::{FPSCamera, Player, Recollide};
 use crate::ecs::plugins::game::in_game;
 use crate::ecs::plugins::rendering::mesh_pipeline::loader::{get_mesh_from_storage, GltfMeshStorageHandle, Meshes};
 use crate::ecs::plugins::rendering::mesh_pipeline::systems::MeshMarker;
 use crate::ecs::plugins::rendering::mesh_pipeline::AmongerTextureHandle;
-use crate::ecs::plugins::rendering::voxel_pipeline::meshing::{RemeshEvent};
+use crate::ecs::plugins::rendering::voxel_pipeline::meshing::RemeshEvent;
 use crate::GltfMeshStorage;
 
 #[derive(Default)]
@@ -50,6 +52,9 @@ pub struct AmongerSkeleton {
 
 #[derive(Component)]
 pub struct LegAnimationFrame(f32, u32);
+
+#[derive(Component)]
+pub struct Requested;
 
 pub struct ShikataganaiClientPlugin;
 
@@ -77,10 +82,7 @@ fn panic_handler(mut events: EventReader<RenetError>) {
 }
 
 pub fn send_message(client: &mut RenetClient, message: PlayerCommand) {
-  client.send_message(
-    ClientChannel::ClientCommand.id(),
-    serialize(&message).unwrap(),
-  );
+  client.send_message(ClientChannel::ClientCommand.id(), serialize(&message).unwrap());
 }
 
 fn spawn_amonger(
@@ -147,25 +149,31 @@ fn spawn_amonger(
 
 fn receive_system(
   mut commands: Commands,
-  mut client: ResMut<RenetClient>,
-  mut lobby: ResMut<ClientLobby>,
-  mut network_mapping: ResMut<NetworkMapping>,
-  mut query: Query<&mut Transform>,
-  mut query_leg_animation: Query<&mut LegAnimationFrame>,
-  query_skeleton: Query<&AmongerSkeleton>,
-  mesh_storage: Res<Assets<GltfMeshStorage>>,
+  mut relight: EventWriter<RelightEvent>,
+  mut remesh: EventWriter<RemeshEvent>,
+  (mut network_mapping, mut game_world, mut recollide, mut client, mut lobby): (
+    ResMut<NetworkMapping>,
+    ResMut<GameWorld>,
+    ResMut<Recollide>,
+    ResMut<RenetClient>,
+    ResMut<ClientLobby>,
+  ),
   mesh_storage_handle: Res<GltfMeshStorageHandle>,
   amonger_texture: Res<AmongerTextureHandle>,
-  mut game_world: ResMut<GameWorld>,
-  mut relight: EventWriter<RelightEvent>,
+  mesh_storage: Res<Assets<GltfMeshStorage>>,
+  player_nickname: Res<PlayerNickname>,
   time: Res<Time>,
-  mut remesh: EventWriter<RemeshEvent>,
-  mut recollide: ResMut<Recollide>
+  mut query_leg_animation: Query<&mut LegAnimationFrame>,
+  query_skeleton: Query<&AmongerSkeleton>,
+  mut player_entity: Query<Entity, With<Player>>,
+  mut fps_camera_query: Query<&mut FPSCamera>,
+  mut query: Query<&mut Transform>,
 ) {
   let client_id = client.client_id();
 
   while let Some(message) = client.receive_message(ServerChannel::GameEvent.id()) {
     let server_message: ServerMessage = deserialize(&message).unwrap();
+    println!("{}", &server_message);
     match server_message {
       ServerMessage::PlayerSpawn {
         entity,
@@ -200,7 +208,10 @@ fn receive_system(
         });
         remesh.send(RemeshEvent::Remesh(GameWorld::get_chunk_coord(location)));
       }
-      ServerMessage::BlockPlace { location, block_transfer  } => {
+      ServerMessage::BlockPlace {
+        location,
+        block_transfer,
+      } => {
         game_world.get_mut(location).map(|b| *b = block_transfer.into());
         remesh.send(RemeshEvent::Remesh(GameWorld::get_chunk_coord(location)));
         recollide.0 = true;
@@ -209,7 +220,11 @@ fn receive_system(
         let mut decoder = ZlibDecoder::new(chunk.as_slice());
         let mut message = Vec::new();
         decoder.read_to_end(&mut message).unwrap();
-        let chunk: Chunk = deserialize(&message).unwrap();
+        let mut chunk: Chunk = deserialize(&message).unwrap();
+        chunk.grid.map_in_place(|i, block| Block {
+          entity: Entity::from_bits(0),
+          ..*block
+        });
         let chunk_coord = GameWorld::get_chunk_coord(chunk.grid.bounds.0);
         game_world.chunks.insert(chunk_coord, chunk);
         game_world.remove_from_generating(chunk_coord);
@@ -224,6 +239,45 @@ fn receive_system(
         for (coord, light) in relights {
           game_world.set_light_level(coord, light);
           relight.send(RelightEvent::Relight(coord));
+        }
+      }
+      ServerMessage::Functor {
+        location,
+        functor_type,
+        functor,
+      } => {
+        if let Some(block) = game_world.get_mut(location) {
+          let mut commands = if block.entity == Entity::from_bits(0) {
+            commands.spawn()
+          } else {
+            commands.entity(block.entity)
+          };
+
+          match functor_type {
+            FunctorType::InternalInventory => {
+              let functor: InternalInventory = deserialize(&functor).unwrap();
+              commands.insert(functor);
+            }
+          }
+          commands.remove::<Requested>();
+          block.entity = commands.id();
+        }
+      }
+      ServerMessage::AuthConfirmed {
+        translation: (translation, rotation),
+      } => {
+        let entity = player_entity.single_mut();
+        let mut fps_camera = fps_camera_query.single_mut();
+        let mut transform = query.get_mut(entity).unwrap();
+        commands.entity(entity).insert(player_nickname.as_ref().clone());
+        fps_camera.phi = rotation.phi;
+        fps_camera.theta = rotation.theta;
+        transform.translation = translation + Vec3::new(0.0, 1.8, 0.0); // TODO: figure this out, player spawns below actual position
+        recollide.0 = true;
+      }
+      ServerMessage::AnimationStart { location, animation } => {
+        if let Some(entity) = game_world.get(location).map(|block| block.entity) && entity != Entity::from_bits(0) {
+          animate(&mut commands, entity, animation);
         }
       }
     }
@@ -306,31 +360,32 @@ fn receive_system(
 
 fn send_system(
   mut client: ResMut<RenetClient>,
-  query_player: Query<&Transform, With<Player>>,
+  query_player: Query<&Transform, (With<Player>, With<PlayerNickname>)>,
   query_camera: Query<&FPSCamera>,
 ) {
-  let translation = query_player.single().translation;
-  let rotation = query_camera.single();
-  client.send_message(
-    ClientChannel::ClientCommand.id(),
-    serialize(&PlayerCommand::PlayerMove {
-      translation: (
-        Vec3::new(translation.x, translation.y - 1.5, translation.z),
-        PolarRotation {
-          phi: rotation.phi,
-          theta: rotation.theta,
-        },
-      ),
-    })
-    .unwrap(),
-  );
+  if let Some(translation) = query_player.iter().next().map(|transform| transform.translation) && let Some(rotation) = query_camera.iter().next() {
+    client.send_message(
+      ClientChannel::ClientCommand.id(),
+      serialize(&PlayerCommand::PlayerMove {
+        translation: (
+          Vec3::new(translation.x, translation.y - 1.5, translation.z),
+          PolarRotation {
+            phi: rotation.phi,
+            theta: rotation.theta,
+          },
+        ),
+      })
+        .unwrap(),
+    );
+  }
 }
 
-pub fn spawn_client(mut commands: Commands, address: String) {
+pub fn spawn_client(mut commands: Commands, player_entity: Entity, address: String, nickname: String) {
   let server_addr = address.parse().unwrap();
   let socket = UdpSocket::bind("0.0.0.0:0").unwrap();
   let current_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap();
   let client_id = current_time.as_millis() as u64;
+  commands.insert_resource(PlayerNickname(nickname));
 
   let client = RenetClient::new(
     current_time,

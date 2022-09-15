@@ -1,3 +1,4 @@
+use crate::ecs::plugins::camera::Player;
 use crate::ecs::plugins::client::spawn_client;
 use crate::ecs::plugins::game::ShikataganaiGameState;
 use crate::ecs::plugins::imgui::BigFont;
@@ -11,6 +12,9 @@ use shikataganai_server::ecs::plugins::server::ShikataganaiServerAddress;
 use shikataganai_server::spawn_server;
 use std::ops::DerefMut;
 
+#[derive(Default)]
+pub struct LocalString<const T: &'static str>(pub String);
+
 pub fn main_menu(
   mut commands: Commands,
   imgui: NonSendMut<ImguiState>,
@@ -23,8 +27,11 @@ pub fn main_menu(
   mut vsync: ResMut<VSync>,
   mut fullscreen: ResMut<FullScreen>,
   mut ambient_occlusion: ResMut<AmbientOcclusion>,
-  mut address_string: Local<String>,
+  mut address_string: Local<LocalString<"IP">>,
+  mut nickname_string: Local<LocalString<"Nickname">>,
+  player_entity: Query<Entity, With<Player>>,
 ) {
+  let player_entity = player_entity.single();
   let active_window = window.get_primary_mut().unwrap();
   let ui = imgui.get_current_frame();
 
@@ -46,22 +53,33 @@ pub fn main_menu(
       let [x2, _] = ui.window_content_region_max();
       let w = ui.calc_text_size("New Game");
 
-      let address = if address_string.is_empty() {
+      let address = if address_string.0.is_empty() {
         "127.0.0.1:8181".to_string()
       } else {
-        address_string.clone()
+        address_string.0.clone()
+      };
+
+      let nickname = if nickname_string.0.is_empty() {
+        "Player".to_string()
+      } else {
+        nickname_string.0.clone()
       };
 
       ui.set_cursor_pos([((x2 - x1) - w[0]) / 2.0, ui.cursor_pos()[1]]);
 
       if ui.button("Connect") {
         commands.insert_resource(NextState(ShikataganaiGameState::PreSimulation));
-        spawn_client(commands, address.clone());
+        spawn_client(commands, player_entity, address.clone(), nickname);
       }
 
       ui.set_next_item_width(ui.window_content_region_width());
-      ui.input_text("##Server Address:", address_string.deref_mut())
+      ui.input_text("##Server Address:", &mut address_string.deref_mut().0)
         .hint("127.0.0.1:8181")
+        .build();
+
+      ui.set_next_item_width(ui.window_content_region_width());
+      ui.input_text("##Nickname:", &mut nickname_string.deref_mut().0)
+        .hint("Player")
         .build();
 
       let w = ui.calc_text_size("Start Server");

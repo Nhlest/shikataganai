@@ -39,8 +39,8 @@ pub trait FullNeighbours {
 
 pub trait FlatFullNeighbours {
   fn flat_full_neighbours(&self) -> IntoIter<Self, 8>
-    where
-      Self: Sized;
+  where
+    Self: Sized;
 }
 
 impl ImmediateNeighbours for DDD {
@@ -61,15 +61,15 @@ impl FlatFullNeighbours for DDD {
   fn flat_full_neighbours(&self) -> IntoIter<Self, 8> {
     [
       (self.0 - 1, self.1, self.2 - 1),
-      (self.0,     self.1, self.2 - 1),
+      (self.0, self.1, self.2 - 1),
       (self.0 + 1, self.1, self.2 - 1),
       (self.0 - 1, self.1, self.2),
       (self.0 + 1, self.1, self.2),
       (self.0 - 1, self.1, self.2 + 1),
-      (self.0,     self.1, self.2 + 1),
+      (self.0, self.1, self.2 + 1),
       (self.0 + 1, self.1, self.2 + 1),
     ]
-      .into_iter()
+    .into_iter()
   }
 }
 

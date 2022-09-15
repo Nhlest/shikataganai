@@ -1,8 +1,9 @@
-use crate::ecs::components::blocks::BlockRenderInfo;
+use crate::ecs::components::blocks::{animate, AnimationTrait, BlockRenderInfo, ChestAnimations};
 use crate::ecs::components::blocks::DerefExt;
-use crate::ecs::plugins::game::{in_game, ShikataganaiGameState};
+use crate::ecs::plugins::game::{in_game, in_game_input_enabled, ShikataganaiGameState};
 use crate::ecs::plugins::rendering::mesh_pipeline::loader::GltfMeshStorageHandle;
 use crate::ecs::plugins::settings::MouseSensitivity;
+use crate::ecs::resources::world::ClientGameWorld;
 use crate::GltfMeshStorage;
 use bevy::input::mouse::MouseMotion;
 use bevy::prelude::*;
@@ -16,7 +17,7 @@ use iyes_loopless::state::NextState;
 use num_traits::float::FloatConst;
 use shikataganai_common::ecs::resources::world::GameWorld;
 use shikataganai_common::util::array::{to_ddd, DDD};
-use crate::ecs::resources::world::ClientGameWorld;
+use crate::ecs::systems::user_interface::chest_inventory::InventoryOpened;
 
 pub struct CameraPlugin;
 
@@ -84,14 +85,15 @@ impl Plugin for CameraPlugin {
       .run_in_state(ShikataganaiGameState::PreSimulation)
       .with_system(spawn_camera)
       .into();
-    app.add_system(cursor_grab_system.run_if(in_game));
+    app.add_system(cursor_grab_system.run_if(in_game_input_enabled));
     app.add_system_set(on_pre_simulation);
     app.add_system_set(on_game_simulation_continuous);
     app.add_system_set_to_stage(CoreStage::PreUpdate, on_simulation_pre_update);
   }
 }
 
-fn spawn_camera(mut commands: Commands, mut local: Local<bool>) {
+fn spawn_camera(mut commands: Commands, player_entity: Query<Entity, With<Player>>, mut local: Local<bool>) {
+  let player_entity = player_entity.single();
   if *local {
     return;
   }
@@ -112,10 +114,9 @@ fn spawn_camera(mut commands: Commands, mut local: Local<bool>) {
     }
   };
   commands
-    .spawn()
+    .entity(player_entity)
     .insert(Transform::from_xyz(10.1, 45.0, 10.0))
     .insert(GlobalTransform::default())
-    .insert(Player)
     .with_children(|c| {
       c.spawn()
         .insert(GlobalTransform::default())
@@ -259,23 +260,21 @@ fn update_colliders(
             if !block.passable() {
               match block.deref_ext().render_info() {
                 BlockRenderInfo::AsBlock(_) => {
-                  commands
-                    .spawn_bundle(ProximityColliderBundle::proximity_collider(
-                      Collider::cuboid(0.5, 0.5, 0.5),
-                      Transform::from_xyz(c.0 as f32 + 0.5, c.1 as f32 + 0.5, c.2 as f32 + 0.5),
-                    ));
+                  commands.spawn_bundle(ProximityColliderBundle::proximity_collider(
+                    Collider::cuboid(0.5, 0.5, 0.5),
+                    Transform::from_xyz(c.0 as f32 + 0.5, c.1 as f32 + 0.5, c.2 as f32 + 0.5),
+                  ));
                 }
                 BlockRenderInfo::AsMesh(mesh) => {
                   if let Some(mesh_assets_hash_map) = mesh_storage_assets.get(&storage.0) {
                     let mesh = &mesh_assets_hash_map[&mesh];
                     let collider_mesh = mesh_assets.get(&mesh.collision.as_ref().unwrap()).unwrap();
                     let meta = block.meta.v as f32;
-                    commands
-                      .spawn_bundle(ProximityColliderBundle::proximity_collider(
-                        Collider::from_bevy_mesh(collider_mesh, &ComputedColliderShape::TriMesh).unwrap(), // TODO: cache this
-                        Transform::from_xyz(c.0 as f32 + 0.5, c.1 as f32 + 0.5, c.2 as f32 + 0.5)
-                          .with_rotation(Quat::from_rotation_y(f32::FRAC_PI_2() * meta)),
-                      ));
+                    commands.spawn_bundle(ProximityColliderBundle::proximity_collider(
+                      Collider::from_bevy_mesh(collider_mesh, &ComputedColliderShape::TriMesh).unwrap(), // TODO: cache this
+                      Transform::from_xyz(c.0 as f32 + 0.5, c.1 as f32 + 0.5, c.2 as f32 + 0.5)
+                        .with_rotation(Quat::from_rotation_y(f32::FRAC_PI_2() * meta)),
+                    ));
                   }
                 }
                 BlockRenderInfo::AsSkeleton(skeleton) => {
@@ -284,12 +283,11 @@ fn update_colliders(
                     let mesh = &mesh_assets_hash_map[&mesh];
                     let collider_mesh = mesh_assets.get(&mesh.collision.as_ref().unwrap()).unwrap();
                     let meta = block.meta.v as f32;
-                    commands
-                      .spawn_bundle(ProximityColliderBundle::proximity_collider(
-                        Collider::from_bevy_mesh(collider_mesh, &ComputedColliderShape::TriMesh).unwrap(), // TODO: cache this
-                        Transform::from_xyz(c.0 as f32 + 0.5, c.1 as f32 + 0.5, c.2 as f32 + 0.5)
-                          .with_rotation(Quat::from_rotation_y(f32::FRAC_PI_2() * meta)),
-                      ));
+                    commands.spawn_bundle(ProximityColliderBundle::proximity_collider(
+                      Collider::from_bevy_mesh(collider_mesh, &ComputedColliderShape::TriMesh).unwrap(), // TODO: cache this
+                      Transform::from_xyz(c.0 as f32 + 0.5, c.1 as f32 + 0.5, c.2 as f32 + 0.5)
+                        .with_rotation(Quat::from_rotation_y(f32::FRAC_PI_2() * meta)),
+                    ));
                   }
                 }
                 _ => {}
@@ -383,11 +381,10 @@ fn collision_movement_system(
 }
 
 fn cursor_grab_system(
+  mut commands: Commands,
   current_state: Res<CurrentState<ShikataganaiGameState>>,
   key: Res<Input<KeyCode>>,
-  mut physics_system: ResMut<RapierConfiguration>,
   mut windows: ResMut<Windows>,
-  mut commands: Commands,
 ) {
   let window = windows.get_primary_mut().unwrap();
 
@@ -397,13 +394,11 @@ fn cursor_grab_system(
         window.set_cursor_lock_mode(false);
         window.set_cursor_visibility(true);
         commands.insert_resource(NextState(ShikataganaiGameState::Paused));
-        physics_system.physics_pipeline_active = false;
       }
       ShikataganaiGameState::Paused => {
         window.set_cursor_lock_mode(true);
         window.set_cursor_visibility(false);
         commands.insert_resource(NextState(ShikataganaiGameState::Simulation));
-        physics_system.physics_pipeline_active = true;
       }
       _ => {}
     }

@@ -4,6 +4,7 @@ use bevy::prelude::*;
 use bevy::render::texture::ImageSettings;
 use bevy::winit::WinitWindows;
 use bevy_rapier3d::prelude::RapierConfiguration;
+use bevy_renet::renet::RenetClient;
 use std::fs::OpenOptions;
 use std::io::Write;
 
@@ -48,8 +49,10 @@ fn exit(
   vsync: Res<VSync>,
   fullscreen: Res<FullScreen>,
   ambient_occlusion: Res<AmbientOcclusion>,
+  mut client: Option<ResMut<RenetClient>>,
 ) {
   if events.iter().next().is_some() || w.windows.is_empty() {
+    client.map(|mut client| client.disconnect());
     let mut file = OpenOptions::new()
       .write(true)
       .create(true)

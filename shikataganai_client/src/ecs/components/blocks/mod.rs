@@ -1,48 +1,122 @@
-use std::hash::Hash;
-use bevy::prelude::*;
-use bevy::utils::hashbrown::HashMap;
 use crate::ecs::plugins::rendering::mesh_pipeline::loader::Meshes;
 use crate::ecs::resources::block::BlockSprite;
+use bevy::prelude::*;
+use bevy::utils::hashbrown::HashMap;
 use shikataganai_common::ecs::components::blocks::block_id::BlockId;
 use shikataganai_common::ecs::components::blocks::Block;
+use std::hash::Hash;
+use num_traits::FloatConst;
+use shikataganai_common::ecs::components::blocks::animation::{Animation, AnimationType};
 
 pub mod regular_blocks;
 pub mod regular_meshes;
 
 pub enum Skeletons {
-  Chest
+  Chest,
 }
 
 #[repr(u16)]
 pub enum ChestSkeleton {
   ChestBase,
-  ChestLid
+  ChestLid,
 }
 
 impl Skeletons {
   pub fn to_skeleton_def(&self) -> SkeletonDef {
     match self {
-      Chest => {
-        SkeletonDef {
-          skeleton: HashMap::from([(ChestSkeleton::ChestBase as u16, Meshes::ChestBase), (ChestSkeleton::ChestLid as u16, Meshes::ChestLid)]),
-          collider: Meshes::ChestBase
-        }
-      }
+      Skeletons::Chest => SkeletonDef {
+        skeleton: HashMap::from([
+          (ChestSkeleton::ChestBase as u16, SkeletonBoneDef::no_offset(Meshes::ChestBase)),
+          (ChestSkeleton::ChestLid as u16, SkeletonBoneDef::new(Meshes::ChestLid, Vec3::new(7.0 / 16.0, 2.0 / 16.0, 0.0))),
+        ]),
+        collider: Meshes::ChestBase,
+      },
+    }
+  }
+}
+
+pub fn animate(
+  commands: &mut Commands,
+  entity: Entity,
+  animation: Animation
+) {
+  commands
+    .entity(entity)
+    .insert(AnimationInstance {
+      animation,
+      t: 0.0
+    });
+}
+
+pub struct SkeletonDef {
+  pub skeleton: HashMap<u16, SkeletonBoneDef>,
+  pub collider: Meshes,
+}
+
+pub struct SkeletonBoneDef {
+  pub mesh: Meshes,
+  pub offset: Vec3
+}
+
+impl SkeletonBoneDef {
+  pub fn new(mesh: Meshes, offset: Vec3) -> Self {
+    Self {
+      mesh,
+      offset
+    }
+  }
+
+  pub fn no_offset(mesh: Meshes) -> Self {
+    Self {
+      mesh,
+      offset: Vec3::ZERO
     }
   }
 }
 
 #[derive(Component)]
-pub struct SkeletonAnimationFrame(pub f32);
+pub struct Skeleton {
+  pub skeleton: HashMap<u16, Entity>,
+}
 
-pub struct SkeletonDef {
-  pub skeleton: HashMap<u16, Meshes>,
-  pub collider: Meshes
+pub enum ChestAnimations {
+  Open,
+  Close
 }
 
 #[derive(Component)]
-pub struct Skeleton {
-  pub skeleton: HashMap<u16, Entity>
+pub struct AnimationInstance {
+  pub animation: Animation,
+  pub t: f32
+}
+
+pub trait AnimationTrait {
+  fn get_animation(&self) -> Animation;
+}
+
+impl AnimationTrait for ChestAnimations {
+  fn get_animation(&self) -> Animation {
+    let closed = Quat::from_rotation_z(0.0);
+    let opened = Quat::from_rotation_z(-f32::FRAC_PI_2());
+    match self {
+      ChestAnimations::Open => Animation {
+        animation: AnimationType::LinearRotation {
+          from: closed,
+          to: opened
+        },
+        bone: ChestSkeleton::ChestLid as u16,
+        duration: 0.5
+      },
+      ChestAnimations::Close => Animation {
+        animation: AnimationType::LinearRotation {
+          from: opened,
+          to: closed
+        },
+        bone: ChestSkeleton::ChestLid as u16,
+        duration: 0.5
+      }
+    }
+  }
 }
 
 pub enum BlockRenderInfo {
@@ -54,6 +128,9 @@ pub enum BlockRenderInfo {
 
 pub trait BlockTraitExt {
   fn render_info(&self) -> BlockRenderInfo;
+  fn right_click_interface(&self, entity: Entity, commands: &mut Commands) -> Option<()> {
+    None
+  }
 }
 
 pub trait DerefExt {

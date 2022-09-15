@@ -1,17 +1,17 @@
-use std::ops::Index;
-use bevy::utils::hashbrown::HashMap;
-use bevy::prelude::*;
-use bevy::tasks::AsyncComputeTaskPool;
 use crate::ecs::components::blocks::Block;
 use crate::ecs::components::chunk::Chunk;
 use crate::ecs::resources::light::LightLevel;
 use crate::util::array::{ArrayIndex, DD, DDD};
+use bevy::prelude::*;
+use bevy::tasks::AsyncComputeTaskPool;
+use bevy::utils::hashbrown::HashMap;
+use std::ops::Index;
 
 #[derive(Default)]
 pub struct GameWorld {
   // List of chunks that are being generated right now to avoid unnecessary matching on an enum for chunk access for 99.99% of runtime
   pub generating: Vec<DD>,
-  pub chunks: HashMap<DD, Chunk>
+  pub chunks: HashMap<DD, Chunk>,
 }
 
 impl GameWorld {
@@ -33,31 +33,37 @@ impl GameWorld {
 
   pub fn get(&self, c: DDD) -> Option<&Block> {
     let chunk_coord = Self::get_chunk_coord(c);
-    self.chunks.get(&chunk_coord).map(|chunk| {
-      if c.in_bounds(&chunk.grid.bounds) {
-        Some(&chunk.grid[c])
-      } else {
-        None
-      }
-    }).flatten()
+    self
+      .chunks
+      .get(&chunk_coord)
+      .map(|chunk| {
+        if c.in_bounds(&chunk.grid.bounds) {
+          Some(&chunk.grid[c])
+        } else {
+          None
+        }
+      })
+      .flatten()
   }
 
   pub fn get_mut(&mut self, c: DDD) -> Option<&mut Block> {
     let chunk_coord = Self::get_chunk_coord(c);
-    self.chunks.get_mut(&chunk_coord).map(|chunk| {
-      &mut chunk.grid[c]
-    })
+    self.chunks.get_mut(&chunk_coord).map(|chunk| &mut chunk.grid[c])
   }
 
   pub fn get_light_level(&self, c: DDD) -> Option<LightLevel> {
     let chunk_coord = Self::get_chunk_coord(c);
-    self.chunks.get(&chunk_coord).map(|chunk| {
-      if c.in_bounds(&chunk.light_map.bounds) {
-        Some(chunk.light_map[c])
-      } else {
-        None
-      }
-    }).flatten()
+    self
+      .chunks
+      .get(&chunk_coord)
+      .map(|chunk| {
+        if c.in_bounds(&chunk.light_map.bounds) {
+          Some(chunk.light_map[c])
+        } else {
+          None
+        }
+      })
+      .flatten()
   }
 
   pub fn set_light_level(&mut self, c: DDD, light_level: LightLevel) -> Option<()> {

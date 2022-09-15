@@ -1,5 +1,5 @@
 use crate::ecs::plugins::rendering::voxel_pipeline::bind_groups::LightTextureHandle;
-use crate::ecs::plugins::rendering::voxel_pipeline::meshing::{RemeshEvent};
+use crate::ecs::plugins::rendering::voxel_pipeline::meshing::RemeshEvent;
 use bevy::prelude::*;
 use bevy::utils::HashSet;
 use itertools::Itertools;
@@ -10,11 +10,14 @@ use shikataganai_common::util::array::{FlatFullNeighbours, ImmediateNeighbours};
 pub fn religh_system(
   mut relight: EventReader<RelightEvent>,
   mut remesh: EventWriter<RemeshEvent>,
-  mut game_world: ResMut<GameWorld>
+  mut game_world: ResMut<GameWorld>,
 ) {
-  for coord in relight_helper(&mut relight, game_world.as_mut())
-    .iter() {
-    coord.flat_full_neighbours().map(|coord|GameWorld::get_chunk_coord(coord)).unique().for_each(|chunk_coord| remesh.send(RemeshEvent::Remesh(chunk_coord)));
+  for coord in relight_helper(&mut relight, game_world.as_mut()).iter() {
+    coord
+      .flat_full_neighbours()
+      .map(|coord| GameWorld::get_chunk_coord(coord))
+      .unique()
+      .for_each(|chunk_coord| remesh.send(RemeshEvent::Remesh(chunk_coord)));
   }
 }
 //

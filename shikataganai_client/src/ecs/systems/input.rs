@@ -1,4 +1,4 @@
-use std::cmp::Ordering;
+use crate::ecs::components::blocks::{animate, AnimationTrait, ChestAnimations, DerefExt};
 use crate::ecs::plugins::camera::{FPSCamera, Recollide, Selection};
 use crate::ecs::resources::player::{PlayerInventory, RerenderInventory, SelectedHotBar};
 use bevy::input::mouse::MouseWheel;
@@ -15,6 +15,9 @@ use shikataganai_common::ecs::resources::light::{LightLevel, RelightEvent};
 use shikataganai_common::ecs::resources::world::GameWorld;
 use shikataganai_common::networking::{ClientChannel, PlayerCommand};
 use shikataganai_common::util::array::DDD;
+use std::cmp::Ordering;
+use iyes_loopless::state::NextState;
+use crate::ecs::plugins::game::ShikataganaiGameState;
 
 fn place_item_from_inventory(
   player_inventory: &mut PlayerInventory,
@@ -79,12 +82,12 @@ fn place_item_from_inventory(
 }
 
 fn pick_up_block(
-  mut commands: Commands,
+  commands: &mut Commands,
   player_inventory: &mut PlayerInventory,
   coord: DDD,
   game_world: &mut GameWorld,
   rerender_inventory: &mut ResMut<RerenderInventory>,
-) {
+) -> Option<()> {
   if let Some(source_block) = game_world.get_mut(coord) {
     let block: BlockId = std::mem::replace(&mut source_block.block, BlockId::Air);
 
@@ -125,7 +128,7 @@ fn pick_up_block(
       None => {
         // No empty or correct slots found, return block back into place
         let _ = std::mem::replace(&mut source_block.block, block);
-        return;
+        return None;
       }
       Some(true) => {
         // New item added - rerender required
@@ -138,11 +141,14 @@ fn pick_up_block(
       commands.entity(source_block.entity).despawn_recursive();
       source_block.entity = Entity::from_bits(0);
     }
+    Some(())
+  } else {
+    None
   }
 }
 
 pub fn action_input(
-  commands: Commands,
+  mut commands: Commands,
   mouse: Res<Input<MouseButton>>,
   camera: Query<&FPSCamera>,
   selection: Res<Option<Selection>>,
@@ -154,54 +160,73 @@ pub fn action_input(
   mut rerender_inventory: ResMut<RerenderInventory>,
   mut recollide: ResMut<Recollide>,
   mut client: ResMut<RenetClient>,
+  mut windows: ResMut<Windows>,
 ) {
+  let window = windows.get_primary_mut().unwrap();
   match selection.into_inner() {
     None => {}
     Some(Selection { cube, face }) => {
       let source: DDD = *cube;
       let target_negative = *face;
       if mouse.just_pressed(MouseButton::Left) {
-        pick_up_block(
-          commands,
+        if let Some(()) = pick_up_block(
+          &mut commands,
           player_inventory.as_mut(),
           source,
           &mut game_world,
           &mut rerender_inventory,
-        );
-
-        client.send_message(
-          ClientChannel::ClientCommand.id(),
-          serialize(&PlayerCommand::BlockRemove { location: source }).unwrap(),
-        );
-
-        relight_events.send(RelightEvent::Relight(source));
-        recollide.0 = true;
-      }
-      if mouse.just_pressed(MouseButton::Right) {
-        let block_copy = place_item_from_inventory(
-          player_inventory.as_mut(),
-          hotbar_selection.0 as usize,
-          target_negative,
-          &mut game_world,
-          &rapier_context,
-          &camera.single(),
-        );
-
-        block_copy.map(|block| {
+        ) {
           client.send_message(
             ClientChannel::ClientCommand.id(),
-            serialize(&PlayerCommand::BlockPlace {
-              location: target_negative,
-              block_transfer: block.into(),
-            })
-            .unwrap(),
+            serialize(&PlayerCommand::BlockRemove { location: source }).unwrap(),
           );
-        });
 
-        game_world.set_light_level(target_negative, LightLevel::dark());
+          relight_events.send(RelightEvent::Relight(source));
+          recollide.0 = true;
+        }
+      }
+      if mouse.just_pressed(MouseButton::Right) {
+        if game_world
+          .get(source)
+          .map(|block| block.deref_ext().right_click_interface(block.entity, &mut commands))
+          .flatten()
+          .is_none()
+        {
+          let block_copy = place_item_from_inventory(
+            player_inventory.as_mut(),
+            hotbar_selection.0 as usize,
+            target_negative,
+            &mut game_world,
+            &rapier_context,
+            &camera.single(),
+          );
 
-        relight_events.send(RelightEvent::Relight(target_negative));
-        recollide.0 = true;
+          block_copy.map(|block| {
+            client.send_message(
+              ClientChannel::ClientCommand.id(),
+              serialize(&PlayerCommand::BlockPlace {
+                location: target_negative,
+                block_transfer: block.into(),
+              })
+              .unwrap(),
+            );
+          });
+
+          game_world.set_light_level(target_negative, LightLevel::dark());
+
+          relight_events.send(RelightEvent::Relight(target_negative));
+          recollide.0 = true;
+        } else {
+          commands.insert_resource(NextState(ShikataganaiGameState::InterfaceOpened));
+          window.set_cursor_lock_mode(false);
+          window.set_cursor_visibility(true);
+          game_world.get(source).map(|block| {
+            if block.block == BlockId::Chest {
+              animate(&mut commands, block.entity, ChestAnimations::Open.get_animation());
+              client.send_message(ClientChannel::ClientCommand.id(), serialize(&PlayerCommand::AnimationStart { location: source, animation: ChestAnimations::Open.get_animation() }).unwrap());
+            }
+          });
+        }
       }
     }
   }
