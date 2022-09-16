@@ -160,9 +160,7 @@ pub fn action_input(
   mut rerender_inventory: ResMut<RerenderInventory>,
   mut recollide: ResMut<Recollide>,
   mut client: ResMut<RenetClient>,
-  mut windows: ResMut<Windows>,
 ) {
-  let window = windows.get_primary_mut().unwrap();
   match selection.into_inner() {
     None => {}
     Some(Selection { cube, face }) => {
@@ -188,7 +186,7 @@ pub fn action_input(
       if mouse.just_pressed(MouseButton::Right) {
         if game_world
           .get(source)
-          .map(|block| block.deref_ext().right_click_interface(block.entity, &mut commands))
+          .map(|block| block.deref_ext().right_click_interface(block.entity, source, &mut commands, &mut client))
           .flatten()
           .is_none()
         {
@@ -216,16 +214,6 @@ pub fn action_input(
 
           relight_events.send(RelightEvent::Relight(target_negative));
           recollide.0 = true;
-        } else {
-          commands.insert_resource(NextState(ShikataganaiGameState::InterfaceOpened));
-          window.set_cursor_lock_mode(false);
-          window.set_cursor_visibility(true);
-          game_world.get(source).map(|block| {
-            if block.block == BlockId::Chest {
-              animate(&mut commands, block.entity, ChestAnimations::Open.get_animation());
-              client.send_message(ClientChannel::ClientCommand.id(), serialize(&PlayerCommand::AnimationStart { location: source, animation: ChestAnimations::Open.get_animation() }).unwrap());
-            }
-          });
         }
       }
     }

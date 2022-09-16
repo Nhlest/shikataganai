@@ -384,20 +384,13 @@ fn cursor_grab_system(
   mut commands: Commands,
   current_state: Res<CurrentState<ShikataganaiGameState>>,
   key: Res<Input<KeyCode>>,
-  mut windows: ResMut<Windows>,
 ) {
-  let window = windows.get_primary_mut().unwrap();
-
   if key.just_pressed(KeyCode::Escape) {
     match current_state.0 {
       ShikataganaiGameState::Simulation => {
-        window.set_cursor_lock_mode(false);
-        window.set_cursor_visibility(true);
         commands.insert_resource(NextState(ShikataganaiGameState::Paused));
       }
       ShikataganaiGameState::Paused => {
-        window.set_cursor_lock_mode(true);
-        window.set_cursor_visibility(false);
         commands.insert_resource(NextState(ShikataganaiGameState::Simulation));
       }
       _ => {}

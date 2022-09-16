@@ -44,8 +44,6 @@ pub fn game_menu(
       let w = ui.calc_text_size("Continue");
       ui.set_cursor_pos([((x2 - x1) - w[0]) / 2.0, ui.cursor_pos()[1]]);
       if ui.button("Continue") {
-        active_window.set_cursor_lock_mode(true);
-        active_window.set_cursor_visibility(false);
         physics_system.physics_pipeline_active = true;
         commands.insert_resource(NextState(ShikataganaiGameState::Simulation));
       }

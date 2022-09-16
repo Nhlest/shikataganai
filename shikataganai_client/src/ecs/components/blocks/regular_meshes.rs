@@ -1,7 +1,13 @@
-use crate::ecs::components::blocks::{BlockRenderInfo, BlockTraitExt, Skeletons};
+use crate::ecs::components::blocks::{animate, AnimationTrait, BlockRenderInfo, BlockTraitExt, ChestAnimations, Skeletons};
 use crate::ecs::plugins::rendering::mesh_pipeline::loader::Meshes;
 use crate::ecs::systems::user_interface::chest_inventory::InventoryOpened;
 use bevy::prelude::{Commands, Entity};
+use bevy_renet::renet::RenetClient;
+use bincode::serialize;
+use iyes_loopless::prelude::NextState;
+use shikataganai_common::networking::{ClientChannel, PlayerCommand};
+use shikataganai_common::util::array::DDD;
+use crate::ecs::plugins::game::ShikataganaiGameState;
 
 pub struct Stair;
 pub struct Chest;
@@ -16,8 +22,12 @@ impl BlockTraitExt for Chest {
   fn render_info(&self) -> BlockRenderInfo {
     BlockRenderInfo::AsSkeleton(Skeletons::Chest)
   }
-  fn right_click_interface(&self, entity: Entity, commands: &mut Commands) -> Option<()> {
+  fn right_click_interface(&self, entity: Entity, location: DDD, commands: &mut Commands, client: &mut RenetClient) -> Option<()> {
     commands.insert_resource(InventoryOpened(entity));
+    commands.insert_resource(NextState(ShikataganaiGameState::InterfaceOpened));
+
+    animate(commands, entity, ChestAnimations::Open.get_animation());
+    client.send_message(ClientChannel::ClientCommand.id(), serialize(&PlayerCommand::AnimationStart { location, animation: ChestAnimations::Open.get_animation() }).unwrap());
     Some(())
   }
 }

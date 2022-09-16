@@ -152,6 +152,24 @@ pub fn interface_input(
   }
 }
 
+pub fn enter_simulation(
+  mut windows: ResMut<Windows>,
+) {
+  let window = windows.get_primary_mut().unwrap();
+
+  window.set_cursor_lock_mode(true);
+  window.set_cursor_visibility(false);
+}
+
+pub fn exit_simulation(
+  mut windows: ResMut<Windows>,
+) {
+  let window = windows.get_primary_mut().unwrap();
+
+  window.set_cursor_lock_mode(false);
+  window.set_cursor_visibility(true);
+}
+
 impl Plugin for GamePlugin {
   fn build(&self, app: &mut App) {
     let on_main_menu = ConditionSet::new()
@@ -196,6 +214,8 @@ impl Plugin for GamePlugin {
       .into();
     let on_fixed_step_simulation_stage = SystemStage::parallel().with_system_set(on_fixed_step_simulation);
     let on_post_update_simulation = ConditionSet::new().run_if(in_game).with_system(religh_system).into();
+    let on_enter_simulation = SystemStage::parallel().with_system(enter_simulation);
+    let on_exit_simulation = SystemStage::parallel().with_system(exit_simulation);
 
     app.world.spawn().insert(Player);
 
@@ -215,7 +235,9 @@ impl Plugin for GamePlugin {
       .add_system_set_to_stage(CoreStage::PostUpdate, on_post_update_simulation)
       .add_system_set_to_stage(CoreStage::PostUpdate, on_game_simulation_continuous_post_update)
       .set_enter_stage(ShikataganaiGameState::MainMenu, on_game_exit)
-      .set_enter_stage(ShikataganaiGameState::PreSimulation, on_game_enter);
+      .set_enter_stage(ShikataganaiGameState::PreSimulation, on_game_enter)
+      .set_enter_stage(ShikataganaiGameState::Simulation, on_enter_simulation)
+      .set_exit_stage(ShikataganaiGameState::Simulation, on_exit_simulation);
 
     let render_app = app.get_sub_app_mut(RenderApp).unwrap();
     render_app.add_system_to_stage(RenderStage::Extract, extract_loopless_state);

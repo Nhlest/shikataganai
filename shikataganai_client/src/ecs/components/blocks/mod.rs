@@ -5,8 +5,10 @@ use bevy::utils::hashbrown::HashMap;
 use shikataganai_common::ecs::components::blocks::block_id::BlockId;
 use shikataganai_common::ecs::components::blocks::Block;
 use std::hash::Hash;
+use bevy_renet::renet::RenetClient;
 use num_traits::FloatConst;
 use shikataganai_common::ecs::components::blocks::animation::{Animation, AnimationType};
+use shikataganai_common::util::array::DDD;
 
 pub mod regular_blocks;
 pub mod regular_meshes;
@@ -128,7 +130,7 @@ pub enum BlockRenderInfo {
 
 pub trait BlockTraitExt {
   fn render_info(&self) -> BlockRenderInfo;
-  fn right_click_interface(&self, entity: Entity, commands: &mut Commands) -> Option<()> {
+  fn right_click_interface(&self, entity: Entity, location: DDD, commands: &mut Commands, client: &mut RenetClient) -> Option<()> {
     None
   }
 }
