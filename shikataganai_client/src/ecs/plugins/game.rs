@@ -39,24 +39,15 @@ pub enum ShikataganaiGameState {
 pub struct FixedUpdate;
 
 pub fn in_game(current_state: Res<CurrentState<ShikataganaiGameState>>) -> bool {
-  match current_state.0 {
-    ShikataganaiGameState::Simulation | ShikataganaiGameState::Paused | ShikataganaiGameState::InterfaceOpened => true,
-    _ => false,
-  }
+  matches!(current_state.0, ShikataganaiGameState::Simulation | ShikataganaiGameState::Paused | ShikataganaiGameState::InterfaceOpened)
 }
 
 pub fn in_game_extract(current_state: Extract<Res<CurrentState<ShikataganaiGameState>>>) -> bool {
-  match current_state.0 {
-    ShikataganaiGameState::Simulation | ShikataganaiGameState::Paused | ShikataganaiGameState::InterfaceOpened => true,
-    _ => false,
-  }
+  matches!(current_state.0, ShikataganaiGameState::Simulation | ShikataganaiGameState::Paused | ShikataganaiGameState::InterfaceOpened)
 }
 
 pub fn in_game_input_enabled(current_state: Res<CurrentState<ShikataganaiGameState>>) -> bool {
-  match current_state.0 {
-    ShikataganaiGameState::Simulation | ShikataganaiGameState::Paused => true,
-    _ => false,
-  }
+  matches!(current_state.0, ShikataganaiGameState::Simulation | ShikataganaiGameState::Paused)
 }
 
 pub fn init_game(mut commands: Commands) {
