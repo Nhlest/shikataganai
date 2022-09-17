@@ -19,6 +19,7 @@ use shikataganai_common::ecs::components::blocks::BlockOrItem;
 use std::collections::HashMap;
 use wgpu::util::BufferInitDescriptor;
 use wgpu::IndexFormat;
+use bytemuck_derive::*;
 
 const HEX_CC: [f32; 2] = [0.000000, -0.000000];
 const HEX_NN: [f32; 2] = [0.000000, -1.000000];
@@ -27,6 +28,15 @@ const HEX_NW: [f32; 2] = [-0.866025, -0.500000];
 const HEX_NE: [f32; 2] = [0.866025, -0.500000];
 const HEX_SW: [f32; 2] = [-0.866025, 0.500000];
 const HEX_SE: [f32; 2] = [0.866025, 0.500000];
+
+#[derive(Pod, Zeroable, Copy, Clone)]
+#[repr(C)]
+pub struct MatrixContent {
+  mat: Mat4,
+  filler1: [u8; 64],
+  filler2: [u8; 64],
+  filler3: [u8; 64],
+}
 
 impl Node for InventoryNode {
   fn input(&self) -> Vec<SlotInfo> {
@@ -177,9 +187,14 @@ impl Node for InventoryNode {
         contents.extend_from_slice(
           &bytemuck::bytes_of(
             &(
-              Mat4::from_translation(Vec3::new(0.5 + *x * INVENTORY_OUTPUT_TEXTURE_WIDTH, 0.5 + *y * INVENTORY_OUTPUT_TEXTURE_WIDTH,  1.0 + *z * INVENTORY_OUTPUT_TEXTURE_WIDTH)) *
-              Mat4::from_quat(Quat::from_euler(EulerRot::XYZ, -f32::FRAC_PI_4(), f32::FRAC_PI_4(), 0.0)) *
-              Mat4::from_scale(Vec3::new(0.55, -0.55, 0.55))
+              MatrixContent {
+                mat: Mat4::from_translation(Vec3::new(0.5 + *x * INVENTORY_OUTPUT_TEXTURE_WIDTH, 0.5 + *y * INVENTORY_OUTPUT_TEXTURE_WIDTH,  1.0 + *z * INVENTORY_OUTPUT_TEXTURE_WIDTH)) *
+                     Mat4::from_quat(Quat::from_euler(EulerRot::XYZ, -f32::FRAC_PI_4(), f32::FRAC_PI_4(), 0.0)) *
+                     Mat4::from_scale(Vec3::new(0.55, -0.55, 0.55)),
+                filler1: [0; 64],
+                filler2: [0; 64],
+                filler3: [0; 64],
+              }
             )
           )
         );
@@ -221,7 +236,7 @@ impl Node for InventoryNode {
             pass.set_index_buffer(*buffer.slice(..), IndexFormat::Uint32);
             pass.set_bind_group(0, &mesh_view_bind_group, &[]);
             pass.set_bind_group(1, &mesh_texture_bind_group, &[]);
-            pass.set_bind_group(2, mesh_position_bind_group.as_ref().unwrap(), &[(i as u32) * 64]);
+            pass.set_bind_group(2, mesh_position_bind_group.as_ref().unwrap(), &[(i as u32) * 256]); // 256 is the minimum offset on M1. TODO: make it more generic
             pass.draw_indexed(0..*count, 0, 0..1);
           }
           _ => {}
