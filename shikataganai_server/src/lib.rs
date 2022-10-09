@@ -1,3 +1,4 @@
+#![feature(let_chains)]
 use bevy::app::ScheduleRunnerSettings;
 use bevy::prelude::*;
 use shikataganai_common::ecs::resources::world::GameWorld;

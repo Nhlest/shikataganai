@@ -22,13 +22,20 @@ pub fn item_button(
   texture: &GUITextureAtlas,
   extracted_items: &ExtractedItems,
   style: ButtonStyle,
+  same_row: bool
 ) {
-  let cursor = ui.cursor_screen_pos();
-  let c = ui.cursor_pos();
+  let window = ui.window_pos();
+  let cursor = ui.cursor_pos();
+  let text_label = [cursor[0] + 80.0, cursor[1] + 78.0];
+  let next_element = if same_row {
+    [cursor[0] + size[0] + 2.0, cursor[1]]
+  } else {
+    [2.0, cursor[1] + size[1] + 2.0]
+  };
   match style {
     ButtonStyle::Normal => {
       ui.get_background_draw_list()
-        .add_rect(cursor, [cursor[0] + size[0], cursor[1] + size[1]], [1.0, 0.0, 0.0, 0.8])
+        .add_rect([cursor[0] + window[0], cursor[1] + window[1]], [cursor[0] + size[0] + window[0], cursor[1] + size[1] + window[1]], [1.0, 0.0, 0.0, 0.8])
         .filled(true)
         .build();
     }
@@ -45,7 +52,7 @@ pub fn item_button(
         .build();
     }
   }
-  ui.set_cursor_pos(c);
+  ui.set_cursor_pos(cursor);
   match item {
     None => {
       imgui::Image::new(texture.0, size)
@@ -53,22 +60,19 @@ pub fn item_button(
         .uv1([1.0, 1.0])
         .border_col([0.0, 0.0, 0.0, 1.0])
         .build(&ui);
-      ui.same_line();
     }
     Some(QuantifiedBlockOrItem { block_or_item, quant }) => {
       let coords = extracted_items.0.get(&block_or_item).unwrap_or(&(0.0, 0.0)).clone();
-      let cursor_before = ui.cursor_pos();
+      ui.set_cursor_pos(cursor);
       imgui::Image::new(texture.0, size)
         .uv0([coords.0, coords.1])
         .uv1([coords.0 + 1.0 / 8.0, coords.1 + 1.0 / 8.0])
         .border_col([0.0, 0.0, 0.0, 1.0])
         .build(&ui);
-      ui.same_line();
-      let cursor_after = ui.cursor_pos();
-      ui.set_cursor_pos([cursor_before[0] + 80.0, cursor_before[1] + 78.0]);
+      ui.set_cursor_pos(text_label);
       ui.text(format!("{}", quant));
-      ui.same_line();
-      ui.set_cursor_pos(cursor_after);
     }
   }
+  println!("{:?}", next_element);
+  ui.set_cursor_pos(next_element);
 }

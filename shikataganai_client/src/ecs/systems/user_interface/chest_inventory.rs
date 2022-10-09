@@ -57,6 +57,13 @@ pub fn chest_inventory(
           ui.set_cursor_pos([left_margin, 2.5]);
           let mut items_in_current_row = 0;
           for item in internal_inventory.inventory.iter() {
+            let same_row = if items_in_current_row >= 8 {
+              items_in_current_row = 0;
+              false
+            } else {
+              items_in_current_row += 1;
+              true
+            };
             item_button(
               ui,
               [95.0, 95.0],
@@ -64,6 +71,7 @@ pub fn chest_inventory(
               texture.as_ref(),
               extracted_items.as_ref(),
               ButtonStyle::Normal,
+              same_row
             );
           }
         })

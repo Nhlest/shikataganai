@@ -1,4 +1,5 @@
 #![feature(const_fn_floating_point_arithmetic)]
+#![feature(let_chains)]
 #![feature(negative_impls)]
 #![feature(array_methods)]
 #![feature(adt_const_params)]
