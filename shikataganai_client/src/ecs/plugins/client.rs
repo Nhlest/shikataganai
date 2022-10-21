@@ -28,6 +28,7 @@ use crate::ecs::plugins::rendering::mesh_pipeline::loader::{get_mesh_from_storag
 use crate::ecs::plugins::rendering::mesh_pipeline::systems::MeshMarker;
 use crate::ecs::plugins::rendering::mesh_pipeline::AmongerTextureHandle;
 use crate::ecs::plugins::rendering::voxel_pipeline::meshing::RemeshEvent;
+use crate::ecs::resources::player::RerenderInventory;
 use crate::GltfMeshStorage;
 
 #[derive(Default)]
@@ -151,12 +152,13 @@ fn receive_system(
   mut commands: Commands,
   mut relight: EventWriter<RelightEvent>,
   mut remesh: EventWriter<RemeshEvent>,
-  (mut network_mapping, mut game_world, mut recollide, mut client, mut lobby): (
+  (mut network_mapping, mut game_world, mut recollide, mut client, mut lobby, mut rerender_inventory): (
     ResMut<NetworkMapping>,
     ResMut<GameWorld>,
     ResMut<Recollide>,
     ResMut<RenetClient>,
     ResMut<ClientLobby>,
+    ResMut<RerenderInventory>,
   ),
   mesh_storage_handle: Res<GltfMeshStorageHandle>,
   amonger_texture: Res<AmongerTextureHandle>,
@@ -266,6 +268,7 @@ fn receive_system(
       ServerMessage::AuthConfirmed {
         translation: (translation, rotation),
       } => {
+        rerender_inventory.0 = true;
         let entity = player_entity.single_mut();
         let mut fps_camera = fps_camera_query.single_mut();
         let mut transform = query.get_mut(entity).unwrap();

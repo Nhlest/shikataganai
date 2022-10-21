@@ -29,6 +29,8 @@ impl Default for PlayerInventory {
         }),
         None,
         None,
+        None,
+        None,
       ],
     }
   }
