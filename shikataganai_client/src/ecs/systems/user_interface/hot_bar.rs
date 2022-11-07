@@ -57,7 +57,7 @@ pub fn hot_bar(
               .uv0([1.0, 1.0])
               .uv1([1.0, 1.0])
               .border_col([0.0, 0.0, 0.0, 1.0])
-              .build(&ui);
+              .build(ui);
             ui.same_line();
           }
           Some(QuantifiedBlockOrItem { block_or_item, quant }) => {
@@ -67,7 +67,7 @@ pub fn hot_bar(
               .uv0([coords.0, coords.1])
               .uv1([coords.0 + 1.0 / 8.0, coords.1 + 1.0 / 8.0])
               .border_col([0.0, 0.0, 0.0, 1.0])
-              .build(&ui);
+              .build(ui);
             ui.same_line();
             let cursor_after = ui.cursor_pos();
             ui.set_cursor_pos([cursor_before[0] + 80.0, cursor_before[1] + 78.0]);

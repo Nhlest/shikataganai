@@ -15,7 +15,7 @@ impl BlockSprite {
     let i = self as usize;
     let x = i % BLOCK_SPRITE_SHEET_WIDTH;
     let y = i / BLOCK_SPRITE_SHEET_WIDTH;
-    return (
+    (
       [
         x as f32 / BLOCK_SPRITE_SHEET_WIDTH as f32,
         y as f32 / BLOCK_SPRITE_SHEET_WIDTH as f32,
@@ -24,6 +24,6 @@ impl BlockSprite {
         (x + 1) as f32 / BLOCK_SPRITE_SHEET_WIDTH as f32,
         (y + 1) as f32 / BLOCK_SPRITE_SHEET_WIDTH as f32,
       ],
-    );
+    )
   }
 }

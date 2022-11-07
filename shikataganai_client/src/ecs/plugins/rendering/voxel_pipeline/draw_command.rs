@@ -29,7 +29,7 @@ impl EntityRenderCommand for DrawVoxels {
   ) -> RenderCommandResult {
     let ChunkMeshBuffer(buf, verticies) = param.get_inner(item).unwrap();
     pass.set_vertex_buffer(0, buf.slice(..));
-    pass.draw(0..*verticies as u32 * 6, 0..1 as u32);
+    pass.draw(0..*verticies as u32 * 6, 0..1_u32);
     RenderCommandResult::Success
   }
 }

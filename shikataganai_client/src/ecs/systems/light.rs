@@ -13,7 +13,7 @@ pub fn religh_system(
   for coord in relight_helper(&mut relight, game_world.as_mut()).iter() {
     coord
       .flat_full_neighbours()
-      .map(|coord| GameWorld::get_chunk_coord(coord))
+      .map(GameWorld::get_chunk_coord)
       .unique()
       .for_each(|chunk_coord| remesh.send(RemeshEvent::Remesh(chunk_coord)));
   }

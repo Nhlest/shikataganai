@@ -69,8 +69,7 @@ async fn load_buffers(gltf: &Gltf, load_context: &LoadContext<'_>, asset_path: &
           Err(()) => {
             // TODO: Remove this and add dep
             let buffer_path = asset_path.parent().unwrap().join(uri);
-            let buffer_bytes = load_context.read_asset_bytes(buffer_path).await.unwrap();
-            buffer_bytes
+            load_context.read_asset_bytes(buffer_path).await.unwrap()
           }
         };
         buffer_data.push(buffer_bytes);

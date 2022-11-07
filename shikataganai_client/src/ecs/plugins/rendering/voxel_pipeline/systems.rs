@@ -50,7 +50,7 @@ pub fn extract_chunks(
     .filter_map(|p| if let RemeshEvent::Remesh(d) = p { Some(d) } else { None })
     .unique()
   {
-    if !game_world.chunks.contains_key(&ch) {
+    if !game_world.chunks.contains_key(ch) {
       continue;
     }
     updated.push(*ch);
@@ -61,7 +61,7 @@ pub fn extract_chunks(
     let bounds = game_world.chunks[ch].grid.bounds;
     let mut i = bounds.0;
     loop {
-      let block: Block = game_world.get(i).unwrap().clone();
+      let block: Block = *game_world.get(i).unwrap();
       match block.deref_ext().render_info() {
         BlockRenderInfo::Nothing => {}
         BlockRenderInfo::AsBlock(block_sprites) => {

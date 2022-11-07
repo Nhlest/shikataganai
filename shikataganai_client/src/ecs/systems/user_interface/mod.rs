@@ -71,7 +71,7 @@ pub fn item_button(
     None => imgui::ImageButton::new(texture.0, size)
       .uv0([1.0, 1.0])
       .uv1([1.0, 1.0])
-      .build(&ui),
+      .build(ui),
     Some(QuantifiedBlockOrItem { block_or_item, quant }) => {
       let coords = extracted_items.request(*block_or_item).unwrap_or((0.0, 0.0));
       ui.set_cursor_pos(cursor);
@@ -81,7 +81,7 @@ pub fn item_button(
         .uv0([coords.0, coords.1])
         .uv1([coords.0 + 1.0 / 8.0, coords.1 + 1.0 / 8.0])
         .background_col(bg_color)
-        .build(&ui);
+        .build(ui);
       id.end();
       token.end();
 

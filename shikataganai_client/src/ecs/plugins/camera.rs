@@ -186,14 +186,14 @@ fn movement_input_system(
   movement = movement.normalize_or_zero();
 
   if fps_camera.velocity.y.abs() < 0.001 {
-    *stationary_frames = *stationary_frames + 1;
+    *stationary_frames += 1;
   } else {
     *stationary_frames = 0; // TODO: potential for a double jump here;
   }
 
   let y = fps_camera.velocity.y;
   fps_camera.velocity.y = 0.0;
-  fps_camera.velocity = movement.into();
+  fps_camera.velocity = movement;
   fps_camera.velocity *= 5.0;
   fps_camera.velocity.y = y;
 
@@ -266,7 +266,7 @@ fn update_colliders(
                 BlockRenderInfo::AsMesh(mesh) => {
                   if let Some(mesh_assets_hash_map) = mesh_storage_assets.get(&storage.0) {
                     let mesh = &mesh_assets_hash_map[&mesh];
-                    let collider_mesh = mesh_assets.get(&mesh.collision.as_ref().unwrap()).unwrap();
+                    let collider_mesh = mesh_assets.get(mesh.collision.as_ref().unwrap()).unwrap();
                     let meta = block.meta.v as f32;
                     commands.spawn_bundle(ProximityColliderBundle::proximity_collider(
                       Collider::from_bevy_mesh(collider_mesh, &ComputedColliderShape::TriMesh).unwrap(), // TODO: cache this
@@ -279,7 +279,7 @@ fn update_colliders(
                   if let Some(mesh_assets_hash_map) = mesh_storage_assets.get(&storage.0) {
                     let mesh = skeleton.to_skeleton_def().collider;
                     let mesh = &mesh_assets_hash_map[&mesh];
-                    let collider_mesh = mesh_assets.get(&mesh.collision.as_ref().unwrap()).unwrap();
+                    let collider_mesh = mesh_assets.get(mesh.collision.as_ref().unwrap()).unwrap();
                     let meta = block.meta.v as f32;
                     commands.spawn_bundle(ProximityColliderBundle::proximity_collider(
                       Collider::from_bevy_mesh(collider_mesh, &ComputedColliderShape::TriMesh).unwrap(), // TODO: cache this
@@ -416,7 +416,7 @@ fn block_pick(
     // TODO: generalise it. Make it possible to right click on custom meshes
     let transform = transforms.get(entity).unwrap();
     let cube = transform.translation - Vec3::new(0.5, 0.5, 0.5);
-    let normal: Vec3 = Vec3::from(intersection.normal) + cube;
+    let normal: Vec3 = intersection.normal + cube;
     *selection = Some(Selection {
       cube: (cube.x.round() as i32, cube.y.floor() as i32, cube.z.floor() as i32),
       face: (

@@ -82,12 +82,12 @@ pub fn debug_console(
           const GREEN: [f32; 4] = [0.0, 1.0, 0.0, 1.0];
           const YELLOW: [f32; 4] = [1.0, 1.0, 0.0, 1.0];
 
-          let token = match &item.level {
-            &Level::ERROR => ui.push_style_color(StyleColor::Text, RED),
-            &Level::INFO => ui.push_style_color(StyleColor::Text, GREEN),
-            &Level::WARN => ui.push_style_color(StyleColor::Text, YELLOW),
-            &Level::TRACE => ui.push_style_color(StyleColor::Text, YELLOW),
-            &Level::DEBUG => ui.push_style_color(StyleColor::Text, YELLOW),
+          let token = match item.level {
+            Level::ERROR => ui.push_style_color(StyleColor::Text, RED),
+            Level::INFO => ui.push_style_color(StyleColor::Text, GREEN),
+            Level::WARN => ui.push_style_color(StyleColor::Text, YELLOW),
+            Level::TRACE => ui.push_style_color(StyleColor::Text, YELLOW),
+            Level::DEBUG => ui.push_style_color(StyleColor::Text, YELLOW),
           };
           ui.text(&item.text);
           token.pop();
@@ -128,12 +128,12 @@ pub fn debug_console(
             const GREEN: [f32; 4] = [0.0, 1.0, 0.0, 1.0];
             const YELLOW: [f32; 4] = [1.0, 1.0, 0.0, 1.0];
 
-            let token = match &item.level {
-              &Level::ERROR => ui.push_style_color(StyleColor::Text, RED),
-              &Level::INFO => ui.push_style_color(StyleColor::Text, GREEN),
-              &Level::WARN => ui.push_style_color(StyleColor::Text, YELLOW),
-              &Level::TRACE => ui.push_style_color(StyleColor::Text, YELLOW),
-              &Level::DEBUG => ui.push_style_color(StyleColor::Text, YELLOW),
+            let token = match item.level {
+              Level::ERROR => ui.push_style_color(StyleColor::Text, RED),
+              Level::INFO => ui.push_style_color(StyleColor::Text, GREEN),
+              Level::WARN => ui.push_style_color(StyleColor::Text, YELLOW),
+              Level::TRACE => ui.push_style_color(StyleColor::Text, YELLOW),
+              Level::DEBUG => ui.push_style_color(StyleColor::Text, YELLOW),
             };
             ui.text(&item.text);
             token.pop();
@@ -141,7 +141,7 @@ pub fn debug_console(
         }
       }
       let mut buff0 = String::with_capacity(32);
-      let input_width = ui.push_item_width(active_window.width() - 10 as f32);
+      let input_width = ui.push_item_width(active_window.width() - 10.0);
       if ui.is_window_focused() && !ui.is_any_item_focused() && !ui.is_mouse_clicked(imgui::MouseButton::Left) {
         ui.set_keyboard_focus_here();
       }
@@ -154,14 +154,14 @@ pub fn debug_console(
         .build()
       {
         fn get_bool_command(command: &str) -> bool {
-          return command == "1";
+          command == "1"
         }
         #[inline]
         fn get_float_command(command: &str) -> f32 {
           command.parse::<f32>().unwrap_or(0.0)
         }
         let command = buff0.split_whitespace().collect::<Vec<&str>>();
-        match command.get(0) {
+        match command.first() {
           Some(..) => match command[0] {
             "clear" => {
               items.clear();
@@ -174,7 +174,7 @@ pub fn debug_console(
                     &mut items,
                     std::format!("noclip {}", command[1]).as_str(),
                     Level::INFO,
-                    &*tick,
+                    &tick,
                   );
                 }
                 "player_speed" => {
@@ -186,7 +186,7 @@ pub fn debug_console(
                     &mut items,
                     std::format!("Changed player speed to: {}", command[1]).as_str(),
                     Level::INFO,
-                    &*tick,
+                    &tick,
                   );
                 }
                 _ => {
@@ -194,7 +194,7 @@ pub fn debug_console(
                     &mut items,
                     std::format!("Error: Couldn't find the command '{}'", command[0]).as_str(),
                     Level::ERROR,
-                    &*tick,
+                    &tick,
                   );
                 }
               },

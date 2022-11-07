@@ -62,7 +62,7 @@ impl<const I: usize> EntityRenderCommand for SetTextureBindGroup<I> {
   ) -> RenderCommandResult {
     let texture_handle = query.get(item).unwrap();
     let texture = textures.into_inner().get(texture_handle).unwrap();
-    pass.set_bind_group(I, &texture, &[]);
+    pass.set_bind_group(I, texture, &[]);
     RenderCommandResult::Success
   }
 }

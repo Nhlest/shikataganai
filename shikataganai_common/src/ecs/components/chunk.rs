@@ -16,8 +16,7 @@ pub struct Chunk {
 }
 
 fn noise(perlin: &Perlin, c: DDD) -> f64 {
-  let a = perlin.get([c.0 as f64 / 20.0, 0.0, c.2 as f64 / 20.0]);
-  a
+  perlin.get([c.0 as f64 / 20.0, 0.0, c.2 as f64 / 20.0])
 }
 
 impl Chunk {
@@ -62,16 +61,14 @@ impl Chunk {
         } else {
           BlockId::Air
         }
+      } else if (y - 30) > top_extent {
+        BlockId::Air
+      } else if (y - 30) == top_extent {
+        BlockId::Grass
+      } else if y - 28 >= top_extent {
+        BlockId::Dirt
       } else {
-        if (y - 30) > top_extent {
-          BlockId::Air
-        } else if (y - 30) == top_extent {
-          BlockId::Grass
-        } else if y - 28 >= top_extent {
-          BlockId::Dirt
-        } else {
-          BlockId::Cobble
-        }
+        BlockId::Cobble
       }
     })
   }

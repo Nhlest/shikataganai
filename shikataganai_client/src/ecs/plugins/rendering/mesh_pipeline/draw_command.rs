@@ -58,7 +58,7 @@ impl EntityRenderCommand for DrawMeshes {
     let MeshBuffer(buf, idx_buffer, indicies, index_format) = param.get_inner(item).unwrap();
     pass.set_vertex_buffer(0, buf.slice(..));
     pass.set_index_buffer(idx_buffer.slice(..), 0, *index_format);
-    pass.draw_indexed(0..*indicies as u32, 0, 0..1 as u32);
+    pass.draw_indexed(0..*indicies as u32, 0, 0..1_u32);
     RenderCommandResult::Success
   }
 }

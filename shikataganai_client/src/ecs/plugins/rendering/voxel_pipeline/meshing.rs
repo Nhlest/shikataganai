@@ -83,12 +83,10 @@ impl SingleSide {
       } else {
         3
       }
+    } else if iy == 1 {
+      4
     } else {
-      if iy == 1 {
-        4
-      } else {
-        5
-      }
+      5
     };
     let mut triangles = VERTEX[side];
     let make_face = |triangles: [Vertex; 6]| {

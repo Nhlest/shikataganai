@@ -62,20 +62,18 @@ pub fn remesh_system_auxiliary(
                 .id();
               block.entity = e;
             }
+          } else if mesh_query.get(block.entity).is_ok() {
+            transform_query.get_mut(block.entity).unwrap().translation = from_ddd(i) + Vec3::new(0.5, 0.5, 0.5);
           } else {
-            if mesh_query.get(block.entity).is_ok() {
-              transform_query.get_mut(block.entity).unwrap().translation = from_ddd(i) + Vec3::new(0.5, 0.5, 0.5);
-            } else {
-              if let Some(mesh_assets_hash_map) = mesh_storage_assets.get(&storage.0) {
-                let mesh = &mesh_assets_hash_map[&mesh];
-                let render_mesh = mesh.render.as_ref().unwrap();
-                commands
-                  .entity(block.entity)
-                  .insert(MeshMarker)
-                  .insert(render_mesh.clone())
-                  .insert(Transform::from_translation(from_ddd(i) + Vec3::new(0.5, 0.5, 0.5)))
-                  .insert(GlobalTransform::default());
-              }
+            if let Some(mesh_assets_hash_map) = mesh_storage_assets.get(&storage.0) {
+              let mesh = &mesh_assets_hash_map[&mesh];
+              let render_mesh = mesh.render.as_ref().unwrap();
+              commands
+                .entity(block.entity)
+                .insert(MeshMarker)
+                .insert(render_mesh.clone())
+                .insert(Transform::from_translation(from_ddd(i) + Vec3::new(0.5, 0.5, 0.5)))
+                .insert(GlobalTransform::default());
             }
           }
         }
@@ -83,13 +81,11 @@ pub fn remesh_system_auxiliary(
           let rotation = block.meta.get_rotation();
           if block.entity == Entity::from_bits(0) {
             Some(commands.spawn())
+          } else if skeleton_query.get(block.entity).is_ok() {
+            transform_query.get_mut(block.entity).unwrap().translation = from_ddd(i) + Vec3::new(0.5, 0.5, 0.5);
+            None
           } else {
-            if skeleton_query.get(block.entity).is_ok() {
-              transform_query.get_mut(block.entity).unwrap().translation = from_ddd(i) + Vec3::new(0.5, 0.5, 0.5);
-              None
-            } else {
-              Some(commands.entity(block.entity))
-            }
+            Some(commands.entity(block.entity))
           }
           .map(|mut commands| {
             if let Some(mesh_assets_hash_map) = mesh_storage_assets.get(&storage.0) {

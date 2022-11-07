@@ -30,8 +30,8 @@ pub const INVENTORY_MESH_SHADER_VERTEX_HANDLE: HandleUntyped =
 pub const INVENTORY_MESH_SHADER_FRAGMENT_HANDLE: HandleUntyped =
   HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 2763343953151196999);
 
-pub const INVENTORY_PASS: &'static str = "Inventory Pass";
-pub const TEXTURE_NODE_OUTPUT_SLOT: &'static str = "Texture Slot Output";
+pub const INVENTORY_PASS: &str = "Inventory Pass";
+pub const TEXTURE_NODE_OUTPUT_SLOT: &str = "Texture Slot Output";
 
 pub const INVENTORY_OUTPUT_TEXTURE_WIDTH: f32 = 8.0;
 

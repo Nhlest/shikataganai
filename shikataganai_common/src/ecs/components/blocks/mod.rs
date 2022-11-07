@@ -45,7 +45,7 @@ pub enum BlockRotation {
   WEST,
 }
 
-#[derive(Copy, Clone, PartialEq, Debug, Serialize, Deserialize)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub struct BlockMeta {
   pub v: u32,
 }

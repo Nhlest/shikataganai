@@ -38,8 +38,8 @@ impl !Sync for ImguiState {}
 pub struct SmallFont(pub FontId);
 pub struct BigFont(pub FontId);
 
-pub const IMGUI_PASS: &'static str = "Imgui Pass";
-pub const TEXTURE_NODE_INPUT_SLOT: &'static str = "Texture Slot Input";
+pub const IMGUI_PASS: &str = "Imgui Pass";
+pub const TEXTURE_NODE_INPUT_SLOT: &str = "Texture Slot Input";
 
 impl ImguiState {
   pub fn get_current_frame<'a>(&self) -> &'a mut Ui<'static> {
@@ -270,7 +270,7 @@ impl Plugin for ImguiPlugin {
     };
 
     let texture = ImguiTexture::new(
-      &device,
+      device,
       &renderer,
       TextureConfig {
         size: texture_size,
@@ -377,7 +377,7 @@ impl Node for ImguiNode {
         entries: &[
           BindGroupEntry {
             binding: 0,
-            resource: BindingResource::TextureView(&inventory_texture),
+            resource: BindingResource::TextureView(inventory_texture),
           },
           BindGroupEntry {
             binding: 1,

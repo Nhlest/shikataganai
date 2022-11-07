@@ -57,8 +57,7 @@ pub fn do_relight(coord: DDD, game_world: &mut GameWorld, remesh: &mut HashSet<D
     }
     let (heavens, hearths): (Vec<_>, Vec<_>) = coord
       .immediate_neighbours()
-      .map(|neighbour| game_world.get_light_level(neighbour))
-      .flat_map(|x|x)
+      .filter_map(|neighbour| game_world.get_light_level(neighbour))
       .map(|light_level| (light_level.heaven, light_level.hearth))
       .unzip();
     let max_heaven = heavens
@@ -101,12 +100,8 @@ pub fn relight_helper(relight_events: &mut EventReader<RelightEvent>, game_world
     } else {
       queue.push_back(*coord);
     }
-    loop {
-      if let Some(coord) = queue.pop_front() {
-        do_relight(coord, game_world, &mut remesh, &mut queue);
-      } else {
-        break;
-      }
+    while let Some(coord) = queue.pop_front() {
+      do_relight(coord, game_world, &mut remesh, &mut queue);
     }
   }
   remesh

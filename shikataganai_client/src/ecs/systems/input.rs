@@ -51,7 +51,7 @@ fn place_item_from_inventory(
       {
         let mut phi = (camera.phi - f32::FRAC_PI_4()) % (f32::PI() * 2.0);
         if phi < 0.0 {
-          phi = f32::PI() * 2.0 + phi;
+          phi += f32::PI() * 2.0;
         }
         if phi > 0.0 && phi <= f32::FRAC_PI_2() {
           target_negative_block.meta.set_rotation(BlockRotation::WEST);
@@ -67,7 +67,7 @@ fn place_item_from_inventory(
         if *quant <= 0 {
           player_inventory.items[item_idx] = None;
         }
-        Some(target_negative_block.clone())
+        Some(*target_negative_block)
       } else {
         None
       }
@@ -172,42 +172,40 @@ pub fn action_input(
           recollide.0 = true;
         }
       }
-      if mouse.just_pressed(MouseButton::Right) {
-        if game_world
+      if mouse.just_pressed(MouseButton::Right)
+        && game_world
           .get(source)
-          .map(|block| {
+          .and_then(|block| {
             block
               .deref_ext()
               .right_click_interface(block.entity, source, &mut commands, &mut client)
           })
-          .flatten()
           .is_none()
-        {
-          let block_copy = place_item_from_inventory(
-            player_inventory.as_mut(),
-            hotbar_selection.0 as usize,
-            target_negative,
-            &mut game_world,
-            &rapier_context,
-            &camera.single(),
+      {
+        let block_copy = place_item_from_inventory(
+          player_inventory.as_mut(),
+          hotbar_selection.0 as usize,
+          target_negative,
+          &mut game_world,
+          &rapier_context,
+          camera.single(),
+        );
+
+        if let Some(block) = block_copy {
+          client.send_message(
+            ClientChannel::ClientCommand.id(),
+            serialize(&PlayerCommand::BlockPlace {
+              location: target_negative,
+              block_transfer: block.into(),
+            })
+            .unwrap(),
           );
-
-          block_copy.map(|block| {
-            client.send_message(
-              ClientChannel::ClientCommand.id(),
-              serialize(&PlayerCommand::BlockPlace {
-                location: target_negative,
-                block_transfer: block.into(),
-              })
-              .unwrap(),
-            );
-          });
-
-          game_world.set_light_level(target_negative, LightLevel::dark());
-
-          relight_events.send(RelightEvent::Relight(target_negative));
-          recollide.0 = true;
         }
+
+        game_world.set_light_level(target_negative, LightLevel::dark());
+
+        relight_events.send(RelightEvent::Relight(target_negative));
+        recollide.0 = true;
       }
     }
   }
@@ -221,7 +219,7 @@ pub fn hot_bar_scroll_input(
 ) {
   let hotbar_length = hotbar_items.items.len() as i32;
   for MouseWheel { y, .. } in scroll_wheel.iter() {
-    selected_hotbar.0 = selected_hotbar.0 - y.signum() as i32;
+    selected_hotbar.0 -= y.signum() as i32;
     selected_hotbar.0 = (hotbar_length + (selected_hotbar.0 % hotbar_length)) % hotbar_length;
   }
   if keys.just_pressed(KeyCode::Key1) {

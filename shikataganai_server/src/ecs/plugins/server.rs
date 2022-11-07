@@ -214,7 +214,7 @@ pub fn handle_events(
               Some((player_entity, Vec3::new(10.1, 45.0, 10.0), PolarRotation { phi: 0.0, theta: f32::FRAC_PI_2() }))
             }).unwrap();
 
-            if player_entities.players.iter().find(|(_, entity)| **entity == player_entity).is_some() {
+            if player_entities.players.iter().any(|(_, entity)| *entity == player_entity) {
               println!("Client taken!");
               continue;
             }
@@ -286,7 +286,7 @@ pub fn sync_frame(
   let mut translations = vec![];
   query.iter().for_each(|(id, transform, rotation)| {
     players.push(id.0);
-    translations.push((transform.translation, rotation.clone()))
+    translations.push((transform.translation, *rotation))
   });
   let frame = NetworkFrame {
     tick: tick.0,

@@ -149,14 +149,14 @@ impl Node for InventoryNode {
           }
           BlockOrItem::Item(_) => {}
         }
-        rendered_item_icons.insert(item.clone(), [x, y]);
+        rendered_item_icons.insert(*item, [x, y]);
       }
 
       let buffer = render_context
         .render_device
         .create_buffer_with_data(&BufferInitDescriptor {
           label: None,
-          contents: &vertex_buffer.as_bytes(),
+          contents: vertex_buffer.as_bytes(),
           usage: BufferUsages::VERTEX,
         });
       let contents = Mat4::orthographic_lh(0.0, INVENTORY_OUTPUT_TEXTURE_WIDTH as f32, INVENTORY_OUTPUT_TEXTURE_WIDTH as f32, 0.0, 0.01, 2.0);
@@ -185,7 +185,7 @@ impl Node for InventoryNode {
       let mut contents = vec![];
       for (_, [x, y, z]) in meshes_to_render.iter() {
         contents.extend_from_slice(
-          &bytemuck::bytes_of(
+          bytemuck::bytes_of(
             &(
               MatrixContent {
                 mat: Mat4::from_translation(Vec3::new(0.5 + *x * INVENTORY_OUTPUT_TEXTURE_WIDTH, 0.5 + *y * INVENTORY_OUTPUT_TEXTURE_WIDTH,  1.0 + *z * INVENTORY_OUTPUT_TEXTURE_WIDTH)) *
@@ -207,7 +207,7 @@ impl Node for InventoryNode {
           contents: bytemuck::cast_slice(contents.as_slice()),
           usage: BufferUsages::UNIFORM,
         });
-      let mesh_position_bind_group = if contents.len() > 0 {
+      let mesh_position_bind_group = if !contents.is_empty() {
         Some(self.mesh_render_pipeline.create_position_bind_group(&render_context.render_device, &position_buffer))
       } else {
         None

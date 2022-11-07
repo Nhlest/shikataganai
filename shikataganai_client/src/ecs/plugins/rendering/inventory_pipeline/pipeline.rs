@@ -102,7 +102,7 @@ impl MeshRenderPipelineBundle {
         binding: 0,
         // resource: BindingResource::Buffer(position_buffer.as_entire_buffer_binding()),
         resource: BindingResource::Buffer(BufferBinding {
-          buffer: &position_buffer,
+          buffer: position_buffer,
           offset: 0,
           size: Some(NonZeroU64::new(std::mem::size_of::<Mat4>() as u64).unwrap()),
         }),
