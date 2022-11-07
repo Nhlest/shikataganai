@@ -1,6 +1,5 @@
-use crate::ecs::components::blocks::Block;
 use crate::ecs::resources::world::GameWorld;
-use crate::util::array::{ImmediateNeighbours, DD, DDD};
+use crate::util::array::{ImmediateNeighbours, DDD};
 use bevy::prelude::*;
 use bevy::render::render_resource::encase::internal::{BufferMut, WriteInto, Writer};
 use bevy::render::render_resource::encase::private::Metadata;
@@ -92,10 +91,7 @@ pub fn do_relight(coord: DDD, game_world: &mut GameWorld, remesh: &mut HashSet<D
   }
 }
 
-pub fn relight_helper(
-  mut relight_events: &mut EventReader<RelightEvent>,
-  mut game_world: &mut GameWorld,
-) -> HashSet<DDD> {
+pub fn relight_helper(relight_events: &mut EventReader<RelightEvent>, game_world: &mut GameWorld) -> HashSet<DDD> {
   let mut remesh = HashSet::new();
   for RelightEvent::Relight(coord) in relight_events.iter() {
     remesh.insert(*coord);

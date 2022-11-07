@@ -1,8 +1,7 @@
-use crate::ecs::components::blocks::{Block, BlockTrait};
+use crate::ecs::components::blocks::BlockTrait;
 use crate::ecs::components::functors::InternalInventory;
 use crate::util::array::DDD;
 use bevy::ecs::system::EntityCommands;
-use bevy::prelude::{Commands, Entity};
 
 pub struct Stair;
 pub struct Chest;
@@ -22,7 +21,7 @@ impl BlockTrait for Chest {
     true
   }
 
-  fn spawn_functors(&self, location: DDD, commands: &mut EntityCommands) {
+  fn spawn_functors(&self, _location: DDD, commands: &mut EntityCommands) {
     commands.insert(InternalInventory::with_capacity(10));
   }
 

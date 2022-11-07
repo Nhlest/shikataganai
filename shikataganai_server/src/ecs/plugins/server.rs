@@ -1,31 +1,25 @@
 use crate::ecs::resources::world::{send_chunk_data, ServerGameWorld};
-use crate::ecs::systems::chunkgen::{collect_async_chunks, ChunkTask};
+use crate::ecs::systems::chunkgen::collect_async_chunks;
 use crate::ecs::systems::light::relight_system;
 use bevy::app::ScheduleRunnerSettings;
 use bevy::prelude::*;
-use bevy::tasks::AsyncComputeTaskPool;
 use bevy::utils::hashbrown::{HashMap, HashSet};
 use bevy_renet::renet::{RenetError, RenetServer, ServerAuthentication, ServerConfig, ServerEvent};
 use bevy_renet::RenetServerPlugin;
 use bincode::*;
-use flate2::write::ZlibEncoder;
-use flate2::Compression;
+use num_traits::float::FloatConst;
 use shikataganai_common::ecs::components::blocks::block_id::BlockId;
-use shikataganai_common::ecs::components::blocks::BlockMeta;
-use shikataganai_common::ecs::components::chunk::Chunk;
 use shikataganai_common::ecs::components::functors::InternalInventory;
-use shikataganai_common::ecs::resources::light::{relight_helper, LightLevel, RelightEvent};
+use shikataganai_common::ecs::resources::light::{LightLevel, RelightEvent};
 use shikataganai_common::ecs::resources::player::PlayerNickname;
 use shikataganai_common::ecs::resources::world::GameWorld;
 use shikataganai_common::networking::{
   server_connection_config, FunctorType, NetworkFrame, NetworkedEntities, PlayerCommand, PolarRotation, ServerChannel,
   ServerMessage, PROTOCOL_ID,
 };
-use shikataganai_common::util::array::{ImmediateNeighbours, DD, DDD};
-use std::io::Write;
+use shikataganai_common::util::array::{DD, DDD};
 use std::net::UdpSocket;
 use std::time::{Duration, SystemTime};
-use num_traits::float::FloatConst;
 
 pub struct ShikataganaiServerPlugin;
 
@@ -157,7 +151,7 @@ pub fn handle_events(
       }
       ServerEvent::ClientDisconnected(client_id) => {
         println!("Client {} disconnected", client_id);
-        let entity = player_entities.players.remove(client_id).unwrap();
+        // let entity = player_entities.players.remove(client_id).unwrap();
         // commands.entity(entity).despawn();
       }
     }

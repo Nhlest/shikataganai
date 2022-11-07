@@ -1,14 +1,10 @@
 use crate::ecs::plugins::client::send_message;
-use bevy::ecs::system::SystemParam;
-use bevy::prelude::*;
-use bevy::utils::{HashMap, HashSet};
 use bevy_renet::renet::RenetClient;
 use shikataganai_common::ecs::components::blocks::Block;
 use shikataganai_common::ecs::components::chunk::Chunk;
 use shikataganai_common::ecs::resources::world::GameWorld;
-use shikataganai_common::networking::{ClientChannel, PlayerCommand};
-use shikataganai_common::util::array::{ImmediateNeighbours, DD, DDD};
-use std::mem::MaybeUninit;
+use shikataganai_common::networking::PlayerCommand;
+use shikataganai_common::util::array::{DD, DDD};
 
 pub trait ClientGameWorld {
   fn get_chunk_or_request(&mut self, chunk_coord: DD, client: &mut RenetClient) -> Option<&Chunk>;

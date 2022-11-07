@@ -7,10 +7,10 @@ use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::ops::Deref;
 
+pub mod animation;
 pub mod block_id;
 pub mod regular_blocks;
 pub mod regular_meshes;
-pub mod animation;
 
 pub trait BlockTrait {
   fn visible(&self) -> bool {
@@ -22,7 +22,7 @@ pub trait BlockTrait {
   fn need_to_spawn_functors(&self) -> bool {
     false
   } // Can be done better ? ? ?
-  fn spawn_functors(&self, location: DDD, commands: &mut EntityCommands) {}
+  fn spawn_functors(&self, _location: DDD, _commands: &mut EntityCommands) {}
   fn spawn_or_add_functors(&self, block: &mut Block, location: DDD, commands: &mut Commands) {
     let mut commands = if block.entity == Entity::from_bits(0) {
       commands.spawn()

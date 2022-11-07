@@ -4,9 +4,6 @@ use shikataganai_common::ecs::components::blocks::{BlockOrItem, QuantifiedBlockO
 #[derive(Default)]
 pub struct SelectedHotBar(pub i32);
 
-#[derive(Default)]
-pub struct RerenderInventory(pub bool);
-
 pub struct PlayerInventory {
   pub items: Vec<Option<QuantifiedBlockOrItem>>,
 }

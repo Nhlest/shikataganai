@@ -1,11 +1,9 @@
-use crate::ecs::plugins::rendering::voxel_pipeline::bind_groups::LightTextureHandle;
 use crate::ecs::plugins::rendering::voxel_pipeline::meshing::RemeshEvent;
 use bevy::prelude::*;
-use bevy::utils::HashSet;
 use itertools::Itertools;
 use shikataganai_common::ecs::resources::light::{relight_helper, RelightEvent};
 use shikataganai_common::ecs::resources::world::GameWorld;
-use shikataganai_common::util::array::{FlatFullNeighbours, ImmediateNeighbours};
+use shikataganai_common::util::array::FlatFullNeighbours;
 
 pub fn religh_system(
   mut relight: EventReader<RelightEvent>,

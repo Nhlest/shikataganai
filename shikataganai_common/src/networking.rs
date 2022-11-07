@@ -1,15 +1,13 @@
+use crate::ecs::components::blocks::animation::Animation;
 use crate::ecs::components::blocks::block_id::BlockId;
-use crate::ecs::components::blocks::{Block, BlockMeta};
+use crate::ecs::components::blocks::BlockMeta;
 use crate::ecs::resources::light::LightLevel;
 use crate::util::array::{DD, DDD};
 use bevy::prelude::*;
-use bevy_renet::renet::{
-  BlockChannelConfig, ChannelConfig, ReliableChannelConfig, RenetConnectionConfig, UnreliableChannelConfig,
-};
+use bevy_renet::renet::{ChannelConfig, ReliableChannelConfig, RenetConnectionConfig, UnreliableChannelConfig};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::time::Duration;
-use crate::ecs::components::blocks::animation::Animation;
 
 // -------------------------------------------------------------------------------------------
 // -- ###  #    #   ###   ####   #####  #     #  #####  #    #  #####        #     #  ##### --
@@ -101,8 +99,8 @@ pub enum ServerMessage {
   },
   AnimationStart {
     location: DDD,
-    animation: Animation
-  }
+    animation: Animation,
+  },
 }
 
 impl Display for ServerMessage {
@@ -116,7 +114,7 @@ impl Display for ServerMessage {
       ServerMessage::ChunkData { .. } => f.write_str("ChunkData"),
       ServerMessage::Relight { .. } => f.write_str("Relight"),
       ServerMessage::Functor { .. } => f.write_str("Functor"),
-      ServerMessage::AnimationStart { .. } => f.write_str("AnimationStart")
+      ServerMessage::AnimationStart { .. } => f.write_str("AnimationStart"),
     }
   }
 }
@@ -205,6 +203,6 @@ pub enum PlayerCommand {
   },
   AnimationStart {
     location: DDD,
-    animation: Animation
-  }
+    animation: Animation,
+  },
 }

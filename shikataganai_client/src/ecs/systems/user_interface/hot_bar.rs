@@ -1,5 +1,5 @@
 use crate::ecs::plugins::imgui::GUITextureAtlas;
-use crate::ecs::plugins::rendering::inventory_pipeline::ExtractedItems;
+use crate::ecs::plugins::rendering::inventory_pipeline::inventory_cache::ExtractedItems;
 use crate::ecs::resources::player::{PlayerInventory, SelectedHotBar};
 use crate::ImguiState;
 use bevy::prelude::*;
@@ -12,7 +12,7 @@ pub fn hot_bar(
   texture: Res<GUITextureAtlas>,
   hotbar_items: Res<PlayerInventory>,
   selected_hotbar: Res<SelectedHotBar>,
-  extracted_items: Res<ExtractedItems>,
+  mut extracted_items: ResMut<ExtractedItems>,
 ) {
   let active_window = window.get_primary().unwrap();
   let ui = imgui.get_current_frame();
@@ -61,7 +61,7 @@ pub fn hot_bar(
             ui.same_line();
           }
           Some(QuantifiedBlockOrItem { block_or_item, quant }) => {
-            let coords = extracted_items.0.get(&block_or_item).unwrap_or(&(0.0, 0.0)).clone();
+            let coords = extracted_items.request(*block_or_item).unwrap_or((0.0, 0.0));
             let cursor_before = ui.cursor_pos();
             imgui::Image::new(texture.0, [95.0, 95.0])
               .uv0([coords.0, coords.1])

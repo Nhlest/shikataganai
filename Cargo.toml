@@ -15,8 +15,10 @@ strip = true
 #strip = true
 opt-level = 1
 overflow-checks = false
+incremental = true
 
 [profile.dev.package."*"]
 #strip = true
 opt-level = 3
 overflow-checks = false
+incremental = true

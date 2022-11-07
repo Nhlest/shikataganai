@@ -20,15 +20,16 @@ use shikataganai_common::networking::{
 use std::io::Read;
 use std::net::UdpSocket;
 use std::time::SystemTime;
+use tracing::Level;
 
-use crate::ecs::components::blocks::{animate, BlockTraitExt, DerefExt};
+use crate::ecs::components::blocks::animate;
 use crate::ecs::plugins::camera::{FPSCamera, Player, Recollide};
-use crate::ecs::plugins::game::in_game;
+use crate::ecs::plugins::console::ConsoleText;
+use crate::ecs::plugins::game::{in_game, LocalTick};
 use crate::ecs::plugins::rendering::mesh_pipeline::loader::{get_mesh_from_storage, GltfMeshStorageHandle, Meshes};
 use crate::ecs::plugins::rendering::mesh_pipeline::systems::MeshMarker;
 use crate::ecs::plugins::rendering::mesh_pipeline::AmongerTextureHandle;
 use crate::ecs::plugins::rendering::voxel_pipeline::meshing::RemeshEvent;
-use crate::ecs::resources::player::RerenderInventory;
 use crate::GltfMeshStorage;
 
 #[derive(Default)]
@@ -152,13 +153,12 @@ fn receive_system(
   mut commands: Commands,
   mut relight: EventWriter<RelightEvent>,
   mut remesh: EventWriter<RemeshEvent>,
-  (mut network_mapping, mut game_world, mut recollide, mut client, mut lobby, mut rerender_inventory): (
+  (mut network_mapping, mut game_world, mut recollide, mut client, mut lobby): (
     ResMut<NetworkMapping>,
     ResMut<GameWorld>,
     ResMut<Recollide>,
     ResMut<RenetClient>,
     ResMut<ClientLobby>,
-    ResMut<RerenderInventory>,
   ),
   mesh_storage_handle: Res<GltfMeshStorageHandle>,
   amonger_texture: Res<AmongerTextureHandle>,
@@ -170,12 +170,18 @@ fn receive_system(
   mut player_entity: Query<Entity, With<Player>>,
   mut fps_camera_query: Query<&mut FPSCamera>,
   mut query: Query<&mut Transform>,
+  mut event_writer: EventWriter<ConsoleText>,
+  tick: Res<LocalTick>,
 ) {
   let client_id = client.client_id();
 
   while let Some(message) = client.receive_message(ServerChannel::GameEvent.id()) {
     let server_message: ServerMessage = deserialize(&message).unwrap();
-    println!("{}", &server_message);
+    event_writer.send(ConsoleText {
+      text: format!("{}", &server_message),
+      level: Level::DEBUG,
+      age: **tick,
+    });
     match server_message {
       ServerMessage::PlayerSpawn {
         entity,
@@ -223,7 +229,7 @@ fn receive_system(
         let mut message = Vec::new();
         decoder.read_to_end(&mut message).unwrap();
         let mut chunk: Chunk = deserialize(&message).unwrap();
-        chunk.grid.map_in_place(|i, block| Block {
+        chunk.grid.map_in_place(|_, block| Block {
           entity: Entity::from_bits(0),
           ..*block
         });
@@ -268,7 +274,6 @@ fn receive_system(
       ServerMessage::AuthConfirmed {
         translation: (translation, rotation),
       } => {
-        rerender_inventory.0 = true;
         let entity = player_entity.single_mut();
         let mut fps_camera = fps_camera_query.single_mut();
         let mut transform = query.get_mut(entity).unwrap();
@@ -383,7 +388,7 @@ fn send_system(
   }
 }
 
-pub fn spawn_client(mut commands: Commands, player_entity: Entity, address: String, nickname: String) {
+pub fn spawn_client(mut commands: Commands, _player_entity: Entity, address: String, nickname: String) {
   let server_addr = address.parse().unwrap();
   let socket = UdpSocket::bind("0.0.0.0:0").unwrap();
   let current_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap();

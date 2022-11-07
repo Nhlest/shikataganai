@@ -11,7 +11,21 @@ pub struct InternalInventory {
 impl InternalInventory {
   pub fn with_capacity(len: usize) -> Self {
     Self {
-      inventory: (0..len).map(|x| if x == 2 {Some(QuantifiedBlockOrItem{ block_or_item: BlockOrItem::Block(BlockId::Dirt), quant: 5 }) } else { Some(QuantifiedBlockOrItem{ block_or_item: BlockOrItem::Block(BlockId::Cobble), quant: 5 }) }).collect(),
+      inventory: (0..len)
+        .map(|x| {
+          if x == 2 {
+            Some(QuantifiedBlockOrItem {
+              block_or_item: BlockOrItem::Block(BlockId::Dirt),
+              quant: 5,
+            })
+          } else {
+            Some(QuantifiedBlockOrItem {
+              block_or_item: BlockOrItem::Block(BlockId::Cobble),
+              quant: 5,
+            })
+          }
+        })
+        .collect(),
     }
   }
 }

@@ -1,4 +1,4 @@
-use crate::ecs::plugins::game::in_game;
+use crate::ecs::plugins::game::{in_game, LocalTick};
 use crate::ecs::plugins::imgui::BigFont;
 use crate::App;
 use crate::ImguiState;
@@ -12,24 +12,34 @@ pub struct ConsolePlugin;
 
 impl Plugin for ConsolePlugin {
   fn build(&self, app: &mut App) {
+    let on_game_simulation_last = ConditionSet::new().run_if(in_game).with_system(commit_log_lines).into();
     let on_game_simulation_continuous = ConditionSet::new()
       .run_if(in_game)
       .with_system(open_close_console)
       .with_system(debug_console)
       .into();
     app
+      .add_event::<ConsoleText>()
       .init_resource::<ConsoleMenuOpened>()
+      .init_resource::<Vec<ConsoleText>>()
+      .add_system_set_to_stage(CoreStage::Last, on_game_simulation_last)
       .add_system_set(on_game_simulation_continuous);
   }
 }
 
+#[derive(Clone)]
 pub struct ConsoleText {
-  text: String,
-  level: Level,
+  pub text: String,
+  pub level: Level,
+  pub age: u64,
 }
 
 #[derive(Default)]
 pub struct ConsoleMenuOpened(pub bool);
+
+pub fn commit_log_lines(mut events: EventReader<ConsoleText>, mut lines: ResMut<Vec<ConsoleText>>) {
+  lines.extend(events.iter().cloned());
+}
 
 pub fn open_close_console(
   mut windows: ResMut<Windows>,
@@ -49,18 +59,49 @@ pub fn debug_console(
   mut window: ResMut<Windows>,
   debug_console_opened: ResMut<ConsoleMenuOpened>,
   big_font: NonSend<BigFont>,
-  mut items: Local<Vec<ConsoleText>>,
+  mut items: ResMut<Vec<ConsoleText>>,
+  tick: Res<LocalTick>,
 ) {
+  let active_window = window.get_primary_mut().unwrap();
+  let ui = imgui.get_current_frame();
   if !debug_console_opened.0 {
+    imgui::Window::new("Debug Console Messages")
+      .position([0.0, 0.0], Condition::Always)
+      .size([active_window.width(), active_window.height()], Condition::Always)
+      .movable(false)
+      .collapsible(false)
+      .resizable(false)
+      .title_bar(false)
+      .focus_on_appearing(false)
+      .focused(false)
+      .draw_background(false)
+      .build(ui, || {
+        ui.set_scroll_y(9999.0);
+        for item in items.iter().filter(|item| item.age + 1000 > tick.0) {
+          const RED: [f32; 4] = [1.0, 0.0, 0.0, 1.0];
+          const GREEN: [f32; 4] = [0.0, 1.0, 0.0, 1.0];
+          const YELLOW: [f32; 4] = [1.0, 1.0, 0.0, 1.0];
+
+          let token = match &item.level {
+            &Level::ERROR => ui.push_style_color(StyleColor::Text, RED),
+            &Level::INFO => ui.push_style_color(StyleColor::Text, GREEN),
+            &Level::WARN => ui.push_style_color(StyleColor::Text, YELLOW),
+            &Level::TRACE => ui.push_style_color(StyleColor::Text, YELLOW),
+            &Level::DEBUG => ui.push_style_color(StyleColor::Text, YELLOW),
+          };
+          ui.text(&item.text);
+          token.pop();
+        }
+      })
+      .unwrap();
     return;
   }
 
-  let active_window = window.get_primary_mut().unwrap();
-  let ui = imgui.get_current_frame();
-  fn add_log(items: &mut Vec<ConsoleText>, log: &str, m_level: Level) {
+  fn add_log(items: &mut Vec<ConsoleText>, log: &str, m_level: Level, tick: &LocalTick) {
     let ct = ConsoleText {
       text: log.to_string(),
       level: m_level,
+      age: **tick,
     };
     items.push(ct);
   }
@@ -81,6 +122,7 @@ pub fn debug_console(
           .size([active_window.width(), 250.0])
           .begin(ui);
         if cwindow.is_some() {
+          ui.set_scroll_y(9999.0); // TODO: lock/unlock autoscroll with manual override
           for item in items.iter() {
             const RED: [f32; 4] = [1.0, 0.0, 0.0, 1.0];
             const GREEN: [f32; 4] = [0.0, 1.0, 0.0, 1.0];
@@ -128,7 +170,12 @@ pub fn debug_console(
               Some(..) => match command[0] {
                 "noclip" => {
                   // let cd = get_bool_command(command[1]);
-                  add_log(&mut items, std::format!("noclip {}", command[1]).as_str(), Level::INFO);
+                  add_log(
+                    &mut items,
+                    std::format!("noclip {}", command[1]).as_str(),
+                    Level::INFO,
+                    &*tick,
+                  );
                 }
                 "player_speed" => {
                   let cd = get_float_command(command[1]);
@@ -139,6 +186,7 @@ pub fn debug_console(
                     &mut items,
                     std::format!("Changed player speed to: {}", command[1]).as_str(),
                     Level::INFO,
+                    &*tick,
                   );
                 }
                 _ => {
@@ -146,6 +194,7 @@ pub fn debug_console(
                     &mut items,
                     std::format!("Error: Couldn't find the command '{}'", command[0]).as_str(),
                     Level::ERROR,
+                    &*tick,
                   );
                 }
               },

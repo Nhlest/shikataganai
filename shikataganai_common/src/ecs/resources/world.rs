@@ -2,10 +2,7 @@ use crate::ecs::components::blocks::Block;
 use crate::ecs::components::chunk::Chunk;
 use crate::ecs::resources::light::LightLevel;
 use crate::util::array::{ArrayIndex, DD, DDD};
-use bevy::prelude::*;
-use bevy::tasks::AsyncComputeTaskPool;
 use bevy::utils::hashbrown::HashMap;
-use std::ops::Index;
 
 #[derive(Default)]
 pub struct GameWorld {

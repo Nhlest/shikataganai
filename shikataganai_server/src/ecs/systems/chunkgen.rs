@@ -2,13 +2,9 @@ use crate::ecs::resources::world::send_chunk_data;
 use bevy::prelude::*;
 use bevy::tasks::Task;
 use bevy_renet::renet::RenetServer;
-use flate2::write::ZlibEncoder;
-use flate2::Compression;
 use shikataganai_common::ecs::components::chunk::Chunk;
 use shikataganai_common::ecs::resources::world::GameWorld;
-use shikataganai_common::networking::{ServerChannel, ServerMessage};
 use shikataganai_common::util::array::DD;
-use std::io::Write;
 
 #[derive(Component)]
 pub struct ChunkTask {

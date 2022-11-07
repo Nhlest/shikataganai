@@ -1,7 +1,6 @@
-use imgui::drag_drop::DragDropSourceToolTip;
 use crate::ecs::plugins::imgui::GUITextureAtlas;
-use crate::ecs::plugins::rendering::inventory_pipeline::ExtractedItems;
-use imgui::{DragDropFlags, StyleVar, Ui};
+use crate::ecs::plugins::rendering::inventory_pipeline::inventory_cache::ExtractedItems;
+use imgui::{StyleVar, Ui};
 use shikataganai_common::ecs::components::blocks::QuantifiedBlockOrItem;
 
 pub mod chest_inventory;
@@ -16,17 +15,45 @@ pub enum ButtonStyle {
   Active,
 }
 
+pub fn render_item_grid<'a>(
+  ui: &Ui,
+  (xs, ys): (usize, usize),
+  getter: fn(usize, usize) -> (Option<&'a QuantifiedBlockOrItem>, usize),
+  texture: &GUITextureAtlas,
+  extracted_items: &mut ExtractedItems,
+) -> Option<usize> {
+  let mut clicked = None;
+  for y in 0..ys {
+    for x in 0..xs {
+      let (item, id) = getter(x, y);
+      let same_row = x != xs - 1;
+      if item_button(
+        ui,
+        [95.0, 95.0],
+        item,
+        texture,
+        extracted_items,
+        ButtonStyle::Normal,
+        same_row,
+        id,
+      ) {
+        clicked = Some(id);
+      }
+    }
+  }
+  clicked
+}
+
 pub fn item_button(
   ui: &Ui,
   size: [f32; 2],
   item: Option<&QuantifiedBlockOrItem>,
   texture: &GUITextureAtlas,
-  extracted_items: &ExtractedItems,
+  extracted_items: &mut ExtractedItems,
   style: ButtonStyle,
   same_row: bool,
-  id: usize
+  id: usize,
 ) -> bool {
-  let window = ui.window_pos();
   let cursor = ui.cursor_pos();
   let text_label = [cursor[0] + 80.0, cursor[1] + 78.0];
   let next_element = if same_row {
@@ -35,26 +62,18 @@ pub fn item_button(
     [2.0, cursor[1] + size[1] + 2.0]
   };
   let bg_color = match style {
-    ButtonStyle::Normal => {
-      [0.5, 0.0, 0.0, 0.8]
-    }
-    ButtonStyle::Highlight => {
-      [0.0, 0.5, 0.0, 0.8]
-    }
-    ButtonStyle::Active => {
-      [0.0, 0.0, 0.5, 0.8]
-    }
+    ButtonStyle::Normal => [0.5, 0.0, 0.0, 0.8],
+    ButtonStyle::Highlight => [0.0, 0.5, 0.0, 0.8],
+    ButtonStyle::Active => [0.0, 0.0, 0.5, 0.8],
   };
   ui.set_cursor_pos(cursor);
   let clicked = match item {
-    None => {
-      imgui::ImageButton::new(texture.0, size)
-        .uv0([1.0, 1.0])
-        .uv1([1.0, 1.0])
-        .build(&ui)
-    }
+    None => imgui::ImageButton::new(texture.0, size)
+      .uv0([1.0, 1.0])
+      .uv1([1.0, 1.0])
+      .build(&ui),
     Some(QuantifiedBlockOrItem { block_or_item, quant }) => {
-      let coords = extracted_items.0.get(&block_or_item).unwrap_or(&(0.0, 0.0)).clone();
+      let coords = extracted_items.request(*block_or_item).unwrap_or((0.0, 0.0));
       ui.set_cursor_pos(cursor);
       let token = ui.push_style_var(StyleVar::FramePadding([0.0, 0.0]));
       let id = ui.push_id(id as i32);

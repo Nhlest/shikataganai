@@ -1,4 +1,4 @@
-use crate::ecs::components::blocks::{animate, AnimationInstance, AnimationTrait, ChestAnimations, ChestSkeleton, Skeleton};
+use crate::ecs::components::blocks::{animate, AnimationInstance, AnimationTrait, ChestAnimations, Skeleton};
 use crate::ecs::plugins::camera::{Player, Selection};
 use crate::ecs::resources::player::{PlayerInventory, SelectedHotBar};
 use crate::ecs::resources::world::ClientGameWorld;
@@ -16,15 +16,21 @@ use bevy_rapier3d::plugin::RapierConfiguration;
 use bevy_renet::renet::RenetClient;
 use bincode::serialize;
 use iyes_loopless::prelude::*;
-use num_traits::FloatConst;
+use shikataganai_common::ecs::components::blocks::animation::AnimationType;
+use shikataganai_common::ecs::components::blocks::ReverseLocation;
 use shikataganai_common::ecs::resources::player::PlayerNickname;
 use shikataganai_common::ecs::resources::world::GameWorld;
 use shikataganai_common::networking::{ClientChannel, PlayerCommand};
 use std::time::Duration;
-use shikataganai_common::ecs::components::blocks::animation::AnimationType;
-use shikataganai_common::ecs::components::blocks::ReverseLocation;
 
 pub struct GamePlugin;
+
+#[derive(Copy, Clone, Default, Deref, DerefMut)]
+pub struct LocalTick(pub u64);
+
+pub fn increment_tick(mut tick: ResMut<LocalTick>) {
+  tick.0 += 1;
+}
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Hash)]
 pub enum ShikataganaiGameState {
@@ -32,22 +38,31 @@ pub enum ShikataganaiGameState {
   PreSimulation,
   Simulation,
   Paused,
-  InterfaceOpened
+  InterfaceOpened,
 }
 
 #[derive(StageLabel)]
 pub struct FixedUpdate;
 
 pub fn in_game(current_state: Res<CurrentState<ShikataganaiGameState>>) -> bool {
-  matches!(current_state.0, ShikataganaiGameState::Simulation | ShikataganaiGameState::Paused | ShikataganaiGameState::InterfaceOpened)
+  matches!(
+    current_state.0,
+    ShikataganaiGameState::Simulation | ShikataganaiGameState::Paused | ShikataganaiGameState::InterfaceOpened
+  )
 }
 
 pub fn in_game_extract(current_state: Extract<Res<CurrentState<ShikataganaiGameState>>>) -> bool {
-  matches!(current_state.0, ShikataganaiGameState::Simulation | ShikataganaiGameState::Paused | ShikataganaiGameState::InterfaceOpened)
+  matches!(
+    current_state.0,
+    ShikataganaiGameState::Simulation | ShikataganaiGameState::Paused | ShikataganaiGameState::InterfaceOpened
+  )
 }
 
 pub fn in_game_input_enabled(current_state: Res<CurrentState<ShikataganaiGameState>>) -> bool {
-  matches!(current_state.0, ShikataganaiGameState::Simulation | ShikataganaiGameState::Paused)
+  matches!(
+    current_state.0,
+    ShikataganaiGameState::Simulation | ShikataganaiGameState::Paused
+  )
 }
 
 pub fn init_game(mut commands: Commands) {
@@ -63,7 +78,7 @@ pub fn transition_to_simulation(
   mut physics_system: ResMut<RapierConfiguration>,
   mut game_world: ResMut<GameWorld>,
   mut client: ResMut<RenetClient>,
-  mut nickname: Res<PlayerNickname>,
+  nickname: Res<PlayerNickname>,
 ) {
   let active_window = window.get_primary_mut().unwrap();
   if client.is_connected() {
@@ -101,7 +116,7 @@ pub fn process_animations(
   mut commands: Commands,
   mut transform_query: Query<&mut Transform>,
   mut animations: Query<(Entity, &mut AnimationInstance, &Skeleton)>,
-  time: Res<Time>
+  time: Res<Time>,
 ) {
   for (entity, mut animation, skeleton) in animations.iter_mut() {
     let bone_entity = *skeleton.skeleton.get(&animation.animation.bone).unwrap();
@@ -118,7 +133,7 @@ pub fn process_animations(
     if animation.t >= animation.animation.duration {
       commands.entity(entity).remove::<AnimationInstance>();
     }
-    animation.t+=time.delta().as_secs_f32();
+    animation.t += time.delta().as_secs_f32();
   }
 }
 
@@ -129,32 +144,39 @@ pub fn interface_input(
   // mut physics_system: ResMut<RapierConfiguration>,
   mut windows: ResMut<Windows>,
   mut client: ResMut<RenetClient>,
-  reverse_location: Query<&ReverseLocation>
+  reverse_location: Query<&ReverseLocation>,
 ) {
   let window = windows.get_primary_mut().unwrap();
 
   if key.just_pressed(KeyCode::Escape) {
     commands.remove_resource::<InventoryOpened>();
-    animate(&mut commands, inventory_opened.0, ChestAnimations::Close.get_animation());
-    client.send_message(ClientChannel::ClientCommand.id(), serialize(&PlayerCommand::AnimationStart { location: reverse_location.get(inventory_opened.0).unwrap().0, animation: ChestAnimations::Close.get_animation() }).unwrap());
+    animate(
+      &mut commands,
+      inventory_opened.0,
+      ChestAnimations::Close.get_animation(),
+    );
+    client.send_message(
+      ClientChannel::ClientCommand.id(),
+      serialize(&PlayerCommand::AnimationStart {
+        location: reverse_location.get(inventory_opened.0).unwrap().0,
+        animation: ChestAnimations::Close.get_animation(),
+      })
+      .unwrap(),
+    );
     window.set_cursor_lock_mode(true);
     window.set_cursor_visibility(false);
     commands.insert_resource(NextState(ShikataganaiGameState::Simulation));
   }
 }
 
-pub fn enter_simulation(
-  mut windows: ResMut<Windows>,
-) {
+pub fn enter_simulation(mut windows: ResMut<Windows>) {
   let window = windows.get_primary_mut().unwrap();
 
   window.set_cursor_lock_mode(true);
   window.set_cursor_visibility(false);
 }
 
-pub fn exit_simulation(
-  mut windows: ResMut<Windows>,
-) {
+pub fn exit_simulation(mut windows: ResMut<Windows>) {
   let window = windows.get_primary_mut().unwrap();
 
   window.set_cursor_lock_mode(false);
@@ -201,7 +223,7 @@ impl Plugin for GamePlugin {
       .into();
     let on_fixed_step_simulation: SystemSet = ConditionSet::new()
       .run_in_state(ShikataganaiGameState::Simulation)
-      // .with_system(|| println!("kek"))
+      .with_system(increment_tick)
       .into();
     let on_fixed_step_simulation_stage = SystemStage::parallel().with_system_set(on_fixed_step_simulation);
     let on_post_update_simulation = ConditionSet::new().run_if(in_game).with_system(religh_system).into();
@@ -211,11 +233,12 @@ impl Plugin for GamePlugin {
     app.world.spawn().insert(Player);
 
     app
+      .init_resource::<LocalTick>()
       .add_loopless_state(ShikataganaiGameState::MainMenu)
       .add_stage_before(
         CoreStage::Update,
         FixedUpdate,
-        FixedTimestepStage::from_stage(Duration::from_millis(125), on_fixed_step_simulation_stage),
+        FixedTimestepStage::from_stage(Duration::from_millis(1000 / 60), on_fixed_step_simulation_stage),
       )
       .add_system_set(on_game_simulation_continuous)
       .add_system_set(on_main_menu)

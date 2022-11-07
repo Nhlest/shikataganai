@@ -1,25 +1,23 @@
 use crate::ecs::components::blocks::{BlockRenderInfo, DerefExt};
+use crate::ecs::plugins::rendering::inventory_pipeline::inventory_cache::{ItemRenderEntry, ItemRenderMap};
 use crate::ecs::plugins::rendering::inventory_pipeline::pipeline::InventoryNode;
-use crate::ecs::plugins::rendering::inventory_pipeline::{
-  ExtractedItems, INVENTORY_OUTPUT_TEXTURE_WIDTH, TEXTURE_NODE_OUTPUT_SLOT,
-};
+use crate::ecs::plugins::rendering::inventory_pipeline::{INVENTORY_OUTPUT_TEXTURE_WIDTH, TEXTURE_NODE_OUTPUT_SLOT};
 use crate::ecs::plugins::rendering::mesh_pipeline::loader::{GltfMeshStorage, GltfMeshStorageHandle};
 use crate::ecs::plugins::rendering::voxel_pipeline::bind_groups::TextureHandle;
 use crate::ecs::resources::block::BlockSprite;
-use crate::ecs::resources::player::RerenderInventory;
 use bevy::prelude::*;
 use bevy::render::mesh::GpuBufferInfo;
 use bevy::render::render_asset::RenderAssets;
 use bevy::render::render_graph::{Node, NodeRunError, RenderGraphContext, SlotInfo, SlotType, SlotValue};
 use bevy::render::render_resource::{BufferUsages, PipelineCache};
 use bevy::render::renderer::{RenderContext, RenderDevice};
+use bytemuck_derive::*;
 use image::EncodableLayout;
 use num_traits::FloatConst;
 use shikataganai_common::ecs::components::blocks::BlockOrItem;
 use std::collections::HashMap;
 use wgpu::util::BufferInitDescriptor;
 use wgpu::IndexFormat;
-use bytemuck_derive::*;
 
 const HEX_CC: [f32; 2] = [0.000000, -0.000000];
 const HEX_NN: [f32; 2] = [0.000000, -1.000000];
@@ -38,6 +36,8 @@ pub struct MatrixContent {
   filler3: [u8; 64],
 }
 
+pub struct Initialised;
+
 impl Node for InventoryNode {
   fn input(&self) -> Vec<SlotInfo> {
     Vec::new()
@@ -49,17 +49,8 @@ impl Node for InventoryNode {
     }]
   }
   fn update(&mut self, world: &mut World) {
-    if !world.contains_resource::<RerenderInventory>() {
+    if !world.contains_resource::<ItemRenderMap>() {
       return;
-    }
-    if world.resource::<RerenderInventory>().0 || !self.initialised {
-      self.to_render = true;
-      self.view = InventoryNode::create_view(world.resource::<RenderDevice>());
-      self.depth_view = InventoryNode::create_depth_view(world.resource::<RenderDevice>());
-    } else {
-      if self.initialised {
-        self.to_render = false;
-      }
     }
 
     self.direct_render_pipeline.render_pipeline = world
@@ -77,6 +68,15 @@ impl Node for InventoryNode {
     self.initialised = self.mesh_render_pipeline.render_pipeline.is_some()
       && self.direct_render_pipeline.render_pipeline.is_some()
       && gpu_images.get(&handle.0).is_some();
+
+    if !self.initialised {
+      self.to_render = true;
+      self.view = InventoryNode::create_view(world.resource::<RenderDevice>());
+      self.depth_view = InventoryNode::create_depth_view(world.resource::<RenderDevice>());
+    } else {
+      world.insert_resource(Initialised);
+      self.to_render = false;
+    }
   }
   fn run(
     &self,
@@ -94,7 +94,7 @@ impl Node for InventoryNode {
 
       let mut meshes_to_render = vec![];
 
-      let to_render = world.resource::<ExtractedItems>();
+      let to_render = world.resource::<ItemRenderMap>();
       const RADIUS: f32 = 0.49;
       let mut vertex_buffer = vec![];
       let mut rendered_item_icons = HashMap::new();
@@ -127,7 +127,7 @@ impl Node for InventoryNode {
         vertex_buffer.extend_from_slice(&[HEX_NE[0] * RADIUS + x + 0.5, HEX_NE[1] * RADIUS + y + 0.5, right_tex.1[0], right_tex.0[1], 0.4]);
       };
 
-      for (item, (x, y)) in to_render.0.iter() {
+      for (item, ItemRenderEntry { coord: (x, y), .. } ) in to_render.iter() {
         match item {
           BlockOrItem::Block(blockid) => {
             match blockid.deref_ext().render_info() {

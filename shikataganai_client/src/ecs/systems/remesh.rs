@@ -1,5 +1,5 @@
 use crate::ecs::components::blocks::DerefExt;
-use crate::ecs::components::blocks::{BlockRenderInfo, ChestSkeleton, Skeleton};
+use crate::ecs::components::blocks::{BlockRenderInfo, Skeleton};
 use crate::ecs::plugins::rendering::mesh_pipeline::loader::GltfMeshStorageHandle;
 use crate::ecs::plugins::rendering::mesh_pipeline::systems::MeshMarker;
 use crate::ecs::plugins::rendering::voxel_pipeline::meshing::RemeshEvent;

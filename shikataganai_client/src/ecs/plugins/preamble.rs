@@ -49,7 +49,7 @@ fn exit(
   vsync: Res<VSync>,
   fullscreen: Res<FullScreen>,
   ambient_occlusion: Res<AmbientOcclusion>,
-  mut client: Option<ResMut<RenetClient>>,
+  client: Option<ResMut<RenetClient>>,
 ) {
   if events.iter().next().is_some() || w.windows.is_empty() {
     client.map(|mut client| client.disconnect());

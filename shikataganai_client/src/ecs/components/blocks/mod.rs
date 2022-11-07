@@ -2,12 +2,11 @@ use crate::ecs::plugins::rendering::mesh_pipeline::loader::Meshes;
 use crate::ecs::resources::block::BlockSprite;
 use bevy::prelude::*;
 use bevy::utils::hashbrown::HashMap;
-use shikataganai_common::ecs::components::blocks::block_id::BlockId;
-use shikataganai_common::ecs::components::blocks::Block;
-use std::hash::Hash;
 use bevy_renet::renet::RenetClient;
 use num_traits::FloatConst;
 use shikataganai_common::ecs::components::blocks::animation::{Animation, AnimationType};
+use shikataganai_common::ecs::components::blocks::block_id::BlockId;
+use shikataganai_common::ecs::components::blocks::Block;
 use shikataganai_common::util::array::DDD;
 
 pub mod regular_blocks;
@@ -28,8 +27,14 @@ impl Skeletons {
     match self {
       Skeletons::Chest => SkeletonDef {
         skeleton: HashMap::from([
-          (ChestSkeleton::ChestBase as u16, SkeletonBoneDef::no_offset(Meshes::ChestBase)),
-          (ChestSkeleton::ChestLid as u16, SkeletonBoneDef::new(Meshes::ChestLid, Vec3::new(7.0 / 16.0, 2.0 / 16.0, 0.0))),
+          (
+            ChestSkeleton::ChestBase as u16,
+            SkeletonBoneDef::no_offset(Meshes::ChestBase),
+          ),
+          (
+            ChestSkeleton::ChestLid as u16,
+            SkeletonBoneDef::new(Meshes::ChestLid, Vec3::new(7.0 / 16.0, 2.0 / 16.0, 0.0)),
+          ),
         ]),
         collider: Meshes::ChestBase,
       },
@@ -37,17 +42,8 @@ impl Skeletons {
   }
 }
 
-pub fn animate(
-  commands: &mut Commands,
-  entity: Entity,
-  animation: Animation
-) {
-  commands
-    .entity(entity)
-    .insert(AnimationInstance {
-      animation,
-      t: 0.0
-    });
+pub fn animate(commands: &mut Commands, entity: Entity, animation: Animation) {
+  commands.entity(entity).insert(AnimationInstance { animation, t: 0.0 });
 }
 
 pub struct SkeletonDef {
@@ -57,21 +53,18 @@ pub struct SkeletonDef {
 
 pub struct SkeletonBoneDef {
   pub mesh: Meshes,
-  pub offset: Vec3
+  pub offset: Vec3,
 }
 
 impl SkeletonBoneDef {
   pub fn new(mesh: Meshes, offset: Vec3) -> Self {
-    Self {
-      mesh,
-      offset
-    }
+    Self { mesh, offset }
   }
 
   pub fn no_offset(mesh: Meshes) -> Self {
     Self {
       mesh,
-      offset: Vec3::ZERO
+      offset: Vec3::ZERO,
     }
   }
 }
@@ -83,13 +76,13 @@ pub struct Skeleton {
 
 pub enum ChestAnimations {
   Open,
-  Close
+  Close,
 }
 
 #[derive(Component)]
 pub struct AnimationInstance {
   pub animation: Animation,
-  pub t: f32
+  pub t: f32,
 }
 
 pub trait AnimationTrait {
@@ -104,19 +97,19 @@ impl AnimationTrait for ChestAnimations {
       ChestAnimations::Open => Animation {
         animation: AnimationType::LinearRotation {
           from: closed,
-          to: opened
+          to: opened,
         },
         bone: ChestSkeleton::ChestLid as u16,
-        duration: 0.5
+        duration: 0.5,
       },
       ChestAnimations::Close => Animation {
         animation: AnimationType::LinearRotation {
           from: opened,
-          to: closed
+          to: closed,
         },
         bone: ChestSkeleton::ChestLid as u16,
-        duration: 0.5
-      }
+        duration: 0.5,
+      },
     }
   }
 }
@@ -130,7 +123,13 @@ pub enum BlockRenderInfo {
 
 pub trait BlockTraitExt {
   fn render_info(&self) -> BlockRenderInfo;
-  fn right_click_interface(&self, entity: Entity, location: DDD, commands: &mut Commands, client: &mut RenetClient) -> Option<()> {
+  fn right_click_interface(
+    &self,
+    _entity: Entity,
+    _location: DDD,
+    _commands: &mut Commands,
+    _client: &mut RenetClient,
+  ) -> Option<()> {
     None
   }
 }

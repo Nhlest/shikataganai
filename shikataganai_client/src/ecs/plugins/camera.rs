@@ -1,9 +1,8 @@
-use crate::ecs::components::blocks::{animate, AnimationTrait, BlockRenderInfo, ChestAnimations};
+use crate::ecs::components::blocks::BlockRenderInfo;
 use crate::ecs::components::blocks::DerefExt;
-use crate::ecs::plugins::game::{in_game, in_game_input_enabled, ShikataganaiGameState};
+use crate::ecs::plugins::game::{in_game_input_enabled, ShikataganaiGameState};
 use crate::ecs::plugins::rendering::mesh_pipeline::loader::GltfMeshStorageHandle;
 use crate::ecs::plugins::settings::MouseSensitivity;
-use crate::ecs::resources::world::ClientGameWorld;
 use crate::GltfMeshStorage;
 use bevy::input::mouse::MouseMotion;
 use bevy::prelude::*;
@@ -17,7 +16,6 @@ use iyes_loopless::state::NextState;
 use num_traits::float::FloatConst;
 use shikataganai_common::ecs::resources::world::GameWorld;
 use shikataganai_common::util::array::{to_ddd, DDD};
-use crate::ecs::systems::user_interface::chest_inventory::InventoryOpened;
 
 pub struct CameraPlugin;
 
@@ -132,7 +130,7 @@ fn spawn_camera(mut commands: Commands, player_entity: Query<Entity, With<Player
 }
 
 fn movement_input_system(
-  mut game_world: ResMut<GameWorld>,
+  game_world: ResMut<GameWorld>,
   mut player: Query<&mut FPSCamera>,
   player_position: Query<&Transform, With<Player>>,
   camera_transform: Query<&Transform, With<Camera>>,
@@ -238,7 +236,7 @@ impl ProximityColliderBundle {
 
 fn update_colliders(
   mut commands: Commands,
-  mut game_world: ResMut<GameWorld>,
+  game_world: ResMut<GameWorld>,
   proximity_colliders: Query<Entity, With<ProximityCollider>>,
   player_transform: Query<&Transform, With<Player>>,
   mut player_previous_position: ResMut<PlayerPreviousPosition>,

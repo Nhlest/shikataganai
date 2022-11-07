@@ -1,42 +1,59 @@
-use crate::ecs::plugins::rendering::inventory_pipeline::{ExtractedItems, INVENTORY_OUTPUT_TEXTURE_WIDTH};
-use crate::ecs::resources::player::{PlayerInventory, RerenderInventory};
+use crate::ecs::plugins::rendering::inventory_pipeline::inventory_cache::{
+  ExtractedItems, ItemRenderEntry, ItemRenderMap,
+};
+use crate::ecs::plugins::rendering::inventory_pipeline::node::Initialised;
+use crate::ecs::plugins::rendering::inventory_pipeline::INVENTORY_OUTPUT_TEXTURE_WIDTH;
 use bevy::prelude::*;
 use bevy::render::Extract;
-use shikataganai_common::ecs::components::blocks::QuantifiedBlockOrItem;
 
-pub fn prepare_extracted_inventory(
-  player_inventory: Res<PlayerInventory>,
-  mut extracted_items: ResMut<ExtractedItems>,
-  rerender_inventory: Res<RerenderInventory>,
-) {
-  if rerender_inventory.0 {
-    extracted_items.0.clear();
+pub fn clear_rerender(mut extracted_items: ResMut<ExtractedItems>) {
+  extracted_items.rerender = false;
+}
 
+pub fn clear_renderapp_extraction(mut commands: Commands, initialised: Option<Res<Initialised>>) {
+  if initialised.is_some() {
+    commands.remove_resource::<ItemRenderMap>();
+  }
+}
+
+pub fn update_extracted_items(mut extracted_items: ResMut<ExtractedItems>) {
+  if !extracted_items.requested.is_empty() {
+    let ExtractedItems {
+      rendered,
+      requested,
+      rerender,
+    } = extracted_items.as_mut();
+    rendered.0.retain(|_, entry| entry.has_been_requested);
+    rendered.0.extend(requested.iter().map(|x| {
+      (
+        *x,
+        ItemRenderEntry {
+          coord: (0.0, 0.0),
+          has_been_requested: false,
+        },
+      )
+    }));
     let mut x = 0.0;
     let mut y = 0.0;
-
-    for QuantifiedBlockOrItem { block_or_item, .. } in player_inventory.items.iter().filter_map(|x| x.as_ref()) {
-      extracted_items.0.insert(block_or_item.clone(), (x, y));
+    rendered.0.iter_mut().for_each(|(_, entry)| {
+      entry.has_been_requested = false;
+      entry.coord = (x, y);
       x += 1.0 / INVENTORY_OUTPUT_TEXTURE_WIDTH;
       if x >= 1.0 {
-        y += 1.0 / INVENTORY_OUTPUT_TEXTURE_WIDTH;
         x = 0.0;
+        y += 1.0 / INVENTORY_OUTPUT_TEXTURE_WIDTH;
       }
-    }
+    });
+
+    dbg!(&rendered.0);
+
+    *rerender = true;
+    extracted_items.clear();
   }
 }
 
-pub fn extract_inventory_tiles(
-  mut commands: Commands,
-  rerender_inventory: Extract<Res<RerenderInventory>>,
-  extracted_items: Extract<Res<ExtractedItems>>,
-) {
-  commands.insert_resource(RerenderInventory(rerender_inventory.0));
-  if rerender_inventory.0 {
-    commands.insert_resource(ExtractedItems(extracted_items.0.clone()));
+pub fn extract_inventory_tiles(mut commands: Commands, extracted_items: Extract<Res<ExtractedItems>>) {
+  if extracted_items.rerender {
+    commands.insert_resource(extracted_items.rendered.clone());
   }
-}
-
-pub fn cleanup_rerender(mut rerender_inventory: ResMut<RerenderInventory>) {
-  rerender_inventory.0 = false;
 }

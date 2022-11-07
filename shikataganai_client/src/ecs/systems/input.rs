@@ -1,6 +1,6 @@
-use crate::ecs::components::blocks::{animate, AnimationTrait, ChestAnimations, DerefExt};
+use crate::ecs::components::blocks::DerefExt;
 use crate::ecs::plugins::camera::{FPSCamera, Recollide, Selection};
-use crate::ecs::resources::player::{PlayerInventory, RerenderInventory, SelectedHotBar};
+use crate::ecs::resources::player::{PlayerInventory, SelectedHotBar};
 use bevy::input::mouse::MouseWheel;
 use bevy::prelude::*;
 use bevy_rapier3d::pipeline::QueryFilter;
@@ -16,8 +16,6 @@ use shikataganai_common::ecs::resources::world::GameWorld;
 use shikataganai_common::networking::{ClientChannel, PlayerCommand};
 use shikataganai_common::util::array::DDD;
 use std::cmp::Ordering;
-use iyes_loopless::state::NextState;
-use crate::ecs::plugins::game::ShikataganaiGameState;
 
 fn place_item_from_inventory(
   player_inventory: &mut PlayerInventory,
@@ -86,7 +84,6 @@ fn pick_up_block(
   player_inventory: &mut PlayerInventory,
   coord: DDD,
   game_world: &mut GameWorld,
-  rerender_inventory: &mut ResMut<RerenderInventory>,
 ) -> Option<()> {
   if let Some(source_block) = game_world.get_mut(coord) {
     let block: BlockId = std::mem::replace(&mut source_block.block, BlockId::Air);
@@ -102,7 +99,7 @@ fn pick_up_block(
           .unwrap_or(true)
       })
       .sorted_by(|slot1, slot2| {
-        if let Some(slot1) = slot1 && let Some(slot2) = slot2 {
+        if let Some(slot1) = slot1 && let Some(_slot2) = slot2 {
           if slot1.block_or_item == BlockOrItem::Block(block) {
             Ordering::Greater
           } else {
@@ -131,8 +128,7 @@ fn pick_up_block(
         return None;
       }
       Some(true) => {
-        // New item added - rerender required
-        rerender_inventory.0 = true;
+        // Pick up, do the rerender event
       }
       _ => {}
     }
@@ -157,7 +153,6 @@ pub fn action_input(
   mut game_world: ResMut<GameWorld>,
   mut relight_events: EventWriter<RelightEvent>,
   rapier_context: Res<RapierContext>,
-  mut rerender_inventory: ResMut<RerenderInventory>,
   mut recollide: ResMut<Recollide>,
   mut client: ResMut<RenetClient>,
 ) {
@@ -167,13 +162,7 @@ pub fn action_input(
       let source: DDD = *cube;
       let target_negative = *face;
       if mouse.just_pressed(MouseButton::Left) {
-        if let Some(()) = pick_up_block(
-          &mut commands,
-          player_inventory.as_mut(),
-          source,
-          &mut game_world,
-          &mut rerender_inventory,
-        ) {
+        if let Some(()) = pick_up_block(&mut commands, player_inventory.as_mut(), source, &mut game_world) {
           client.send_message(
             ClientChannel::ClientCommand.id(),
             serialize(&PlayerCommand::BlockRemove { location: source }).unwrap(),
@@ -186,7 +175,11 @@ pub fn action_input(
       if mouse.just_pressed(MouseButton::Right) {
         if game_world
           .get(source)
-          .map(|block| block.deref_ext().right_click_interface(block.entity, source, &mut commands, &mut client))
+          .map(|block| {
+            block
+              .deref_ext()
+              .right_click_interface(block.entity, source, &mut commands, &mut client)
+          })
           .flatten()
           .is_none()
         {
@@ -228,7 +221,7 @@ pub fn hot_bar_scroll_input(
 ) {
   let hotbar_length = hotbar_items.items.len() as i32;
   for MouseWheel { y, .. } in scroll_wheel.iter() {
-    selected_hotbar.0 = selected_hotbar.0 - *y as i32;
+    selected_hotbar.0 = selected_hotbar.0 - y.signum() as i32;
     selected_hotbar.0 = (hotbar_length + (selected_hotbar.0 % hotbar_length)) % hotbar_length;
   }
   if keys.just_pressed(KeyCode::Key1) {

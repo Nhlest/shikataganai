@@ -2,6 +2,7 @@
 #![feature(let_chains)]
 #![feature(negative_impls)]
 #![feature(array_methods)]
+#![allow(incomplete_features)]
 #![feature(adt_const_params)]
 #![allow(irrefutable_let_patterns)]
 
