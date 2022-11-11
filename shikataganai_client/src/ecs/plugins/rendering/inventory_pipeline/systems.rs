@@ -45,8 +45,6 @@ pub fn update_extracted_items(mut extracted_items: ResMut<ExtractedItems>) {
       }
     });
 
-    dbg!(&rendered.0);
-
     *rerender = true;
     extracted_items.clear();
   }

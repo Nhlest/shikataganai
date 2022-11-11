@@ -15,13 +15,16 @@ pub enum ButtonStyle {
   Active,
 }
 
-pub fn render_item_grid<'a>(
+pub fn render_item_grid<'a, F>(
   ui: &Ui,
   (xs, ys): (usize, usize),
-  getter: fn(usize, usize) -> (Option<&'a QuantifiedBlockOrItem>, usize),
+  mut getter: F,
   texture: &GUITextureAtlas,
   extracted_items: &mut ExtractedItems,
-) -> Option<usize> {
+) -> Option<usize>
+where
+  F: FnMut(usize, usize) -> (Option<&'a QuantifiedBlockOrItem>, usize),
+{
   let mut clicked = None;
   for y in 0..ys {
     for x in 0..xs {

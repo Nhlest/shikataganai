@@ -104,7 +104,7 @@ impl MeshRenderPipelineBundle {
         resource: BindingResource::Buffer(BufferBinding {
           buffer: position_buffer,
           offset: 0,
-          size: Some(NonZeroU64::new(std::mem::size_of::<Mat4>() as u64).unwrap()),
+          size: Some(NonZeroU64::new(std::mem::size_of::<Mat4>() as u64 + std::mem::size_of::<Vec4>() as u64).unwrap()),
         }),
       }],
     })
@@ -417,7 +417,7 @@ impl InventoryNode {
       depth_stencil_attachment: Some(RenderPassDepthStencilAttachment {
         view: &self.depth_view,
         depth_ops: Some(Operations {
-          load: LoadOp::Load,
+          load: LoadOp::Clear(0.0),
           store: true,
         }),
         stencil_ops: None,

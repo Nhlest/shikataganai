@@ -1,19 +1,15 @@
 use crate::ecs::plugins::client::Requested;
 use crate::ecs::plugins::imgui::GUITextureAtlas;
 use crate::ecs::plugins::rendering::inventory_pipeline::inventory_cache::ExtractedItems;
-use crate::ecs::resources::player::{PlayerInventory, SelectedHotBar};
-use crate::ecs::systems::user_interface::{item_button, render_item_grid, ButtonStyle};
+use crate::ecs::systems::user_interface::render_item_grid;
 use crate::ImguiState;
 use bevy::prelude::*;
 use bevy_renet::renet::RenetClient;
 use bincode::serialize;
-use imgui::{Condition, StyleVar};
-use shikataganai_common::ecs::components::blocks::block_id::BlockId;
-use shikataganai_common::ecs::components::blocks::{BlockOrItem, QuantifiedBlockOrItem, ReverseLocation};
+use imgui::Condition;
+use shikataganai_common::ecs::components::blocks::ReverseLocation;
 use shikataganai_common::ecs::components::functors::InternalInventory;
 use shikataganai_common::networking::{ClientChannel, FunctorType, PlayerCommand};
-use std::iter::Rev;
-use std::ops::Deref;
 
 pub struct InventoryOpened(pub Entity);
 
@@ -27,37 +23,49 @@ pub enum InventoryItemMovementStatus {
 pub fn chest_inventory(
   mut commands: Commands,
   imgui: NonSendMut<ImguiState>,
-  window: Res<Windows>,
-  mut inventory_opened: Option<ResMut<InventoryOpened>>,
+  // window: Res<Windows>,
+  inventory_opened: Option<ResMut<InventoryOpened>>,
   texture: Res<GUITextureAtlas>,
   // hotbar_items: Res<PlayerInventory>,
   // selected_hotbar: Res<SelectedHotBar>,
-  mut inventory_item_movement_status: Local<InventoryItemMovementStatus>,
+  // inventory_item_movement_status: Local<InventoryItemMovementStatus>,
   mut extracted_items: ResMut<ExtractedItems>,
-  mut inventory_query: Query<&mut InternalInventory>,
-  mut requested_query: Query<&Requested>,
-  mut location_query: Query<&ReverseLocation>,
+  inventory_query: Query<&mut InternalInventory>,
+  requested_query: Query<&Requested>,
+  location_query: Query<&ReverseLocation>,
   mut client: ResMut<RenetClient>,
 ) {
-  let ui = imgui.get_current_frame();
-  imgui::Window::new("Chest inventory")
-    .position([20.0, 20.0], Condition::Appearing)
-    .size([800.0, 600.0], Condition::Appearing)
-    .build(ui, || {
-      render_item_grid(
-        ui,
-        (5, 5),
-        |x, y| {
-          (
-            Some(&QuantifiedBlockOrItem {
-              block_or_item: BlockOrItem::Block(BlockId::Stair),
-              quant: 5,
-            }),
-            x + y,
-          )
-        },
-        texture.as_ref(),
-        extracted_items.as_mut(),
-      );
-    });
+  if let Some(inventory_entity) = inventory_opened.map(|e| e.0) {
+    match inventory_query.get(inventory_entity) {
+      Ok(internal_inventory) => {
+        let ui = imgui.get_current_frame();
+        imgui::Window::new("Chest inventory")
+          .position([20.0, 20.0], Condition::Appearing)
+          .size([800.0, 600.0], Condition::Appearing)
+          .build(ui, || {
+            render_item_grid(
+              ui,
+              (5, 2),
+              |x, y| (internal_inventory.inventory[y * 5 + x].as_ref(), x + y),
+              texture.as_ref(),
+              extracted_items.as_mut(),
+            );
+          });
+      }
+      Err(_) => {
+        if !requested_query.get(inventory_entity).is_ok() {
+          let location = location_query.get(inventory_entity).unwrap();
+          client.send_message(
+            ClientChannel::ClientCommand.id(),
+            serialize(&PlayerCommand::RequestFunctor {
+              location: location.0,
+              functor: FunctorType::InternalInventory,
+            })
+            .unwrap(),
+          );
+          commands.entity(inventory_entity).insert(Requested);
+        }
+      }
+    }
+  }
 }

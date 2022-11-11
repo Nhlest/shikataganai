@@ -31,9 +31,12 @@ const HEX_SE: [f32; 2] = [0.866025, 0.500000];
 #[repr(C)]
 pub struct MatrixContent {
   mat: Mat4,
-  filler1: [u8; 64],
-  filler2: [u8; 64],
-  filler3: [u8; 64],
+  v: Vec3,
+  filler1: [u8; 32],
+  filler2: [u8; 16],
+  filler3: [u8; 4],
+  filler4: [u8; 64],
+  filler5: [u8; 64],
 }
 
 pub struct Initialised;
@@ -49,10 +52,6 @@ impl Node for InventoryNode {
     }]
   }
   fn update(&mut self, world: &mut World) {
-    if !world.contains_resource::<ItemRenderMap>() {
-      return;
-    }
-
     self.direct_render_pipeline.render_pipeline = world
       .resource_mut::<PipelineCache>()
       .get_render_pipeline(self.direct_render_pipeline.pipeline_id)
@@ -69,13 +68,16 @@ impl Node for InventoryNode {
       && self.direct_render_pipeline.render_pipeline.is_some()
       && gpu_images.get(&handle.0).is_some();
 
-    if !self.initialised {
-      self.to_render = true;
-      self.view = InventoryNode::create_view(world.resource::<RenderDevice>());
-      self.depth_view = InventoryNode::create_depth_view(world.resource::<RenderDevice>());
-    } else {
-      world.insert_resource(Initialised);
+    if !world.contains_resource::<ItemRenderMap>() {
       self.to_render = false;
+      return;
+    }
+
+    self.to_render = true;
+
+    self.view = InventoryNode::create_view(world.resource::<RenderDevice>());
+    if !self.initialised {
+      self.depth_view = InventoryNode::create_depth_view(world.resource::<RenderDevice>());
     }
   }
   fn run(
@@ -135,14 +137,14 @@ impl Node for InventoryNode {
                 add_block_to_vertices(block_sprite, x, y);
               }
               BlockRenderInfo::AsMesh(mesh_handle) => {
-                let mesh_handle = &mesh_storage[&mesh_handle].render.as_ref().unwrap();
-                meshes_to_render.push((mesh_handle.clone(), [*x, *y, 0.0]));
+                let mesh_handle = mesh_storage[&mesh_handle].render.as_ref().unwrap();
+                meshes_to_render.push((mesh_handle.clone(), [*x, *y, 0.0], Vec3::ZERO));
               }
               BlockRenderInfo::Nothing => {}
               BlockRenderInfo::AsSkeleton(skeleton) => {
                 for (_, mesh) in skeleton.to_skeleton_def().skeleton {
-                  let mesh_handle = &mesh_storage[&mesh.mesh].render.as_ref().unwrap();
-                  meshes_to_render.push((mesh_handle.clone(), [*x + mesh.offset.x / INVENTORY_OUTPUT_TEXTURE_WIDTH, *y - mesh.offset.y / INVENTORY_OUTPUT_TEXTURE_WIDTH, mesh.offset.z / INVENTORY_OUTPUT_TEXTURE_WIDTH]));
+                  let mesh_handle = mesh_storage[&mesh.mesh].render.as_ref().unwrap();
+                  meshes_to_render.push((mesh_handle.clone(), [*x, *y, 0.0], mesh.offset));
                 }
               }
             }
@@ -183,7 +185,7 @@ impl Node for InventoryNode {
         });
 
       let mut contents = vec![];
-      for (_, [x, y, z]) in meshes_to_render.iter() {
+      for (_, [x, y, z], offset) in meshes_to_render.iter() {
         contents.extend_from_slice(
           bytemuck::bytes_of(
             &(
@@ -191,9 +193,12 @@ impl Node for InventoryNode {
                 mat: Mat4::from_translation(Vec3::new(0.5 + *x * INVENTORY_OUTPUT_TEXTURE_WIDTH, 0.5 + *y * INVENTORY_OUTPUT_TEXTURE_WIDTH,  1.0 + *z * INVENTORY_OUTPUT_TEXTURE_WIDTH)) *
                      Mat4::from_quat(Quat::from_euler(EulerRot::XYZ, -f32::FRAC_PI_4(), f32::FRAC_PI_4(), 0.0)) *
                      Mat4::from_scale(Vec3::new(0.55, -0.55, 0.55)),
-                filler1: [0; 64],
-                filler2: [0; 64],
-                filler3: [0; 64],
+                v: *offset,
+                filler1: [0; 32],
+                filler2: [0; 16],
+                filler3: [0; 4],
+                filler4: [0; 64],
+                filler5: [0; 64],
               }
             )
           )
@@ -227,7 +232,7 @@ impl Node for InventoryNode {
       // Mesh pass
 
       pass.set_pipeline(mesh_render_pipeline);
-      for (i, (handle, _)) in meshes_to_render.iter().enumerate() {
+      for (i, (handle, _, _)) in meshes_to_render.iter().enumerate() {
         let mesh = &meshes[handle];
 
         match &mesh.buffer_info {

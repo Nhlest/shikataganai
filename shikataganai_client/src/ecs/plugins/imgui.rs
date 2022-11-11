@@ -2,12 +2,14 @@
 use std::io::Cursor;
 use std::sync::{Arc, Mutex};
 
+use crate::ecs::plugins::rendering::inventory_pipeline::pipeline::InventoryNode;
 use bevy::input::keyboard::KeyboardInput;
 use bevy::input::mouse::{MouseButtonInput, MouseWheel};
 use bevy::input::{ButtonState, InputSystem};
 use bevy::prelude::*;
 use bevy::render::main_graph::node::CAMERA_DRIVER;
 use bevy::render::render_graph::{Node, NodeRunError, RenderGraph, RenderGraphContext, SlotInfo, SlotType};
+use bevy::render::render_resource::TextureView;
 use bevy::render::renderer::{RenderContext, RenderDevice, RenderQueue};
 use bevy::render::view::ExtractedWindows;
 use bevy::render::RenderApp;
@@ -312,8 +314,12 @@ impl Plugin for ImguiPlugin {
     app.insert_non_send_resource(platform);
 
     if let Ok(render_app) = app.get_sub_app_mut(RenderApp) {
+      let empty_texture = InventoryNode::create_view(render_app.world.resource::<RenderDevice>());
+      let node = ImguiNode::new(renderer, empty_texture);
+
       let mut render_graph = render_app.world.get_resource_mut::<RenderGraph>().unwrap();
-      render_graph.add_node(IMGUI_PASS, ImguiNode::new(renderer));
+
+      render_graph.add_node(IMGUI_PASS, node);
       render_graph.add_node_edge(CAMERA_DRIVER, IMGUI_PASS).unwrap();
     }
   }
@@ -321,12 +327,14 @@ impl Plugin for ImguiPlugin {
 
 pub struct ImguiNode {
   pub renderer: Arc<Mutex<Renderer>>,
+  pub previous_texture: Arc<Mutex<TextureView>>,
 }
 
 impl ImguiNode {
-  pub fn new(renderer: Renderer) -> Self {
+  pub fn new(renderer: Renderer, previous_texture: TextureView) -> Self {
     ImguiNode {
       renderer: Arc::new(Mutex::new(renderer)),
+      previous_texture: Arc::new(Mutex::new(previous_texture)),
     }
   }
 }
@@ -347,9 +355,10 @@ impl Node for ImguiNode {
     render_context: &mut RenderContext,
     world: &World,
   ) -> Result<(), NodeRunError> {
-    // TODO: blinking in inventory. IMGUI uses old texture for a single frame for some reason.
     let inventory_texture = graph.get_input_texture(TEXTURE_NODE_INPUT_SLOT).unwrap();
 
+    let q = self.previous_texture.clone();
+    let mut previous_texture = q.lock().unwrap();
     let q = self.renderer.clone();
     let mut renderer = q.lock().unwrap();
 
@@ -377,7 +386,7 @@ impl Node for ImguiNode {
         entries: &[
           BindGroupEntry {
             binding: 0,
-            resource: BindingResource::TextureView(inventory_texture),
+            resource: BindingResource::TextureView(&*previous_texture),
           },
           BindGroupEntry {
             binding: 1,
@@ -418,6 +427,9 @@ impl Node for ImguiNode {
         )
         .unwrap();
     }
+
+    *previous_texture = inventory_texture.clone();
+
     Ok(())
   }
 }
