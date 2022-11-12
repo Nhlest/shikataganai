@@ -2,7 +2,7 @@ use crate::ecs::components::blocks::{animate, AnimationInstance, AnimationTrait,
 use crate::ecs::plugins::camera::{Player, Selection};
 use crate::ecs::resources::player::{PlayerInventory, SelectedHotBar};
 use crate::ecs::resources::world::ClientGameWorld;
-use crate::ecs::systems::input::{action_input, hot_bar_scroll_input};
+use crate::ecs::systems::input::{action_input, hot_bar_scroll_input, keyboard_input};
 use crate::ecs::systems::light::religh_system;
 use crate::ecs::systems::remesh::remesh_system_auxiliary;
 use crate::ecs::systems::user_interface::chest_inventory::{chest_inventory, InventoryOpened};
@@ -22,6 +22,7 @@ use shikataganai_common::ecs::resources::player::PlayerNickname;
 use shikataganai_common::ecs::resources::world::GameWorld;
 use shikataganai_common::networking::{ClientChannel, PlayerCommand};
 use std::time::Duration;
+use crate::ecs::systems::user_interface::player_inventory::{player_inventory, PlayerInventoryOpened};
 
 pub struct GamePlugin;
 
@@ -139,7 +140,8 @@ pub fn process_animations(
 
 pub fn interface_input(
   mut commands: Commands,
-  inventory_opened: Res<InventoryOpened>,
+  inventory_opened: Option<Res<InventoryOpened>>,
+  player_inventory_opened: Option<Res<PlayerInventoryOpened>>,
   key: Res<Input<KeyCode>>,
   // mut physics_system: ResMut<RapierConfiguration>,
   mut windows: ResMut<Windows>,
@@ -148,23 +150,32 @@ pub fn interface_input(
 ) {
   let window = windows.get_primary_mut().unwrap();
 
+  if key.just_pressed(KeyCode::E) {
+    if player_inventory_opened.is_some() {
+      commands.remove_resource::<PlayerInventoryOpened>();
+      commands.insert_resource(NextState(ShikataganaiGameState::Simulation));
+    }
+  }
   if key.just_pressed(KeyCode::Escape) {
-    commands.remove_resource::<InventoryOpened>();
-    animate(
-      &mut commands,
-      inventory_opened.0,
-      ChestAnimations::Close.get_animation(),
-    );
-    client.send_message(
-      ClientChannel::ClientCommand.id(),
-      serialize(&PlayerCommand::AnimationStart {
-        location: reverse_location.get(inventory_opened.0).unwrap().0,
-        animation: ChestAnimations::Close.get_animation(),
-      })
-      .unwrap(),
-    );
-    window.set_cursor_lock_mode(true);
-    window.set_cursor_visibility(false);
+    if let Some(inventory_opened) = inventory_opened {
+      commands.remove_resource::<InventoryOpened>();
+      animate(
+        &mut commands,
+        inventory_opened.0,
+        ChestAnimations::Close.get_animation(),
+      );
+      client.send_message(
+        ClientChannel::ClientCommand.id(),
+        serialize(&PlayerCommand::AnimationStart {
+          location: reverse_location.get(inventory_opened.0).unwrap().0,
+          animation: ChestAnimations::Close.get_animation(),
+        })
+          .unwrap(),
+      );
+    }
+    if player_inventory_opened.is_some() {
+      commands.remove_resource::<PlayerInventoryOpened>();
+    }
     commands.insert_resource(NextState(ShikataganaiGameState::Simulation));
   }
 }
@@ -199,16 +210,18 @@ impl Plugin for GamePlugin {
     let on_game_simulation_continuous = ConditionSet::new()
       .run_in_state(ShikataganaiGameState::Simulation)
       // .with_system(action_input)
-      .with_system(hot_bar_scroll_input)
       .with_system(hot_bar)
+      .with_system(keyboard_input)
       // .with_system(recalculate_light_map)
       .into();
     let on_in_game_input_enabled = ConditionSet::new()
       .run_if(in_game_input_enabled)
+      .with_system(hot_bar_scroll_input)
       .with_system(action_input)
       .into();
     let on_in_game_interface_opened = ConditionSet::new()
       .run_in_state(ShikataganaiGameState::InterfaceOpened)
+      .with_system(player_inventory)
       .with_system(chest_inventory)
       .with_system(interface_input)
       .into();

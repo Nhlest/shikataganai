@@ -26,9 +26,6 @@ pub fn chest_inventory(
   // window: Res<Windows>,
   inventory_opened: Option<ResMut<InventoryOpened>>,
   texture: Res<GUITextureAtlas>,
-  // hotbar_items: Res<PlayerInventory>,
-  // selected_hotbar: Res<SelectedHotBar>,
-  // inventory_item_movement_status: Local<InventoryItemMovementStatus>,
   mut extracted_items: ResMut<ExtractedItems>,
   inventory_query: Query<&mut InternalInventory>,
   requested_query: Query<&Requested>,
@@ -43,6 +40,7 @@ pub fn chest_inventory(
           .position([20.0, 20.0], Condition::Appearing)
           .size([800.0, 600.0], Condition::Appearing)
           .build(ui, || {
+            ui.set_cursor_pos([2.0, 2.0 + 25.0]);
             render_item_grid(
               ui,
               (5, 2),

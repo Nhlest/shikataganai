@@ -3,6 +3,7 @@ use crate::ecs::plugins::rendering::inventory_pipeline::inventory_cache::Extract
 use imgui::{StyleVar, Ui};
 use shikataganai_common::ecs::components::blocks::QuantifiedBlockOrItem;
 
+pub mod player_inventory;
 pub mod chest_inventory;
 pub mod connecting;
 pub mod game_menu;
@@ -70,29 +71,30 @@ pub fn item_button(
     ButtonStyle::Active => [0.0, 0.0, 0.5, 0.8],
   };
   ui.set_cursor_pos(cursor);
+  let token = ui.push_style_var(StyleVar::FramePadding([0.0, 0.0]));
+  let id = ui.push_id(id as i32);
   let clicked = match item {
     None => imgui::ImageButton::new(texture.0, size)
       .uv0([1.0, 1.0])
       .uv1([1.0, 1.0])
+      .background_col(bg_color)
       .build(ui),
     Some(QuantifiedBlockOrItem { block_or_item, quant }) => {
       let coords = extracted_items.request(*block_or_item).unwrap_or((0.0, 0.0));
       ui.set_cursor_pos(cursor);
-      let token = ui.push_style_var(StyleVar::FramePadding([0.0, 0.0]));
-      let id = ui.push_id(id as i32);
       let clicked = imgui::ImageButton::new(texture.0, size)
         .uv0([coords.0, coords.1])
         .uv1([coords.0 + 1.0 / 8.0, coords.1 + 1.0 / 8.0])
         .background_col(bg_color)
         .build(ui);
-      id.end();
-      token.end();
 
       ui.set_cursor_pos(text_label);
       ui.text(format!("{}", quant));
       clicked
     }
   };
+  id.end();
+  token.end();
   ui.set_cursor_pos(next_element);
   clicked
 }

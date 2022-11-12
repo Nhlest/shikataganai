@@ -36,7 +36,7 @@ pub fn hot_bar(
         .add_rect([x1, y1], [x1 + 4.0, y1 + 4.0], [0.1, 0.1, 0.1, 1.0])
         .build();
       let _a = ui.push_style_var(StyleVar::ItemSpacing([2.5, 2.5]));
-      for (i, item) in hotbar_items.items.iter().enumerate() {
+      for (i, item) in hotbar_items.items.iter().enumerate().take(hotbar_items.hot_bar_width) {
         let cursor = ui.cursor_screen_pos();
         let c = ui.cursor_pos();
         if i as i32 == selected_hotbar.0 {

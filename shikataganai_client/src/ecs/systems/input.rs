@@ -16,6 +16,12 @@ use shikataganai_common::ecs::resources::world::GameWorld;
 use shikataganai_common::networking::{ClientChannel, PlayerCommand};
 use shikataganai_common::util::array::DDD;
 use std::cmp::Ordering;
+use bevy::input::ButtonState;
+use bevy::input::keyboard::KeyboardInput;
+use iyes_loopless::prelude::NextState;
+use crate::ecs::plugins::game::ShikataganaiGameState;
+use crate::ecs::systems::user_interface::ButtonStyle;
+use crate::ecs::systems::user_interface::player_inventory::PlayerInventoryOpened;
 
 fn place_item_from_inventory(
   player_inventory: &mut PlayerInventory,
@@ -140,6 +146,24 @@ fn pick_up_block(
     Some(())
   } else {
     None
+  }
+}
+
+pub fn keyboard_input(
+  mut commands: Commands,
+  mut keyboard: EventReader<KeyboardInput>,
+  player_inventory_opened: Option<Res<PlayerInventoryOpened>>
+) {
+  for KeyboardInput { scan_code, key_code, state } in keyboard.iter() {
+    if key_code == &Some(KeyCode::E) && state == &ButtonState::Released {
+      if player_inventory_opened.is_some() {
+        commands.remove_resource::<PlayerInventoryOpened>();
+        commands.insert_resource(NextState(ShikataganaiGameState::Simulation));
+      } else {
+        commands.insert_resource(PlayerInventoryOpened);
+        commands.insert_resource(NextState(ShikataganaiGameState::InterfaceOpened));
+      }
+    }
   }
 }
 

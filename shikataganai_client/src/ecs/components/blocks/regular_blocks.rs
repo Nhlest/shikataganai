@@ -4,7 +4,6 @@ pub struct Air;
 pub struct Dirt;
 pub struct Grass;
 pub struct Cobblestone;
-pub struct LightEmitter;
 
 impl BlockTraitExt for Air {
   fn render_info(&self) -> BlockRenderInfo {
@@ -37,11 +36,5 @@ impl BlockTraitExt for Cobblestone {
       Cobblestone,
       Cobblestone,
     ])
-  }
-}
-
-impl BlockTraitExt for LightEmitter {
-  fn render_info(&self) -> BlockRenderInfo {
-    BlockRenderInfo::Nothing
   }
 }
