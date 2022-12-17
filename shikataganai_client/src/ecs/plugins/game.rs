@@ -251,7 +251,7 @@ impl Plugin for GamePlugin {
       .add_stage_before(
         CoreStage::Update,
         FixedUpdate,
-        FixedTimestepStage::from_stage(Duration::from_millis(1000 / 60), on_fixed_step_simulation_stage),
+        FixedTimestepStage::from_stage(Duration::from_millis(1000 / 60), "Fixed Timestep", on_fixed_step_simulation_stage),
       )
       .add_system_set(on_game_simulation_continuous)
       .add_system_set(on_main_menu)

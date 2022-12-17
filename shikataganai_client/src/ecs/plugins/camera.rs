@@ -11,6 +11,8 @@ use bevy::render::primitives::Frustum;
 use bevy_atmosphere::prelude::AtmosphereCamera;
 use bevy_rapier3d::prelude::TOIStatus::Converged;
 use bevy_rapier3d::prelude::*;
+use bevy_rapier3d::rapier::prelude::Group as GroupRapier;
+use bevy_rapier3d::prelude::Group;
 use iyes_loopless::prelude::{ConditionSet, CurrentState, IntoConditionalSystem};
 use iyes_loopless::state::NextState;
 use num_traits::float::FloatConst;
@@ -52,7 +54,7 @@ pub fn raycast_to_block(
     false,
     QueryFilter {
       flags: Default::default(),
-      groups: Some(InteractionGroups::new(0b01, 0b10)),
+      groups: Some(InteractionGroups::new(GroupRapier::GROUP_1, GroupRapier::GROUP_2)),
       exclude_collider: None,
       exclude_rigid_body: None,
       predicate: None,
@@ -120,8 +122,8 @@ fn spawn_camera(mut commands: Commands, player_entity: Query<Entity, With<Player
         .insert(GlobalTransform::default())
         .insert(Transform::from_xyz(0.0, -0.5, 0.0))
         .insert(Collider::cylinder(0.8, 0.2))
-        .insert(SolverGroups::new(0b01, 0b10))
-        .insert(CollisionGroups::new(0b01, 0b10));
+        .insert(SolverGroups::new(Group::GROUP_1, Group::GROUP_2))
+        .insert(CollisionGroups::new(Group::GROUP_1, Group::GROUP_2));
       c.spawn()
         .insert(FPSCamera::default())
         .insert_bundle(camera)
@@ -226,8 +228,8 @@ impl ProximityColliderBundle {
       rigid_body: RigidBody::Fixed,
       collider,
       proximity_collider: ProximityCollider,
-      solver_groups: SolverGroups::new(0b10, 0b01),
-      collision_groups: CollisionGroups::new(0b10, 0b01),
+      solver_groups: SolverGroups::new(Group::GROUP_2, Group::GROUP_1),
+      collision_groups: CollisionGroups::new(Group::GROUP_2, Group::GROUP_1),
       transform,
       global_transform: Default::default(),
     }
@@ -327,7 +329,7 @@ fn collision_movement_system(
 
   let filter = QueryFilter {
     flags: Default::default(),
-    groups: Some(InteractionGroups::new(0b01, 0b10)),
+    groups: Some(InteractionGroups::new(GroupRapier::GROUP_1, GroupRapier::GROUP_2)),
     exclude_collider: None,
     exclude_rigid_body: None,
     predicate: None,

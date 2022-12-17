@@ -12,7 +12,7 @@ image = "0.24.*"
 imgui = "0.8.*"
 winit = "0.26.1"
 serde = "1.0.*"
-noise = "0.7.*"
+noise = "0.8.*"
 strum = "0.24.*"
 base64 = "0.13.*"
 anyhow = "1.0.*"
@@ -27,11 +27,11 @@ bevy_renet = { git = "https://github.com/lucaspoffo/renet", branch = "master" }
 num-traits = "0.2.*"
 strum_macros = "0.24.*"
 futures-lite = "1.12.*"
-iyes_loopless = "0.7.*"
+iyes_loopless = "0.8.*"
 bevy_framepace = "0.7.*"
 bevy_atmosphere = "0.4.*"
-bytemuck_derive = "1.2.*"
-percent-encoding = "2.1.*"
+bytemuck_derive = "1.3.*"
+percent-encoding = "2.2.*"
 shikataganai_common = { path = "../shikataganai_common" }
 shikataganai_server = { path = "../shikataganai_server" }
 bevy_embedded_assets = "0.4.*"
@@ -39,7 +39,7 @@ imgui-wgpu = { git = "https://github.com/Nhlest/imgui-wgpu-rs", branch = "master
 imgui-winit-support = { version = "0.8.1", default-features = false, features = [ "winit-26" ] }
 
 [dependencies.bevy_rapier3d]
-version = "0.16.*"
+version = "0.18.*"
 default-features = false
 features = ["simd-stable", "dim3"]
 

@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use noise::{NoiseFn, Perlin, Seedable};
+use noise::{NoiseFn, Perlin};
 
 use crate::ecs::components::blocks::block_id::BlockId;
 use crate::ecs::components::blocks::Block;
@@ -39,10 +39,10 @@ impl Chunk {
   }
 
   pub async fn generate(coord: DD) -> Chunk {
-    let perlin = Perlin::new().set_seed(11);
+    let perlin = Perlin::new(11);
     let from = (coord.0 * 16, 0, coord.1 * 16);
     let to = (coord.0 * 16 + 15, CHUNK_MAX_HEIGHT, coord.1 * 16 + 15);
-    let perlin_top = Perlin::new().set_seed(12);
+    let perlin_top = Perlin::new(12);
     let v = Array2d::new_init(((from.0, from.2), (to.0, to.2)), |(x, z)| noise(&perlin, (x, 0, z)));
     let vtop = Array2d::new_init(((from.0, from.2), (to.0, to.2)), |(x, z)| noise(&perlin_top, (x, 0, z)));
 

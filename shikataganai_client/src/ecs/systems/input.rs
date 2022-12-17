@@ -18,9 +18,9 @@ use shikataganai_common::util::array::DDD;
 use std::cmp::Ordering;
 use bevy::input::ButtonState;
 use bevy::input::keyboard::KeyboardInput;
+use bevy_rapier3d::rapier::prelude::Group;
 use iyes_loopless::prelude::NextState;
 use crate::ecs::plugins::game::ShikataganaiGameState;
-use crate::ecs::systems::user_interface::ButtonStyle;
 use crate::ecs::systems::user_interface::player_inventory::PlayerInventoryOpened;
 
 fn place_item_from_inventory(
@@ -47,7 +47,7 @@ fn place_item_from_inventory(
           &shape,
           QueryFilter {
             flags: Default::default(),
-            groups: Some(InteractionGroups::new(0b10, 0b01)),
+            groups: Some(InteractionGroups::new(Group::GROUP_2, Group::GROUP_1)),
             exclude_collider: None,
             exclude_rigid_body: None,
             predicate: None,
