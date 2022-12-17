@@ -25,7 +25,7 @@ pub trait BlockTrait {
   fn spawn_functors(&self, _location: DDD, _commands: &mut EntityCommands) {}
   fn spawn_or_add_functors(&self, block: &mut Block, location: DDD, commands: &mut Commands) {
     let mut commands = if block.entity == Entity::from_bits(0) {
-      commands.spawn()
+      commands.spawn_empty()
     } else {
       commands.entity(block.entity)
     };

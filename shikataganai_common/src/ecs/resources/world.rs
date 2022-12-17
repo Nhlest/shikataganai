@@ -2,9 +2,10 @@ use crate::ecs::components::blocks::Block;
 use crate::ecs::components::chunk::Chunk;
 use crate::ecs::resources::light::LightLevel;
 use crate::util::array::{ArrayIndex, DD, DDD};
+use bevy::ecs::system::Resource;
 use bevy::utils::hashbrown::HashMap;
 
-#[derive(Default)]
+#[derive(Default, Resource)]
 pub struct GameWorld {
   // List of chunks that are being generated right now to avoid unnecessary matching on an enum for chunk access for 99.99% of runtime
   pub generating: Vec<DD>,

@@ -28,7 +28,7 @@ pub struct SetMeshDynamicBindGroup<const I: usize, B, U> {
   _b: PhantomData<B>,
   _u: PhantomData<U>,
 }
-impl<const I: usize, B: Send + Sync + Deref<Target = BindGroup> + 'static, U: Component> EntityRenderCommand
+impl<const I: usize, B: Send + Sync + Resource + Deref<Target = BindGroup> + 'static, U: Component> EntityRenderCommand
   for SetMeshDynamicBindGroup<I, B, U>
 {
   type Param = (SRes<B>, SQuery<Read<DynamicUniformIndex<U>>>);

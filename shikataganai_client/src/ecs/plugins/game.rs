@@ -1,17 +1,19 @@
 use crate::ecs::components::blocks::{animate, AnimationInstance, AnimationTrait, ChestAnimations, Skeleton};
-use crate::ecs::plugins::camera::{Player, Selection};
+use crate::ecs::plugins::camera::{Player, Selection, SelectionRes};
 use crate::ecs::resources::player::{PlayerInventory, SelectedHotBar};
 use crate::ecs::resources::world::ClientGameWorld;
 use crate::ecs::systems::input::{action_input, hot_bar_scroll_input, keyboard_input};
 use crate::ecs::systems::light::religh_system;
 use crate::ecs::systems::remesh::remesh_system_auxiliary;
-use crate::ecs::systems::user_interface::chest_inventory::{chest_inventory, InventoryOpened};
-use crate::ecs::systems::user_interface::connecting::connecting_window;
-use crate::ecs::systems::user_interface::game_menu::game_menu;
-use crate::ecs::systems::user_interface::hot_bar::hot_bar;
+use crate::ecs::systems::user_interface::chest_inventory::InventoryOpened;
+// use crate::ecs::systems::user_interface::connecting::connecting_window;
+// use crate::ecs::systems::user_interface::game_menu::game_menu;
+// use crate::ecs::systems::user_interface::hot_bar::hot_bar;
 use crate::ecs::systems::user_interface::main_menu::main_menu;
+use crate::ecs::systems::user_interface::player_inventory::PlayerInventoryOpened;
 use bevy::prelude::*;
 use bevy::render::{Extract, RenderApp, RenderStage};
+use bevy::window::CursorGrabMode;
 use bevy_rapier3d::plugin::RapierConfiguration;
 use bevy_renet::renet::RenetClient;
 use bincode::serialize;
@@ -22,11 +24,10 @@ use shikataganai_common::ecs::resources::player::PlayerNickname;
 use shikataganai_common::ecs::resources::world::GameWorld;
 use shikataganai_common::networking::{ClientChannel, PlayerCommand};
 use std::time::Duration;
-use crate::ecs::systems::user_interface::player_inventory::{player_inventory, PlayerInventoryOpened};
 
 pub struct GamePlugin;
 
-#[derive(Copy, Clone, Default, Deref, DerefMut)]
+#[derive(Copy, Clone, Default, Deref, DerefMut, Resource)]
 pub struct LocalTick(pub u64);
 
 pub fn increment_tick(mut tick: ResMut<LocalTick>) {
@@ -70,7 +71,7 @@ pub fn init_game(mut commands: Commands) {
   commands.init_resource::<SelectedHotBar>();
   commands.init_resource::<PlayerInventory>();
   commands.init_resource::<GameWorld>();
-  commands.init_resource::<Option<Selection>>();
+  commands.init_resource::<SelectionRes>();
 }
 
 pub fn transition_to_simulation(
@@ -91,7 +92,7 @@ pub fn transition_to_simulation(
       .unwrap(),
     );
     commands.insert_resource(NextState(ShikataganaiGameState::Simulation));
-    active_window.set_cursor_lock_mode(true);
+    active_window.set_cursor_grab_mode(CursorGrabMode::Locked);
     active_window.set_cursor_visibility(false);
     physics_system.physics_pipeline_active = true;
     for i in -5..=5 {
@@ -106,7 +107,7 @@ pub fn cleanup_game(mut commands: Commands) {
   commands.remove_resource::<SelectedHotBar>();
   commands.remove_resource::<PlayerInventory>();
   commands.remove_resource::<GameWorld>();
-  commands.remove_resource::<Option<Selection>>();
+  commands.remove_resource::<SelectionRes>();
 }
 
 pub fn extract_loopless_state(mut commands: Commands, state: Extract<Res<CurrentState<ShikataganaiGameState>>>) {
@@ -170,7 +171,7 @@ pub fn interface_input(
           location: reverse_location.get(inventory_opened.0).unwrap().0,
           animation: ChestAnimations::Close.get_animation(),
         })
-          .unwrap(),
+        .unwrap(),
       );
     }
     if player_inventory_opened.is_some() {
@@ -183,14 +184,14 @@ pub fn interface_input(
 pub fn enter_simulation(mut windows: ResMut<Windows>) {
   let window = windows.get_primary_mut().unwrap();
 
-  window.set_cursor_lock_mode(true);
+  window.set_cursor_grab_mode(CursorGrabMode::Locked);
   window.set_cursor_visibility(false);
 }
 
 pub fn exit_simulation(mut windows: ResMut<Windows>) {
   let window = windows.get_primary_mut().unwrap();
 
-  window.set_cursor_lock_mode(false);
+  window.set_cursor_grab_mode(CursorGrabMode::None);
   window.set_cursor_visibility(true);
 }
 
@@ -205,12 +206,12 @@ impl Plugin for GamePlugin {
     let on_game_pre_simulation_update = ConditionSet::new()
       .run_in_state(ShikataganaiGameState::PreSimulation)
       .with_system(transition_to_simulation)
-      .with_system(connecting_window)
+      // .with_system(connecting_window)
       .into();
     let on_game_simulation_continuous = ConditionSet::new()
       .run_in_state(ShikataganaiGameState::Simulation)
       // .with_system(action_input)
-      .with_system(hot_bar)
+      // .with_system(hot_bar)
       .with_system(keyboard_input)
       // .with_system(recalculate_light_map)
       .into();
@@ -221,8 +222,8 @@ impl Plugin for GamePlugin {
       .into();
     let on_in_game_interface_opened = ConditionSet::new()
       .run_in_state(ShikataganaiGameState::InterfaceOpened)
-      .with_system(player_inventory)
-      .with_system(chest_inventory)
+      // .with_system(player_inventory)
+      // .with_system(chest_inventory)
       .with_system(interface_input)
       .into();
     let on_game_simulation_continuous_post_update = ConditionSet::new()
@@ -232,7 +233,7 @@ impl Plugin for GamePlugin {
       .into();
     let on_pause = ConditionSet::new()
       .run_in_state(ShikataganaiGameState::Paused)
-      .with_system(game_menu)
+      // .with_system(game_menu)
       .into();
     let on_fixed_step_simulation: SystemSet = ConditionSet::new()
       .run_in_state(ShikataganaiGameState::Simulation)
@@ -243,7 +244,7 @@ impl Plugin for GamePlugin {
     let on_enter_simulation = SystemStage::parallel().with_system(enter_simulation);
     let on_exit_simulation = SystemStage::parallel().with_system(exit_simulation);
 
-    app.world.spawn().insert(Player);
+    app.world.spawn(Player);
 
     app
       .init_resource::<LocalTick>()
@@ -251,7 +252,11 @@ impl Plugin for GamePlugin {
       .add_stage_before(
         CoreStage::Update,
         FixedUpdate,
-        FixedTimestepStage::from_stage(Duration::from_millis(1000 / 60), "Fixed Timestep", on_fixed_step_simulation_stage),
+        FixedTimestepStage::from_stage(
+          Duration::from_millis(1000 / 60),
+          "Fixed Timestep",
+          on_fixed_step_simulation_stage,
+        ),
       )
       .add_system_set(on_game_simulation_continuous)
       .add_system_set(on_main_menu)

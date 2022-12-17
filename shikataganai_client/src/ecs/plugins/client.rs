@@ -32,15 +32,15 @@ use crate::ecs::plugins::rendering::mesh_pipeline::AmongerTextureHandle;
 use crate::ecs::plugins::rendering::voxel_pipeline::meshing::RemeshEvent;
 use crate::GltfMeshStorage;
 
-#[derive(Default)]
+#[derive(Default, Resource)]
 struct NetworkMapping(HashMap<Entity, Entity>);
 
-#[derive(Debug)]
+#[derive(Debug, Resource)]
 struct PlayerInfo {
   client_entity: Entity,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Resource)]
 struct ClientLobby {
   players: HashMap<u64, PlayerInfo>,
 }
@@ -95,50 +95,53 @@ fn spawn_amonger(
   amonger_texture: &AmongerTextureHandle,
 ) -> Entity {
   let (client_entity, legl, legr, visor) = commands
-    .spawn()
-    .insert(Transform::from_translation(translation))
-    .insert(GlobalTransform::default())
+    .spawn((Transform::from_translation(translation), GlobalTransform::default()))
     .add_children(|c| {
       let body = get_mesh_from_storage(mesh_storage_handle, mesh_storage, Meshes::AmongerBody);
       let legl = get_mesh_from_storage(mesh_storage_handle, mesh_storage, Meshes::AmongerLegL);
       let legr = get_mesh_from_storage(mesh_storage_handle, mesh_storage, Meshes::AmongerLegR);
       let backpack = get_mesh_from_storage(mesh_storage_handle, mesh_storage, Meshes::AmongerBackpack);
       let visor = get_mesh_from_storage(mesh_storage_handle, mesh_storage, Meshes::AmongerVisor);
-      c.spawn()
-        .insert(GlobalTransform::default())
-        .insert(Transform::from_translation(body.1))
-        .insert(body.0.clone())
-        .insert(MeshMarker)
-        .insert(amonger_texture.0.clone());
+      c.spawn((
+        GlobalTransform::default(),
+        Transform::from_translation(body.1),
+        body.0.clone(),
+        MeshMarker,
+        amonger_texture.0.clone(),
+      ));
       let legl = c
-        .spawn()
-        .insert(GlobalTransform::default())
-        .insert(Transform::from_translation(legl.1))
-        .insert(legl.0.clone())
-        .insert(MeshMarker)
-        .insert(amonger_texture.0.clone())
+        .spawn((
+          GlobalTransform::default(),
+          Transform::from_translation(legl.1),
+          legl.0.clone(),
+          MeshMarker,
+          amonger_texture.0.clone(),
+        ))
         .id();
       let legr = c
-        .spawn()
-        .insert(GlobalTransform::default())
-        .insert(Transform::from_translation(legr.1))
-        .insert(legr.0.clone())
-        .insert(MeshMarker)
-        .insert(amonger_texture.0.clone())
+        .spawn((
+          GlobalTransform::default(),
+          Transform::from_translation(legr.1),
+          legr.0.clone(),
+          MeshMarker,
+          amonger_texture.0.clone(),
+        ))
         .id();
-      c.spawn()
-        .insert(GlobalTransform::default())
-        .insert(Transform::from_translation(backpack.1))
-        .insert(backpack.0.clone())
-        .insert(MeshMarker)
-        .insert(amonger_texture.0.clone());
+      c.spawn((
+        GlobalTransform::default(),
+        Transform::from_translation(backpack.1),
+        backpack.0.clone(),
+        MeshMarker,
+        amonger_texture.0.clone(),
+      ));
       let visor = c
-        .spawn()
-        .insert(GlobalTransform::default())
-        .insert(Transform::from_translation(visor.1))
-        .insert(visor.0.clone())
-        .insert(MeshMarker)
-        .insert(amonger_texture.0.clone())
+        .spawn((
+          GlobalTransform::default(),
+          Transform::from_translation(visor.1),
+          visor.0.clone(),
+          MeshMarker,
+          amonger_texture.0.clone(),
+        ))
         .id();
       (c.parent_entity(), legl, legr, visor)
     });
@@ -256,7 +259,7 @@ fn receive_system(
       } => {
         if let Some(block) = game_world.get_mut(location) {
           let mut commands = if block.entity == Entity::from_bits(0) {
-            commands.spawn()
+            commands.spawn_empty()
           } else {
             commands.entity(block.entity)
           };

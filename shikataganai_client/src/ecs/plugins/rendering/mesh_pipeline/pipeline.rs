@@ -14,8 +14,10 @@ use bevy::render::view::ViewUniform;
 use bevy::utils::hashbrown::HashMap;
 use wgpu::BindGroupLayoutDescriptor;
 
-pub type RenderTextures = HashMap<Handle<Image>, BindGroup>;
+#[derive(Resource, DerefMut, Deref, Default)]
+pub struct RenderTextures(pub HashMap<Handle<Image>, BindGroup>);
 
+#[derive(Resource)]
 pub struct MeshPipeline {
   pub view_layout: BindGroupLayout,
   pub position_layout: BindGroupLayout,

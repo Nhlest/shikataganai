@@ -1,5 +1,5 @@
 use crate::ecs::components::blocks::{BlockRenderInfo, DerefExt};
-use crate::ecs::plugins::camera::Selection;
+use crate::ecs::plugins::camera::{Selection, SelectionRes};
 use crate::ecs::plugins::rendering::voxel_pipeline::bind_groups::{
   LightTextureBindGroup, LightTextureHandle, SelectionBindGroup, TextureHandle, VoxelTextureBindGroup,
   VoxelViewBindGroup,
@@ -21,9 +21,11 @@ use itertools::Itertools;
 use shikataganai_common::ecs::components::blocks::Block;
 use shikataganai_common::ecs::resources::world::GameWorld;
 use shikataganai_common::util::array::{sub_ddd, ArrayIndex, ImmediateNeighbours, DD};
+use std::ops::Deref;
 use wgpu::util::BufferInitDescriptor;
 use wgpu::{BindGroupDescriptor, BindGroupEntry, BindingResource};
 
+#[derive(Resource)]
 pub struct ExtractedBlocks {
   pub blocks: HashMap<DD, BufferVec<SingleSide>>,
 }
@@ -37,13 +39,13 @@ impl Default for ExtractedBlocks {
 pub fn extract_chunks(
   mut commands: Commands,
   game_world: Extract<Res<GameWorld>>,
-  selection: Extract<Res<Option<Selection>>>,
+  selection: Extract<Res<SelectionRes>>,
   mut remesh_events: Extract<EventReader<RemeshEvent>>,
   ambient_occlusion: Extract<Res<AmbientOcclusion>>,
   mut extracted_blocks: ResMut<ExtractedBlocks>,
 ) {
   commands.insert_resource(selection.clone());
-  let mut updated: Vec<DD> = vec![];
+  let mut updated: UpdatedVec = UpdatedVec(vec![]);
 
   for ch in remesh_events
     .iter()
@@ -98,6 +100,9 @@ pub fn extract_chunks(
   commands.insert_resource(updated);
 }
 
+#[derive(Default, Deref, DerefMut, Resource)]
+pub struct UpdatedVec(pub Vec<DD>);
+
 pub fn queue_chunks(
   mut commands: Commands,
   mut extracted_blocks: ResMut<ExtractedBlocks>,
@@ -110,8 +115,8 @@ pub fn queue_chunks(
   view_uniforms: Res<ViewUniforms>,
   gpu_images: Res<RenderAssets<Image>>,
   (handle, light_texture_handle): (Res<TextureHandle>, Res<LightTextureHandle>),
-  selection: Res<Option<Selection>>,
-  updated: Res<Vec<DD>>,
+  selection: Res<SelectionRes>,
+  updated: Res<UpdatedVec>,
 ) {
   if let Some(gpu_image) = gpu_images.get(&handle.0) {
     commands.insert_resource(VoxelTextureBindGroup {
@@ -164,7 +169,7 @@ pub fn queue_chunks(
     });
   }
 
-  let contents = match selection.into_inner() {
+  let contents = match selection.into_inner().deref() {
     None => [-9999, -9999, -9999, 0, -9999, -9999, -9999, 0],
     Some(Selection { cube, face }) => [cube.0, cube.1, cube.2, 0, face.0, face.1, face.2, 0],
   };
@@ -197,8 +202,7 @@ pub fn queue_chunks(
   for (_, buf) in buf.iter_mut() {
     if !buf.is_empty() {
       let entity = commands
-        .spawn()
-        .insert(ChunkMeshBuffer(buf.buffer().unwrap().clone(), buf.len()))
+        .spawn(ChunkMeshBuffer(buf.buffer().unwrap().clone(), buf.len()))
         .id();
       for mut view in views.iter_mut() {
         view.add(Opaque3d {

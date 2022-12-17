@@ -1,7 +1,6 @@
 use crate::ecs::plugins::settings::{AmbientOcclusion, FullScreen, MouseSensitivity, Resolution, Settings, VSync};
 use bevy::app::AppExit;
 use bevy::prelude::*;
-use bevy::render::texture::ImageSettings;
 use bevy::winit::WinitWindows;
 use bevy_rapier3d::prelude::RapierConfiguration;
 use bevy_renet::renet::RenetClient;
@@ -16,22 +15,6 @@ impl Plugin for Preamble {
     let vsync = app.world.resource::<VSync>();
     let fullscreen = app.world.resource::<FullScreen>();
     app
-      .insert_resource(WindowDescriptor {
-        width: resolution.width,
-        height: resolution.height,
-        resizable: true,
-        title: "仕方がない、ね？".to_string(),
-        present_mode: vsync.as_present_mode(),
-        mode: fullscreen.as_mode(),
-        ..default()
-      })
-      // .insert_resource(ClearColor(Color::Rgba {
-      //   red: 0.527,
-      //   green: 0.804,
-      //   blue: 0.917,
-      //   alpha: 1.0,
-      // }))
-      .insert_resource(ImageSettings::default_nearest())
       .insert_resource(Msaa { samples: 1 })
       .insert_resource(RapierConfiguration {
         physics_pipeline_active: false,

@@ -30,15 +30,20 @@ impl Default for Settings {
   }
 }
 
+#[derive(Resource)]
 pub struct MouseSensitivity(pub f32);
 
+#[derive(Resource)]
 pub struct Resolution {
   pub width: f32,
   pub height: f32,
 }
 
+#[derive(Resource)]
 pub struct VSync(pub bool);
+#[derive(Resource)]
 pub struct FullScreen(pub bool);
+#[derive(Resource)]
 pub struct AmbientOcclusion(pub bool);
 
 impl VSync {

@@ -13,6 +13,7 @@ use bevy::render::texture::BevyDefault;
 use bevy::render::view::ViewUniform;
 use wgpu::BindGroupLayoutDescriptor;
 
+#[derive(Resource)]
 pub struct VoxelPipeline {
   pub view_layout: BindGroupLayout,
   pub texture_layout: BindGroupLayout,

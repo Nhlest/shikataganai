@@ -36,7 +36,7 @@ pub fn remesh_system_auxiliary(
       let mut block = game_world.get_mut(i).unwrap();
       if block.need_reverse_location() {
         block.entity = if block.entity == Entity::from_bits(0) {
-          commands.spawn()
+          commands.spawn_empty()
         } else {
           commands.entity(block.entity)
         }
@@ -51,14 +51,13 @@ pub fn remesh_system_auxiliary(
               let render_mesh: &Handle<Mesh> = mesh.render.as_ref().unwrap();
               let rotation = block.meta.get_rotation();
               let e = commands
-                .spawn()
-                .insert(render_mesh.clone())
-                .insert(MeshMarker)
-                .insert(
+                .spawn((
+                  render_mesh.clone(),
+                  MeshMarker,
                   Transform::from_translation(from_ddd(i) + Vec3::new(0.5, 0.5, 0.5))
                     .with_rotation(Quat::from_rotation_y(f32::PI() / 2.0 * rotation as i32 as f32)),
-                )
-                .insert(GlobalTransform::default())
+                  GlobalTransform::default(),
+                ))
                 .id();
               block.entity = e;
             }
@@ -80,7 +79,7 @@ pub fn remesh_system_auxiliary(
         BlockRenderInfo::AsSkeleton(skeleton) => {
           let rotation = block.meta.get_rotation();
           if block.entity == Entity::from_bits(0) {
-            Some(commands.spawn())
+            Some(commands.spawn_empty())
           } else if skeleton_query.get(block.entity).is_ok() {
             transform_query.get_mut(block.entity).unwrap().translation = from_ddd(i) + Vec3::new(0.5, 0.5, 0.5);
             None
@@ -102,11 +101,7 @@ pub fn remesh_system_auxiliary(
                     let render_mesh = mesh.render.as_ref().unwrap();
                     let transform = Transform::from_translation(mesh_def.offset);
                     let id = c
-                      .spawn()
-                      .insert(MeshMarker)
-                      .insert(render_mesh.clone())
-                      .insert(transform)
-                      .insert(GlobalTransform::default())
+                      .spawn((MeshMarker, render_mesh.clone(), transform, GlobalTransform::default()))
                       .id();
                     hash_map.insert(i, id);
                   }

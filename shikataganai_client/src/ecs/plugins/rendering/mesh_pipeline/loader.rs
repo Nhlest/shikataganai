@@ -191,7 +191,7 @@ pub struct MeshHandles {
   pub transform: Vec3,
 }
 
-#[derive(Deref, ExtractResource, Clone)]
+#[derive(Deref, ExtractResource, Clone, Resource)]
 pub struct GltfMeshStorageHandle(pub Handle<GltfMeshStorage>);
 
 #[derive(TypeUuid, Deref, Clone)]

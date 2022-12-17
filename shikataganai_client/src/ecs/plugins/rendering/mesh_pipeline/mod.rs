@@ -31,6 +31,7 @@ pub const MESH_SHADER_VERTEX_HANDLE: HandleUntyped =
 pub const MESH_SHADER_FRAGMENT_HANDLE: HandleUntyped =
   HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 2763343953151597799);
 
+#[derive(Resource)]
 pub struct AmongerTextureHandle(pub Handle<Image>);
 
 impl FromWorld for AmongerTextureHandle {
@@ -51,7 +52,7 @@ impl Plugin for MeshRendererPlugin {
     shaders.set_untracked(MESH_SHADER_FRAGMENT_HANDLE, mesh_shader_fragment);
 
     app
-      .add_plugin(RenderAssetPlugin::<Image>::default())
+      // .add_plugin(RenderAssetPlugin::<Image>::default())
       .add_plugin(UniformComponentPlugin::<PositionUniform>::default())
       .add_plugin(UniformComponentPlugin::<LightLevel>::default())
       .add_plugin(RenderAssetPlugin::<GltfMeshStorage>::default())

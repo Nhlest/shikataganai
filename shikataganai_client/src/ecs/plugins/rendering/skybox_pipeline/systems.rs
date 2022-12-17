@@ -17,6 +17,7 @@ use bevy_atmosphere::pipeline::AtmosphereImage;
 use bevy_atmosphere::skybox::{AtmosphereSkyBoxMaterial, SkyBoxMaterial};
 use wgpu::{BindGroupDescriptor, BindGroupEntry, BindingResource};
 
+#[derive(Resource)]
 pub struct ExtractedAtmosphereSkyBoxMaterial(pub Handle<SkyBoxMaterial>);
 
 pub fn extract_skybox_material_handle(
@@ -26,14 +27,14 @@ pub fn extract_skybox_material_handle(
 ) {
   commands.insert_resource(ExtractedAtmosphereSkyBoxMaterial(skybox_material_handle.0.clone()));
   for (handle, transform) in skybox_material.iter() {
-    commands
-      .spawn()
-      .insert(MeshUniform {
+    commands.spawn((
+      MeshUniform {
         transform: transform.compute_matrix(),
         inverse_transpose_model: transform.compute_matrix().inverse().transpose(),
         flags: 0,
-      })
-      .insert(handle.clone());
+      },
+      handle.clone(),
+    ));
   }
 }
 

@@ -13,7 +13,7 @@ use std::ops::Deref;
 pub struct SetBindGroup<const I: usize, T: Deref<Target = BindGroup> + Send + Sync + 'static> {
   _phantom: PhantomData<T>,
 }
-impl<P: PhaseItem, const I: usize, T: Deref<Target = BindGroup> + Send + Sync + 'static> RenderCommand<P>
+impl<P: PhaseItem, const I: usize, T: Deref<Target = BindGroup> + Send + Sync + Resource + 'static> RenderCommand<P>
   for SetBindGroup<I, T>
 {
   type Param = SRes<T>;
@@ -33,7 +33,7 @@ impl<P: PhaseItem, const I: usize, T: Deref<Target = BindGroup> + Send + Sync + 
 pub struct SetViewBindGroup<const I: usize, T: Deref<Target = BindGroup> + Send + Sync + 'static> {
   _phantom: PhantomData<T>,
 }
-impl<P: PhaseItem, const I: usize, T: Deref<Target = BindGroup> + Send + Sync + 'static> RenderCommand<P>
+impl<P: PhaseItem, const I: usize, T: Deref<Target = BindGroup> + Send + Sync + Resource + 'static> RenderCommand<P>
   for SetViewBindGroup<I, T>
 {
   type Param = (SRes<T>, SQuery<Read<ViewUniformOffset>>);

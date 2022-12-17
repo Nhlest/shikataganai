@@ -2,9 +2,10 @@ use bevy::prelude::*;
 use bevy::render::extract_resource::ExtractResource;
 use bevy::render::render_resource::BindGroup;
 
+#[derive(Resource)]
 pub struct TextureHandle(pub Handle<Image>);
 
-#[derive(Clone, ExtractResource)]
+#[derive(Clone, ExtractResource, Resource)]
 pub struct LightTextureHandle(pub Handle<Image>);
 
 impl FromWorld for TextureHandle {
@@ -21,22 +22,22 @@ impl FromWorld for LightTextureHandle {
   }
 }
 
-#[derive(Deref)]
+#[derive(Deref, Resource)]
 pub struct VoxelViewBindGroup {
   pub bind_group: BindGroup,
 }
 
-#[derive(Deref)]
+#[derive(Deref, Resource)]
 pub struct VoxelTextureBindGroup {
   pub bind_group: BindGroup,
 }
 
-#[derive(Deref)]
+#[derive(Deref, Resource)]
 pub struct SelectionBindGroup {
   pub bind_group: BindGroup,
 }
 
-#[derive(Deref)]
+#[derive(Deref, Resource)]
 pub struct LightTextureBindGroup {
   pub bind_group: BindGroup,
 }

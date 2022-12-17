@@ -26,15 +26,15 @@ pub struct ShikataganaiServerPlugin;
 #[derive(StageLabel)]
 pub struct FixedUpdate;
 
-#[derive(Default)]
+#[derive(Default, Resource)]
 pub struct ServerTick(u32);
 
-#[derive(Default)]
+#[derive(Default, Resource)]
 pub struct PlayerEntities {
   pub players: HashMap<u64, Entity>,
 }
 
-#[derive(Default)]
+#[derive(Default, Resource)]
 pub struct UnAuthedPlayers {
   pub players: HashSet<u64>,
 }
@@ -42,6 +42,7 @@ pub struct UnAuthedPlayers {
 #[derive(Component)]
 pub struct ClientId(u64);
 
+#[derive(Resource)]
 pub struct ShikataganaiServerAddress {
   pub address: String,
 }
@@ -205,11 +206,12 @@ pub fn handle_events(
               (entity, transform.translation, *rotation)
             }).or_else(|| {
               let player_entity = commands
-                .spawn()
-                .insert(Transform::from_xyz(10.1, 45.0, 10.0))
-                .insert(PolarRotation { phi: 0.0, theta: f32::FRAC_PI_2() })
-                .insert(ClientId(client))
-                .insert(PlayerNickname(nickname))
+                .spawn((
+                   Transform::from_xyz(10.1, 45.0, 10.0),
+                   PolarRotation { phi: 0.0, theta: f32::FRAC_PI_2() },
+                   ClientId(client),
+                   PlayerNickname(nickname)
+                ))
                 .id();
               Some((player_entity, Vec3::new(10.1, 45.0, 10.0), PolarRotation { phi: 0.0, theta: f32::FRAC_PI_2() }))
             }).unwrap();

@@ -1,13 +1,19 @@
 use crate::ecs::components::blocks::DerefExt;
-use crate::ecs::plugins::camera::{FPSCamera, Recollide, Selection};
+use crate::ecs::plugins::camera::{FPSCamera, Recollide, Selection, SelectionRes};
+use crate::ecs::plugins::game::ShikataganaiGameState;
 use crate::ecs::resources::player::{PlayerInventory, SelectedHotBar};
+use crate::ecs::systems::user_interface::player_inventory::PlayerInventoryOpened;
+use bevy::input::keyboard::KeyboardInput;
 use bevy::input::mouse::MouseWheel;
+use bevy::input::ButtonState;
 use bevy::prelude::*;
 use bevy_rapier3d::pipeline::QueryFilter;
 use bevy_rapier3d::prelude::{Collider, InteractionGroups, RapierContext};
+use bevy_rapier3d::rapier::prelude::Group;
 use bevy_renet::renet::RenetClient;
 use bincode::serialize;
 use itertools::Itertools;
+use iyes_loopless::prelude::NextState;
 use num_traits::FloatConst;
 use shikataganai_common::ecs::components::blocks::block_id::BlockId;
 use shikataganai_common::ecs::components::blocks::{Block, BlockOrItem, BlockRotation, QuantifiedBlockOrItem};
@@ -16,12 +22,7 @@ use shikataganai_common::ecs::resources::world::GameWorld;
 use shikataganai_common::networking::{ClientChannel, PlayerCommand};
 use shikataganai_common::util::array::DDD;
 use std::cmp::Ordering;
-use bevy::input::ButtonState;
-use bevy::input::keyboard::KeyboardInput;
-use bevy_rapier3d::rapier::prelude::Group;
-use iyes_loopless::prelude::NextState;
-use crate::ecs::plugins::game::ShikataganaiGameState;
-use crate::ecs::systems::user_interface::player_inventory::PlayerInventoryOpened;
+use std::ops::Deref;
 
 fn place_item_from_inventory(
   player_inventory: &mut PlayerInventory,
@@ -152,9 +153,14 @@ fn pick_up_block(
 pub fn keyboard_input(
   mut commands: Commands,
   mut keyboard: EventReader<KeyboardInput>,
-  player_inventory_opened: Option<Res<PlayerInventoryOpened>>
+  player_inventory_opened: Option<Res<PlayerInventoryOpened>>,
 ) {
-  for KeyboardInput { scan_code, key_code, state } in keyboard.iter() {
+  for KeyboardInput {
+    scan_code,
+    key_code,
+    state,
+  } in keyboard.iter()
+  {
     if key_code == &Some(KeyCode::E) && state == &ButtonState::Released {
       if player_inventory_opened.is_some() {
         commands.remove_resource::<PlayerInventoryOpened>();
@@ -171,7 +177,7 @@ pub fn action_input(
   mut commands: Commands,
   mouse: Res<Input<MouseButton>>,
   camera: Query<&FPSCamera>,
-  selection: Res<Option<Selection>>,
+  selection: Res<SelectionRes>,
   mut player_inventory: ResMut<PlayerInventory>,
   hotbar_selection: Res<SelectedHotBar>,
   mut game_world: ResMut<GameWorld>,
@@ -180,7 +186,7 @@ pub fn action_input(
   mut recollide: ResMut<Recollide>,
   mut client: ResMut<RenetClient>,
 ) {
-  match selection.into_inner() {
+  match selection.into_inner().deref() {
     None => {}
     Some(Selection { cube, face }) => {
       let source: DDD = *cube;

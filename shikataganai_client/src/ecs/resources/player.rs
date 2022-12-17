@@ -1,9 +1,11 @@
+use bevy::prelude::Resource;
 use shikataganai_common::ecs::components::blocks::block_id::BlockId;
 use shikataganai_common::ecs::components::blocks::{BlockOrItem, QuantifiedBlockOrItem};
 
-#[derive(Default)]
+#[derive(Resource, Default)]
 pub struct SelectedHotBar(pub i32);
 
+#[derive(Resource)]
 pub struct PlayerInventory {
   pub hot_bar_width: usize,
   pub items: Vec<Option<QuantifiedBlockOrItem>>,
@@ -43,7 +45,7 @@ impl Default for PlayerInventory {
         None,
         Some(QuantifiedBlockOrItem {
           block_or_item: BlockOrItem::Block(BlockId::Grass),
-          quant: 25
+          quant: 25,
         }),
         None,
         None,

@@ -1,8 +1,9 @@
 use bevy::prelude::Deref;
+use bevy::prelude::Resource;
 use bevy::utils::hashbrown::{HashMap, HashSet};
 use shikataganai_common::ecs::components::blocks::BlockOrItem;
 
-#[derive(Default)]
+#[derive(Default, Resource)]
 pub struct ExtractedItems {
   pub rendered: ItemRenderMap,
   pub requested: HashSet<BlockOrItem>,
@@ -42,5 +43,5 @@ pub struct ItemRenderEntry {
   pub has_been_requested: bool,
 }
 
-#[derive(Deref, Default, Clone)]
+#[derive(Deref, Default, Clone, Resource)]
 pub struct ItemRenderMap(pub HashMap<BlockOrItem, ItemRenderEntry>);

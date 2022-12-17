@@ -21,7 +21,7 @@ impl ServerGameWorld for GameWorld {
         if !self.generating.contains(&chunk_coord) {
           self.generating.push(chunk_coord);
           let dispatcher = AsyncComputeTaskPool::get();
-          commands.spawn().insert(ChunkTask {
+          commands.spawn(ChunkTask {
             task: dispatcher.spawn(Chunk::generate(chunk_coord)),
             coord: chunk_coord,
             client,

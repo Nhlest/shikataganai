@@ -39,6 +39,7 @@ pub struct MatrixContent {
   filler5: [u8; 64],
 }
 
+#[derive(Resource)]
 pub struct Initialised;
 
 impl Node for InventoryNode {

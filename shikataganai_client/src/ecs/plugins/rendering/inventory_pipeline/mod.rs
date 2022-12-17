@@ -1,5 +1,5 @@
 use crate::ecs::plugins::game::{in_game, in_game_extract};
-use crate::ecs::plugins::imgui::{IMGUI_PASS, TEXTURE_NODE_INPUT_SLOT};
+// use crate::ecs::plugins::imgui::{IMGUI_PASS, TEXTURE_NODE_INPUT_SLOT};
 use crate::ecs::plugins::rendering::inventory_pipeline::inventory_cache::ExtractedItems;
 use crate::ecs::plugins::rendering::inventory_pipeline::pipeline::InventoryNode;
 use crate::ecs::plugins::rendering::inventory_pipeline::systems::{
@@ -69,15 +69,15 @@ impl Plugin for InventoryRendererPlugin {
       let mut render_graph = render_app.world.get_resource_mut::<RenderGraph>().unwrap();
       render_graph.add_node(INVENTORY_PASS, inventory_node);
 
-      render_graph.add_node_edge(INVENTORY_PASS, IMGUI_PASS).unwrap();
-      render_graph
-        .add_slot_edge(
-          INVENTORY_PASS,
-          TEXTURE_NODE_OUTPUT_SLOT,
-          IMGUI_PASS,
-          TEXTURE_NODE_INPUT_SLOT,
-        )
-        .unwrap();
+      // render_graph.add_node_edge(INVENTORY_PASS, IMGUI_PASS).unwrap();
+      // render_graph
+      //   .add_slot_edge(
+      //     INVENTORY_PASS,
+      //     TEXTURE_NODE_OUTPUT_SLOT,
+      //     IMGUI_PASS,
+      //     TEXTURE_NODE_INPUT_SLOT,
+      //   )
+      //   .unwrap();
     }
   }
 }

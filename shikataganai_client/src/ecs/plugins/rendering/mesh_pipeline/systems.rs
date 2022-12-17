@@ -38,16 +38,16 @@ pub fn extract_meshes(
 ) {
   for (mesh, transform, image) in meshes.iter() {
     if let Some(light_level) = game_world.get_light_level(to_ddd(transform.translation())) {
-      commands
-        .spawn()
-        .insert(PositionUniform {
+      commands.spawn((
+        PositionUniform {
           // transform: Mat4::from_rotation_translation(transform, transform.translation),
           transform: transform.compute_matrix(),
-        })
-        .insert(MeshMarker)
-        .insert(mesh.clone())
-        .insert(light_level)
-        .insert(image.cloned().unwrap_or(default_texture.0.clone()));
+        },
+        MeshMarker,
+        mesh.clone(),
+        light_level,
+        image.cloned().unwrap_or(default_texture.0.clone()),
+      ));
     }
   }
 }

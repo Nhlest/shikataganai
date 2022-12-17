@@ -1,4 +1,4 @@
 use bevy::prelude::*;
 
-#[derive(Component, Clone)]
+#[derive(Component, Clone, Resource)]
 pub struct PlayerNickname(pub String);

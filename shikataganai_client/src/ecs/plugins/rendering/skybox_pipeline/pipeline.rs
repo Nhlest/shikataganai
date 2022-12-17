@@ -14,6 +14,7 @@ use bevy::render::view::ViewUniform;
 use bevy_atmosphere::skybox::ATMOSPHERE_SKYBOX_SHADER_HANDLE;
 use wgpu::BindGroupLayoutDescriptor;
 
+#[derive(Resource)]
 pub struct SkyboxPipeline {
   pub view_layout: BindGroupLayout,
   pub texture_layout: BindGroupLayout,

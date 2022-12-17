@@ -16,11 +16,11 @@ pub mod voxel_pipeline;
 pub struct ShikataganaiRendererPlugins;
 
 impl PluginGroup for ShikataganaiRendererPlugins {
-  fn build(&mut self, group: &mut PluginGroupBuilder) {
-    group
+  fn build(self) -> PluginGroupBuilder {
+    PluginGroupBuilder::start::<Self>()
       .add(VoxelRendererPlugin)
       .add(MeshRendererPlugin)
       .add(InventoryRendererPlugin)
-      .add(SkyboxRendererPlugin);
+      .add(SkyboxRendererPlugin)
   }
 }

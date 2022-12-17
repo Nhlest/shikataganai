@@ -8,11 +8,12 @@ use bevy::input::mouse::MouseMotion;
 use bevy::prelude::*;
 use bevy::render::camera::{CameraProjection, Projection};
 use bevy::render::primitives::Frustum;
+use bevy::window::CursorGrabMode;
 use bevy_atmosphere::prelude::AtmosphereCamera;
+use bevy_rapier3d::prelude::Group;
 use bevy_rapier3d::prelude::TOIStatus::Converged;
 use bevy_rapier3d::prelude::*;
 use bevy_rapier3d::rapier::prelude::Group as GroupRapier;
-use bevy_rapier3d::prelude::Group;
 use iyes_loopless::prelude::{ConditionSet, CurrentState, IntoConditionalSystem};
 use iyes_loopless::state::NextState;
 use num_traits::float::FloatConst;
@@ -62,7 +63,7 @@ pub fn raycast_to_block(
   )
 }
 
-#[derive(Default)]
+#[derive(Default, Resource)]
 pub struct PlayerPreviousPosition(pub DDD);
 
 impl Plugin for CameraPlugin {
@@ -118,16 +119,14 @@ fn spawn_camera(mut commands: Commands, player_entity: Query<Entity, With<Player
     .insert(Transform::from_xyz(10.1, 45.0, 10.0))
     .insert(GlobalTransform::default())
     .with_children(|c| {
-      c.spawn()
-        .insert(GlobalTransform::default())
-        .insert(Transform::from_xyz(0.0, -0.5, 0.0))
-        .insert(Collider::cylinder(0.8, 0.2))
-        .insert(SolverGroups::new(Group::GROUP_1, Group::GROUP_2))
-        .insert(CollisionGroups::new(Group::GROUP_1, Group::GROUP_2));
-      c.spawn()
-        .insert(FPSCamera::default())
-        .insert_bundle(camera)
-        .insert(AtmosphereCamera(None));
+      c.spawn((
+        GlobalTransform::default(),
+        Transform::from_xyz(0.0, -0.5, 0.0),
+        Collider::cylinder(0.8, 0.2),
+        SolverGroups::new(Group::GROUP_1, Group::GROUP_2),
+        CollisionGroups::new(Group::GROUP_1, Group::GROUP_2),
+      ));
+      c.spawn((FPSCamera::default(), camera, AtmosphereCamera { render_layers: None }));
     });
 }
 
@@ -154,7 +153,7 @@ fn movement_input_system(
   let mut fps_camera = player.single_mut();
   let transform = camera_transform.single();
 
-  if window.cursor_locked() {
+  if window.cursor_grab_mode() == CursorGrabMode::Locked {
     for MouseMotion { delta } in mouse_events.iter() {
       fps_camera.phi += delta.x * mouse_sensitivity.0 * 0.003;
       fps_camera.theta = (fps_camera.theta + delta.y * mouse_sensitivity.0 * 0.003).clamp(0.00005, f32::PI() - 0.00005);
@@ -208,7 +207,7 @@ fn movement_input_system(
 #[derive(Component)]
 pub struct ProximityCollider;
 
-#[derive(Default)]
+#[derive(Default, Resource)]
 pub struct Recollide(pub bool);
 
 #[derive(Bundle)]
@@ -404,10 +403,13 @@ pub struct Selection {
   pub face: DDD,
 }
 
+#[derive(Clone, Debug, Default, Resource, Deref, DerefMut)]
+pub struct SelectionRes(pub Option<Selection>);
+
 fn block_pick(
   camera: Query<&GlobalTransform, With<Camera>>,
   transforms: Query<&Transform>,
-  mut selection: ResMut<Option<Selection>>,
+  mut selection: ResMut<SelectionRes>,
   rapier_context: Res<RapierContext>,
 ) {
   let transform = camera.single();
@@ -419,7 +421,7 @@ fn block_pick(
     let transform = transforms.get(entity).unwrap();
     let cube = transform.translation - Vec3::new(0.5, 0.5, 0.5);
     let normal: Vec3 = intersection.normal + cube;
-    *selection = Some(Selection {
+    **selection = Some(Selection {
       cube: (cube.x.round() as i32, cube.y.floor() as i32, cube.z.floor() as i32),
       face: (
         normal.x.floor() as i32,
@@ -428,6 +430,6 @@ fn block_pick(
       ),
     });
   } else {
-    *selection = None;
+    **selection = None;
   }
 }
