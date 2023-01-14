@@ -13,6 +13,9 @@ use bevy::render::renderer::RenderDevice;
 use bevy::render::{RenderApp, RenderStage};
 use iyes_loopless::prelude::IntoConditionalSystem;
 use std::ops::{Deref, DerefMut};
+use bevy_egui::EguiContext;
+use egui::TextureId;
+use crate::ecs::plugins::rendering::voxel_pipeline::bind_groups::TextureHandle;
 
 pub mod inventory_cache;
 pub mod node;
@@ -20,6 +23,9 @@ pub mod pipeline;
 pub mod systems;
 
 pub struct InventoryRendererPlugin;
+
+#[derive(Resource)]
+pub struct GUITextureAtlas(pub TextureId);
 
 pub const INVENTORY_SHADER_VERTEX_HANDLE: HandleUntyped =
   HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 2763343953151595899);

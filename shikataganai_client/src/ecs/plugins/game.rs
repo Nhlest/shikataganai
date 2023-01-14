@@ -6,9 +6,9 @@ use crate::ecs::systems::input::{action_input, hot_bar_scroll_input, keyboard_in
 use crate::ecs::systems::light::religh_system;
 use crate::ecs::systems::remesh::remesh_system_auxiliary;
 use crate::ecs::systems::user_interface::chest_inventory::InventoryOpened;
-// use crate::ecs::systems::user_interface::connecting::connecting_window;
-// use crate::ecs::systems::user_interface::game_menu::game_menu;
-// use crate::ecs::systems::user_interface::hot_bar::hot_bar;
+use crate::ecs::systems::user_interface::connecting::connecting_window;
+use crate::ecs::systems::user_interface::game_menu::game_menu;
+use crate::ecs::systems::user_interface::hot_bar::hot_bar;
 use crate::ecs::systems::user_interface::main_menu::main_menu;
 use crate::ecs::systems::user_interface::player_inventory::PlayerInventoryOpened;
 use bevy::prelude::*;
@@ -206,12 +206,12 @@ impl Plugin for GamePlugin {
     let on_game_pre_simulation_update = ConditionSet::new()
       .run_in_state(ShikataganaiGameState::PreSimulation)
       .with_system(transition_to_simulation)
-      // .with_system(connecting_window)
+      .with_system(connecting_window)
       .into();
     let on_game_simulation_continuous = ConditionSet::new()
       .run_in_state(ShikataganaiGameState::Simulation)
       // .with_system(action_input)
-      // .with_system(hot_bar)
+      .with_system(hot_bar)
       .with_system(keyboard_input)
       // .with_system(recalculate_light_map)
       .into();
@@ -233,7 +233,7 @@ impl Plugin for GamePlugin {
       .into();
     let on_pause = ConditionSet::new()
       .run_in_state(ShikataganaiGameState::Paused)
-      // .with_system(game_menu)
+      .with_system(game_menu)
       .into();
     let on_fixed_step_simulation: SystemSet = ConditionSet::new()
       .run_in_state(ShikataganaiGameState::Simulation)

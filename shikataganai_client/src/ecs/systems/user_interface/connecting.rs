@@ -1,23 +1,9 @@
-// use bevy::prelude::*;
-//
-// pub fn connecting_window(imgui: NonSend<ImguiState>, mut window: ResMut<Windows>) {
-//   let active_window = window.get_primary_mut().unwrap();
-//   let ui = imgui.get_current_frame();
-//
-//   imgui::Window::new("Connecting...")
-//     .resizable(false)
-//     .scrollable(false)
-//     .scroll_bar(false)
-//     .position(
-//       [
-//         active_window.width() as f32 / 2.0 - 150.0,
-//         active_window.height() as f32 / 2.0 - 25.0,
-//       ],
-//       Condition::FirstUseEver,
-//     )
-//     .size([300.0, 50.0], Condition::Always)
-//     .build(ui, || {
-//       ui.label_text("Connecting...", "Connecting...");
-//     })
-//     .unwrap();
-// }
+use bevy::prelude::*;
+use bevy_egui::EguiContext;
+
+pub fn connecting_window(mut egui: ResMut<EguiContext>, mut window: ResMut<Windows>) {
+  let ui = egui.ctx_mut();
+  egui::Window::new("Connecting...").show(ui, |ui| {
+    ui.label("Connecting...");
+  });
+}

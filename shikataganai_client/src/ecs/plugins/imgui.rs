@@ -24,7 +24,6 @@
 // pub static mut IMGUI_CTX: Option<Context> = None;
 // pub static mut IMGUI_UI: Option<Ui> = None;
 //
-// pub struct GUITextureAtlas(pub TextureId);
 //
 // pub struct ImguiPlugin;
 //
@@ -36,8 +35,6 @@
 // pub struct SmallFont(pub FontId);
 // pub struct BigFont(pub FontId);
 //
-// pub const IMGUI_PASS: &str = "Imgui Pass";
-// pub const TEXTURE_NODE_INPUT_SLOT: &str = "Texture Slot Input";
 //
 // impl ImguiState {
 //   pub fn get_current_frame<'a>(&self) -> &'a mut Ui<'static> {
