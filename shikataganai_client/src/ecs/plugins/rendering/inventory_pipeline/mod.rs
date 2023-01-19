@@ -8,13 +8,16 @@ use crate::ecs::plugins::rendering::inventory_pipeline::systems::{
 use bevy::prelude::*;
 use bevy::reflect::TypeUuid;
 use bevy::render::render_graph::RenderGraph;
-use bevy::render::render_resource::PipelineCache;
+use bevy::render::render_resource::{Extent3d, PipelineCache, TextureDimension, TextureFormat, TextureUsages};
 use bevy::render::renderer::RenderDevice;
 use bevy::render::{RenderApp, RenderStage};
 use iyes_loopless::prelude::IntoConditionalSystem;
 use std::ops::{Deref, DerefMut};
+use bevy::render::extract_resource::{ExtractResource, ExtractResourcePlugin};
+use bevy::render::texture::BevyDefault;
 use bevy_egui::EguiContext;
 use egui::TextureId;
+use wgpu::TextureDescriptor;
 use crate::ecs::plugins::rendering::voxel_pipeline::bind_groups::TextureHandle;
 
 pub mod inventory_cache;
@@ -23,6 +26,9 @@ pub mod pipeline;
 pub mod systems;
 
 pub struct InventoryRendererPlugin;
+
+#[derive(Resource, ExtractResource, Clone)]
+pub struct InventoryTextureOutputHandle(pub Handle<Image>, pub TextureId);
 
 #[derive(Resource)]
 pub struct GUITextureAtlas(pub TextureId);
@@ -60,6 +66,32 @@ impl Plugin for InventoryRendererPlugin {
     app.init_resource::<ExtractedItems>();
     app.add_system_to_stage(CoreStage::First, clear_rerender);
     app.add_system_to_stage(CoreStage::Last, update_extracted_items);
+    
+    let mut images = app.world.resource_mut::<Assets<Image>>();
+    let mut image = Image {
+      texture_descriptor: TextureDescriptor {
+        label: "offscreen_texture".into(),
+        size: Extent3d {
+          width: 1024,
+          height: 1024,
+          depth_or_array_layers: 1,
+        },
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: TextureDimension::D2,
+        format: TextureFormat::bevy_default(),
+        usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
+      },
+      ..default()
+    };
+
+    image.resize(Extent3d { width: 1024, height: 1024, depth_or_array_layers: 1, });
+    let handle = images.add(image).clone();
+
+    let mut egui = app.world.resource_mut::<EguiContext>();
+    let i = egui.add_image(handle.clone());
+    app.world.insert_resource(InventoryTextureOutputHandle(handle, i));
+    app.add_plugin(ExtractResourcePlugin::<InventoryTextureOutputHandle>::default());
 
     if let Ok(render_app) = app.get_sub_app_mut(RenderApp) {
       let inventory_node = {

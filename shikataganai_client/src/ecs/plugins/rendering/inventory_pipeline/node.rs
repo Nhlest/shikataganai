@@ -1,7 +1,7 @@
 use crate::ecs::components::blocks::{BlockRenderInfo, DerefExt};
 use crate::ecs::plugins::rendering::inventory_pipeline::inventory_cache::{ItemRenderEntry, ItemRenderMap};
 use crate::ecs::plugins::rendering::inventory_pipeline::pipeline::InventoryNode;
-use crate::ecs::plugins::rendering::inventory_pipeline::{INVENTORY_OUTPUT_TEXTURE_WIDTH, TEXTURE_NODE_OUTPUT_SLOT};
+use crate::ecs::plugins::rendering::inventory_pipeline::{INVENTORY_OUTPUT_TEXTURE_WIDTH, InventoryTextureOutputHandle, TEXTURE_NODE_OUTPUT_SLOT};
 use crate::ecs::plugins::rendering::mesh_pipeline::loader::{GltfMeshStorage, GltfMeshStorageHandle};
 use crate::ecs::plugins::rendering::voxel_pipeline::bind_groups::TextureHandle;
 use crate::ecs::resources::block::BlockSprite;
@@ -16,6 +16,7 @@ use image::EncodableLayout;
 use num_traits::FloatConst;
 use shikataganai_common::ecs::components::blocks::BlockOrItem;
 use std::collections::HashMap;
+use bevy::render::camera::RenderTarget;
 use wgpu::util::BufferInitDescriptor;
 use wgpu::IndexFormat;
 
@@ -76,7 +77,17 @@ impl Node for InventoryNode {
 
     self.to_render = true;
 
-    self.view = InventoryNode::create_view(world.resource::<RenderDevice>());
+    match world.get_resource::<InventoryTextureOutputHandle>() {
+      None => {}
+      Some(handle) => {
+        let handle = handle.0.clone();
+        let mut images = world.resource::<RenderAssets<Image>>();
+        let image = images.get(&handle).unwrap();
+        self.view = image.texture_view.clone();
+      }
+    }
+
+    // self.view = InventoryNode::create_view(world.resource::<RenderDevice>());
     if !self.initialised {
       self.depth_view = InventoryNode::create_depth_view(world.resource::<RenderDevice>());
     }
