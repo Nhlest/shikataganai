@@ -1,4 +1,4 @@
-use crate::ecs::components::blocks::{BlockRenderInfo, DerefExt};
+use crate::ecs::components::blocks::{BlockRenderInfo, BlockSprite, DerefExt};
 use crate::ecs::components::items::ItemDerefExt;
 use crate::ecs::plugins::rendering::inventory_pipeline::inventory_cache::{ItemRenderEntry, ItemRenderMap};
 use crate::ecs::plugins::rendering::inventory_pipeline::pipeline::InventoryNode;
@@ -7,7 +7,6 @@ use crate::ecs::plugins::rendering::inventory_pipeline::{
 };
 use crate::ecs::plugins::rendering::mesh_pipeline::loader::{GltfMeshStorage, GltfMeshStorageHandle};
 use crate::ecs::plugins::rendering::voxel_pipeline::bind_groups::{ArrayTextureHandle, TextureHandle};
-use crate::ecs::resources::block::BlockSprite;
 use bevy::prelude::*;
 use bevy::render::mesh::GpuBufferInfo;
 use bevy::render::render_asset::RenderAssets;

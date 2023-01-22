@@ -1,5 +1,5 @@
+use crate::ecs::components::blocks::BlockSprite;
 use crate::ecs::plugins::rendering::voxel_pipeline::consts::{Vertex, VERTEX};
-use crate::ecs::resources::block::BlockSprite;
 use bevy::prelude::*;
 use bevy::render::render_resource::Buffer;
 use bytemuck_derive::{Pod, Zeroable};

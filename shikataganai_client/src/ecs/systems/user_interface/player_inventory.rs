@@ -2,7 +2,7 @@ use crate::ecs::plugins::rendering::inventory_pipeline::inventory_cache::Extract
 use crate::ecs::plugins::rendering::inventory_pipeline::InventoryTextureOutputHandle;
 use crate::ecs::resources::player::PlayerInventory;
 use crate::ecs::systems::user_interface::chest_inventory::InventoryItemMovementStatus;
-use crate::ecs::systems::user_interface::{item_button_grid};
+use crate::ecs::systems::user_interface::item_button_grid;
 use bevy::prelude::*;
 use bevy_egui::EguiContext;
 use egui::{emath, Id, Widget};

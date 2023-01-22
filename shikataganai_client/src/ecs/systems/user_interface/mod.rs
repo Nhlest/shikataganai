@@ -45,7 +45,7 @@ pub fn item_button(
       .inner
     }
   };
-  if response.drag_released() {
+  if response.drag_started() {
     response.clicked[0] = true;
   }
   response
