@@ -30,10 +30,7 @@ impl Default for PlayerInventory {
           block_or_item: BlockOrItem::Item(ItemId::Coal),
           quant: 2
         }),
-        Some(QuantifiedBlockOrItem {
-          block_or_item: BlockOrItem::Item(ItemId::Wand),
-          quant: 1
-        }),
+        None,
         None,
         None,
         None,

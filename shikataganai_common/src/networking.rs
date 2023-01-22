@@ -8,6 +8,7 @@ use bevy_renet::renet::{ChannelConfig, ReliableChannelConfig, RenetConnectionCon
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::time::Duration;
+use crate::ecs::components::item::ItemId;
 
 // -------------------------------------------------------------------------------------------
 // -- ###  #    #   ###   ####   #####  #     #  #####  #    #  #####        #     #  ##### --
@@ -101,6 +102,10 @@ pub enum ServerMessage {
     location: DDD,
     animation: Animation,
   },
+  ItemAdd {
+    item: ItemId,
+    quant: u32
+  }
 }
 
 impl Display for ServerMessage {
@@ -115,6 +120,7 @@ impl Display for ServerMessage {
       ServerMessage::Relight { .. } => f.write_str("Relight"),
       ServerMessage::Functor { .. } => f.write_str("Functor"),
       ServerMessage::AnimationStart { .. } => f.write_str("AnimationStart"),
+      ServerMessage::ItemAdd { .. } => f.write_str("ItemAdd"),
     }
   }
 }

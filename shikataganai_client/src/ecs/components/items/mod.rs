@@ -7,7 +7,8 @@ const ITEM_SPRITE_SHEET_WIDTH: usize = 8;
 pub enum ItemSprite {
   Nothing,
   Coal,
-  Wand
+  Wand,
+  Iron
 }
 
 impl ItemSprite {
@@ -36,9 +37,10 @@ pub trait ItemDerefExt {
   fn deref_ext(&self) -> &dyn ItemTraitExt;
 }
 
-static ITEM_TRAITS_EXT: [&(dyn ItemTraitExt + Sync); 2] = [
+static ITEM_TRAITS_EXT: [&(dyn ItemTraitExt + Sync); 3] = [
   &regular_items::Coal,
   &regular_items::Wand,
+  &regular_items::Iron,
 ];
 
 impl ItemDerefExt for ItemId {

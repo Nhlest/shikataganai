@@ -23,6 +23,7 @@ use shikataganai_common::networking::{ClientChannel, PlayerCommand};
 use shikataganai_common::util::array::DDD;
 use std::cmp::Ordering;
 use std::ops::Deref;
+use shikataganai_common::ecs::components::item::ItemId;
 
 fn place_item_from_inventory(
   player_inventory: &mut PlayerInventory,
@@ -84,6 +85,55 @@ fn place_item_from_inventory(
   } else {
     None
   }
+}
+
+pub fn add_item_inventory(
+  player_inventory: &mut PlayerInventory,
+  item_id: ItemId,
+  quant: u32
+) -> Option<()> {
+  match player_inventory
+    .items
+    .iter_mut()
+    .filter(|slot| {
+      slot
+        .as_ref()
+        .map(|item| item.block_or_item == BlockOrItem::Item(item_id))
+        .unwrap_or(true)
+    })
+    .sorted_by(|slot1, slot2| {
+      if let Some(slot1) = slot1 && let Some(_slot2) = slot2 {
+        if slot1.block_or_item == BlockOrItem::Item(item_id) {
+          Ordering::Greater
+        } else {
+          Ordering::Less
+        }
+      } else if slot1.is_some() {
+        Ordering::Less
+      } else {
+        Ordering::Greater
+      }
+    })
+    .next()
+    .map(|slot| {
+      slot.get_or_insert(QuantifiedBlockOrItem {
+        block_or_item: BlockOrItem::Item(item_id),
+        quant: 0,
+      })
+    })
+    .map(|slot| {
+      slot.quant += quant;
+      slot.quant == 1
+    }) {
+    None => {
+      return None;
+    }
+    Some(true) => {
+    }
+    _ => {}
+  }
+
+  Some(())
 }
 
 fn pick_up_block(

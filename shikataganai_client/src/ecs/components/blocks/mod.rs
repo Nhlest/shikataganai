@@ -138,13 +138,15 @@ pub trait DerefExt {
   fn deref_ext(&self) -> &dyn BlockTraitExt;
 }
 
-static BLOCK_TRAITS_EXT: [&(dyn BlockTraitExt + Sync); 6] = [
+static BLOCK_TRAITS_EXT: [&(dyn BlockTraitExt + Sync); 8] = [
   &regular_blocks::Air,
   &regular_blocks::Dirt,
   &regular_blocks::Grass,
   &regular_blocks::Cobblestone,
+  &regular_blocks::Iron,
   &regular_meshes::Stair,
   &regular_meshes::Chest,
+  &regular_blocks::Furnace,
 ];
 
 impl DerefExt for BlockId {

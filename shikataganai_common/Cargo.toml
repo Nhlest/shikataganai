@@ -8,6 +8,7 @@ edition = "2021"
 serde = "1.0.*"
 bevy_renet = "0.0.6"
 noise = "0.8.*"
+rand = "0.8.*"
 
 [dependencies.bevy]
 version = "0.9.*"

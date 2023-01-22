@@ -13,13 +13,12 @@ use shikataganai_common::ecs::components::functors::InternalInventory;
 use shikataganai_common::ecs::resources::light::{LightLevel, RelightEvent};
 use shikataganai_common::ecs::resources::player::PlayerNickname;
 use shikataganai_common::ecs::resources::world::GameWorld;
-use shikataganai_common::networking::{
-  server_connection_config, FunctorType, NetworkFrame, NetworkedEntities, PlayerCommand, PolarRotation, ServerChannel,
-  ServerMessage, PROTOCOL_ID,
-};
-use shikataganai_common::util::array::{DD, DDD};
+use shikataganai_common::networking::{server_connection_config, FunctorType, NetworkFrame, NetworkedEntities, PlayerCommand, PolarRotation, ServerChannel, ServerMessage, PROTOCOL_ID, BlockTransfer};
+use shikataganai_common::util::array::{add_ddd, DD, DDD, sub_ddd};
 use std::net::UdpSocket;
 use std::time::{Duration, SystemTime};
+use shikataganai_common::ecs::components::blocks::BlockMeta;
+use shikataganai_common::recipes::Recipes;
 
 pub struct ShikataganaiServerPlugin;
 
@@ -143,6 +142,7 @@ pub fn handle_events(
   mut unauthed_players: ResMut<UnAuthedPlayers>,
   mut query: Query<(Entity, &mut Transform, &mut PolarRotation, &PlayerNickname)>,
   mut game_world: ResMut<GameWorld>,
+  recipes: Res<Recipes>
 ) {
   for event in server_events.iter() {
     match event {
@@ -263,7 +263,37 @@ pub fn handle_events(
           }
         },
         PlayerCommand::InitiateInWorldCraft { location } => {
-
+          if let Some(block) = game_world.get(location) {
+            let mut iter = vec![];
+            for r in &recipes.recipes {
+              r.from.foreach(|c, b| {
+                if *b == block.block {
+                  iter.push((location, c, r));
+                }
+              })
+            }
+            for (anchor, origin, recipe) in iter {
+              let mut flag = true;
+              recipe.from.foreach(|c, b| {
+                let loc = add_ddd(sub_ddd(c, origin), anchor);
+                flag = flag && *b == game_world.get(loc).map(|b| b.block).unwrap_or(BlockId::Air);
+              });
+              if flag {
+                recipe.to.foreach(|c, b| {
+                  let loc = add_ddd(sub_ddd(c, origin), anchor);
+                  game_world.get_mut(loc).map(|block| {
+                    block.block = *b;
+                    server.broadcast_message(ServerChannel::GameEvent.id(), serialize(&ServerMessage::BlockPlace { location: loc, block_transfer: BlockTransfer { block: *b, meta: BlockMeta { v: 0 } } }).unwrap());
+                    relight.send(RelightEvent::Relight(loc));
+                  });
+                });
+                if let Some(item) = recipe.item {
+                  server.send_message(client, ServerChannel::GameEvent.id(), serialize(&ServerMessage::ItemAdd { item, quant: 1 }).unwrap());
+                }
+                break;
+              }
+            }
+          }
         }
       }
     }

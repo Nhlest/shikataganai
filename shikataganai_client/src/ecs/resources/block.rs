@@ -8,6 +8,20 @@ pub enum BlockSprite {
   HalfGrass,
   Grass,
   Cobblestone,
+  Wood,
+  Iron,
+  EMPTY0,
+  EMPTY1,
+  EMPTY2,
+  EMPTY3,
+  EMPTY4,
+  EMPTY5,
+  EMPTY6,
+  EMPTY7,
+  EMPTY8,
+  FurnaceFront,
+  FurnaceSide,
+  FurnaceTop,
 }
 
 impl BlockSprite {

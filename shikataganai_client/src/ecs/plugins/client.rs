@@ -30,6 +30,8 @@ use crate::ecs::plugins::rendering::mesh_pipeline::loader::{get_mesh_from_storag
 use crate::ecs::plugins::rendering::mesh_pipeline::systems::MeshMarker;
 use crate::ecs::plugins::rendering::mesh_pipeline::AmongerTextureHandle;
 use crate::ecs::plugins::rendering::voxel_pipeline::meshing::RemeshEvent;
+use crate::ecs::resources::player::PlayerInventory;
+use crate::ecs::systems::input::add_item_inventory;
 use crate::GltfMeshStorage;
 
 #[derive(Default, Resource)]
@@ -156,12 +158,13 @@ fn receive_system(
   mut commands: Commands,
   mut relight: EventWriter<RelightEvent>,
   mut remesh: EventWriter<RemeshEvent>,
-  (mut network_mapping, mut game_world, mut recollide, mut client, mut lobby): (
+  (mut network_mapping, mut game_world, mut recollide, mut client, mut lobby, mut player_inventory): (
     ResMut<NetworkMapping>,
     ResMut<GameWorld>,
     ResMut<Recollide>,
     ResMut<RenetClient>,
     ResMut<ClientLobby>,
+    ResMut<PlayerInventory>
   ),
   mesh_storage_handle: Res<GltfMeshStorageHandle>,
   amonger_texture: Res<AmongerTextureHandle>,
@@ -290,6 +293,9 @@ fn receive_system(
         if let Some(entity) = game_world.get(location).map(|block| block.entity) && entity != Entity::from_bits(0) {
           animate(&mut commands, entity, animation);
         }
+      }
+      ServerMessage::ItemAdd { item, quant } => {
+        add_item_inventory(player_inventory.as_mut(), item, quant);
       }
     }
   }

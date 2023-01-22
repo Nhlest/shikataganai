@@ -3,6 +3,7 @@ use bevy::app::ScheduleRunnerSettings;
 use bevy::prelude::*;
 use shikataganai_common::ecs::resources::world::GameWorld;
 use std::time::Duration;
+use shikataganai_common::recipes::Recipes;
 
 use crate::ecs::plugins::server::{ShikataganaiServerAddress, ShikataganaiServerPlugin};
 
@@ -13,6 +14,7 @@ pub fn spawn_server(address: ShikataganaiServerAddress) {
     .insert_resource(ScheduleRunnerSettings::run_loop(Duration::from_secs_f64(1.0 / 60.0)))
     .add_plugins(MinimalPlugins)
     .init_resource::<GameWorld>()
+    .init_resource::<Recipes>()
     .insert_resource(address)
     .add_plugin(ShikataganaiServerPlugin)
     .run();

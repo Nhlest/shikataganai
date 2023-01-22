@@ -4,6 +4,8 @@ pub struct Air;
 pub struct Dirt;
 pub struct Grass;
 pub struct Cobblestone;
+pub struct Iron;
+pub struct Furnace;
 
 impl BlockTrait for Air {
   fn visible(&self) -> bool {
@@ -19,3 +21,7 @@ impl BlockTrait for Dirt {}
 impl BlockTrait for Grass {}
 
 impl BlockTrait for Cobblestone {}
+
+impl BlockTrait for Iron {}
+
+impl BlockTrait for Furnace {}

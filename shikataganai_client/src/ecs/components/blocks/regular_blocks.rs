@@ -4,6 +4,8 @@ pub struct Air;
 pub struct Dirt;
 pub struct Grass;
 pub struct Cobblestone;
+pub struct Iron;
+pub struct Furnace;
 
 impl BlockTraitExt for Air {
   fn render_info(&self) -> BlockRenderInfo {
@@ -35,6 +37,34 @@ impl BlockTraitExt for Cobblestone {
       Cobblestone,
       Cobblestone,
       Cobblestone,
+    ])
+  }
+}
+
+impl BlockTraitExt for Iron {
+  fn render_info(&self) -> BlockRenderInfo {
+    use crate::ecs::resources::block::BlockSprite::*;
+    BlockRenderInfo::AsBlock([
+      Iron,
+      Iron,
+      Iron,
+      Iron,
+      Iron,
+      Iron,
+    ])
+  }
+}
+
+impl BlockTraitExt for Furnace {
+  fn render_info(&self) -> BlockRenderInfo {
+    use crate::ecs::resources::block::BlockSprite::*;
+    BlockRenderInfo::AsBlock([
+      FurnaceFront,
+      FurnaceSide,
+      FurnaceTop,
+      FurnaceSide,
+      FurnaceTop,
+      FurnaceTop,
     ])
   }
 }
