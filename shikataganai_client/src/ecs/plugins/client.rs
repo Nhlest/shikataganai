@@ -164,7 +164,7 @@ fn receive_system(
     ResMut<Recollide>,
     ResMut<RenetClient>,
     ResMut<ClientLobby>,
-    ResMut<PlayerInventory>
+    ResMut<PlayerInventory>,
   ),
   mesh_storage_handle: Res<GltfMeshStorageHandle>,
   amonger_texture: Res<AmongerTextureHandle>,

@@ -9,16 +9,19 @@ use bevy_renet::RenetServerPlugin;
 use bincode::*;
 use num_traits::float::FloatConst;
 use shikataganai_common::ecs::components::blocks::block_id::BlockId;
+use shikataganai_common::ecs::components::blocks::BlockMeta;
 use shikataganai_common::ecs::components::functors::InternalInventory;
 use shikataganai_common::ecs::resources::light::{LightLevel, RelightEvent};
 use shikataganai_common::ecs::resources::player::PlayerNickname;
 use shikataganai_common::ecs::resources::world::GameWorld;
-use shikataganai_common::networking::{server_connection_config, FunctorType, NetworkFrame, NetworkedEntities, PlayerCommand, PolarRotation, ServerChannel, ServerMessage, PROTOCOL_ID, BlockTransfer};
-use shikataganai_common::util::array::{add_ddd, DD, DDD, sub_ddd};
+use shikataganai_common::networking::{
+  server_connection_config, BlockTransfer, FunctorType, NetworkFrame, NetworkedEntities, PlayerCommand, PolarRotation,
+  ServerChannel, ServerMessage, PROTOCOL_ID,
+};
+use shikataganai_common::recipes::Recipes;
+use shikataganai_common::util::array::{add_ddd, sub_ddd, DD, DDD};
 use std::net::UdpSocket;
 use std::time::{Duration, SystemTime};
-use shikataganai_common::ecs::components::blocks::BlockMeta;
-use shikataganai_common::recipes::Recipes;
 
 pub struct ShikataganaiServerPlugin;
 
@@ -142,7 +145,7 @@ pub fn handle_events(
   mut unauthed_players: ResMut<UnAuthedPlayers>,
   mut query: Query<(Entity, &mut Transform, &mut PolarRotation, &PlayerNickname)>,
   mut game_world: ResMut<GameWorld>,
-  recipes: Res<Recipes>
+  recipes: Res<Recipes>,
 ) {
   for event in server_events.iter() {
     match event {

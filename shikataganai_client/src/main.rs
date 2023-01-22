@@ -8,15 +8,14 @@
 
 #[allow(unused_imports)]
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
-use bevy::prelude::{App, default, ImagePlugin, PluginGroup, WindowDescriptor};
-use bevy::DefaultPlugins;
+use bevy::prelude::{default, App, ImagePlugin, PluginGroup, WindowDescriptor};
 use bevy::window::WindowPlugin;
+use bevy::DefaultPlugins;
 use bevy_atmosphere::prelude::AtmospherePlugin;
 use bevy_egui::EguiPlugin;
 use bevy_embedded_assets::EmbeddedAssetPlugin;
 use bevy_framepace::FramepacePlugin;
 use bevy_rapier3d::prelude::{NoUserData, RapierPhysicsPlugin};
-use winit::window::Fullscreen;
 
 use crate::ecs::plugins::camera::CameraPlugin;
 use crate::ecs::plugins::client::ShikataganaiClientPlugin;
@@ -31,9 +30,7 @@ mod ecs;
 
 fn main() {
   let mut app = App::new();
-  app
-    .add_plugin(SettingsPlugin)
-    .add_plugin(Preamble);
+  app.add_plugin(SettingsPlugin).add_plugin(Preamble);
   let resolution = app.world.resource::<Resolution>();
   let vsync = app.world.resource::<VSync>();
   let fullscreen = app.world.resource::<FullScreen>();

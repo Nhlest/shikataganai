@@ -1,5 +1,5 @@
 use crate::ecs::components::blocks::{animate, AnimationInstance, AnimationTrait, ChestAnimations, Skeleton};
-use crate::ecs::plugins::camera::{Player, Selection, SelectionRes};
+use crate::ecs::plugins::camera::{Player, SelectionRes};
 use crate::ecs::resources::player::{PlayerInventory, SelectedHotBar};
 use crate::ecs::resources::world::ClientGameWorld;
 use crate::ecs::systems::input::{action_input, hot_bar_scroll_input, keyboard_input};
@@ -10,7 +10,7 @@ use crate::ecs::systems::user_interface::connecting::connecting_window;
 use crate::ecs::systems::user_interface::game_menu::game_menu;
 use crate::ecs::systems::user_interface::hot_bar::hot_bar;
 use crate::ecs::systems::user_interface::main_menu::main_menu;
-use crate::ecs::systems::user_interface::player_inventory::{ItemMove, player_inventory, PlayerInventoryOpened};
+use crate::ecs::systems::user_interface::player_inventory::{player_inventory, ItemMove, PlayerInventoryOpened};
 use bevy::prelude::*;
 use bevy::render::{Extract, RenderApp, RenderStage};
 use bevy::window::CursorGrabMode;
@@ -147,12 +147,9 @@ pub fn interface_input(
   player_inventory_opened: Option<Res<PlayerInventoryOpened>>,
   key: Res<Input<KeyCode>>,
   // mut physics_system: ResMut<RapierConfiguration>,
-  mut windows: ResMut<Windows>,
   mut client: ResMut<RenetClient>,
   reverse_location: Query<&ReverseLocation>,
 ) {
-  let window = windows.get_primary_mut().unwrap();
-
   if key.just_pressed(KeyCode::Escape) | key.just_pressed(KeyCode::E) {
     if let Some(inventory_opened) = inventory_opened {
       commands.remove_resource::<InventoryOpened>();
@@ -239,7 +236,8 @@ impl Plugin for GamePlugin {
     let on_post_update_simulation = ConditionSet::new().run_if(in_game).with_system(religh_system).into();
     let on_enter_simulation = SystemStage::parallel().with_system(enter_simulation);
     let on_exit_simulation = SystemStage::parallel().with_system(exit_simulation);
-    let on_exit_interface_opened = SystemStage::parallel().with_system(|mut item_move: ResMut<ItemMove>| { *item_move = ItemMove::Nothing });
+    let on_exit_interface_opened =
+      SystemStage::parallel().with_system(|mut item_move: ResMut<ItemMove>| *item_move = ItemMove::Nothing);
 
     app.world.spawn(Player);
 

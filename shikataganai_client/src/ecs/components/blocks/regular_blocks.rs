@@ -44,14 +44,7 @@ impl BlockTraitExt for Cobblestone {
 impl BlockTraitExt for Iron {
   fn render_info(&self) -> BlockRenderInfo {
     use crate::ecs::resources::block::BlockSprite::*;
-    BlockRenderInfo::AsBlock([
-      Iron,
-      Iron,
-      Iron,
-      Iron,
-      Iron,
-      Iron,
-    ])
+    BlockRenderInfo::AsBlock([Iron, Iron, Iron, Iron, Iron, Iron])
   }
 }
 

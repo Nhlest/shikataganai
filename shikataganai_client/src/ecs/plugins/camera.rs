@@ -259,7 +259,7 @@ fn update_colliders(
             if !block.passable() {
               match block.deref_ext().render_info() {
                 BlockRenderInfo::AsBlock(_) => {
-                  commands.spawn_bundle(ProximityColliderBundle::proximity_collider(
+                  commands.spawn(ProximityColliderBundle::proximity_collider(
                     Collider::cuboid(0.5, 0.5, 0.5),
                     Transform::from_xyz(c.0 as f32 + 0.5, c.1 as f32 + 0.5, c.2 as f32 + 0.5),
                   ));
@@ -269,7 +269,7 @@ fn update_colliders(
                     let mesh = &mesh_assets_hash_map[&mesh];
                     let collider_mesh = mesh_assets.get(mesh.collision.as_ref().unwrap()).unwrap();
                     let meta = block.meta.v as f32;
-                    commands.spawn_bundle(ProximityColliderBundle::proximity_collider(
+                    commands.spawn(ProximityColliderBundle::proximity_collider(
                       Collider::from_bevy_mesh(collider_mesh, &ComputedColliderShape::TriMesh).unwrap(), // TODO: cache this
                       Transform::from_xyz(c.0 as f32 + 0.5, c.1 as f32 + 0.5, c.2 as f32 + 0.5)
                         .with_rotation(Quat::from_rotation_y(f32::FRAC_PI_2() * meta)),
@@ -282,7 +282,7 @@ fn update_colliders(
                     let mesh = &mesh_assets_hash_map[&mesh];
                     let collider_mesh = mesh_assets.get(mesh.collision.as_ref().unwrap()).unwrap();
                     let meta = block.meta.v as f32;
-                    commands.spawn_bundle(ProximityColliderBundle::proximity_collider(
+                    commands.spawn(ProximityColliderBundle::proximity_collider(
                       Collider::from_bevy_mesh(collider_mesh, &ComputedColliderShape::TriMesh).unwrap(), // TODO: cache this
                       Transform::from_xyz(c.0 as f32 + 0.5, c.1 as f32 + 0.5, c.2 as f32 + 0.5)
                         .with_rotation(Quat::from_rotation_y(f32::FRAC_PI_2() * meta)),

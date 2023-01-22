@@ -1,7 +1,10 @@
 use crate::ecs::components::blocks::{BlockRenderInfo, DerefExt};
+use crate::ecs::components::items::ItemDerefExt;
 use crate::ecs::plugins::rendering::inventory_pipeline::inventory_cache::{ItemRenderEntry, ItemRenderMap};
 use crate::ecs::plugins::rendering::inventory_pipeline::pipeline::InventoryNode;
-use crate::ecs::plugins::rendering::inventory_pipeline::{INVENTORY_OUTPUT_TEXTURE_WIDTH, InventoryTextureOutputHandle, TEXTURE_NODE_OUTPUT_SLOT};
+use crate::ecs::plugins::rendering::inventory_pipeline::{
+  InventoryTextureOutputHandle, INVENTORY_OUTPUT_TEXTURE_WIDTH, TEXTURE_NODE_OUTPUT_SLOT,
+};
 use crate::ecs::plugins::rendering::mesh_pipeline::loader::{GltfMeshStorage, GltfMeshStorageHandle};
 use crate::ecs::plugins::rendering::voxel_pipeline::bind_groups::{ArrayTextureHandle, TextureHandle};
 use crate::ecs::resources::block::BlockSprite;
@@ -16,10 +19,8 @@ use image::EncodableLayout;
 use num_traits::FloatConst;
 use shikataganai_common::ecs::components::blocks::BlockOrItem;
 use std::collections::HashMap;
-use bevy::render::camera::RenderTarget;
 use wgpu::util::BufferInitDescriptor;
 use wgpu::IndexFormat;
-use crate::ecs::components::items::ItemDerefExt;
 
 const HEX_CC: [f32; 2] = [0.000000, -0.000000];
 const HEX_NN: [f32; 2] = [0.000000, -1.000000];
@@ -82,7 +83,7 @@ impl Node for InventoryNode {
       None => {}
       Some(handle) => {
         let handle = handle.0.clone();
-        let mut images = world.resource::<RenderAssets<Image>>();
+        let images = world.resource::<RenderAssets<Image>>();
         let image = images.get(&handle).unwrap();
         self.view = image.texture_view.clone();
       }
@@ -115,7 +116,7 @@ impl Node for InventoryNode {
       let mut vertex_buffer = vec![];
       let mut rendered_item_icons = HashMap::new();
 
-      let mut add_block_to_vertices = |vertex_buffer: &mut Vec<f32>, block_sprite: [BlockSprite; 6], x, y| {
+      let add_block_to_vertices = |vertex_buffer: &mut Vec<f32>, block_sprite: [BlockSprite; 6], x, y| {
         let top_tex   = block_sprite[4].into_uv();
         let left_tex  = block_sprite[0].into_uv();
         let right_tex = block_sprite[1].into_uv();

@@ -135,7 +135,7 @@ pub trait BlockTraitExt {
 }
 
 pub trait DerefExt {
-  fn deref_ext(&self) -> &dyn BlockTraitExt;
+  fn deref_ext(&self) -> &'static dyn BlockTraitExt;
 }
 
 static BLOCK_TRAITS_EXT: [&(dyn BlockTraitExt + Sync); 8] = [
@@ -158,7 +158,7 @@ impl DerefExt for BlockId {
 
 impl DerefExt for Block {
   #[inline]
-  fn deref_ext(&self) -> &'static (dyn BlockTraitExt + '_) {
+  fn deref_ext(&self) -> &'static dyn BlockTraitExt {
     self.block.deref_ext()
   }
 }

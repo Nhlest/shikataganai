@@ -7,18 +7,17 @@ use crate::ecs::plugins::rendering::inventory_pipeline::systems::{
 };
 use bevy::prelude::*;
 use bevy::reflect::TypeUuid;
+use bevy::render::extract_resource::{ExtractResource, ExtractResourcePlugin};
 use bevy::render::render_graph::RenderGraph;
 use bevy::render::render_resource::{Extent3d, PipelineCache, TextureDimension, TextureFormat, TextureUsages};
 use bevy::render::renderer::RenderDevice;
-use bevy::render::{RenderApp, RenderStage};
-use iyes_loopless::prelude::IntoConditionalSystem;
-use std::ops::{Deref, DerefMut};
-use bevy::render::extract_resource::{ExtractResource, ExtractResourcePlugin};
 use bevy::render::texture::BevyDefault;
+use bevy::render::{RenderApp, RenderStage};
 use bevy_egui::EguiContext;
 use egui::TextureId;
+use iyes_loopless::prelude::IntoConditionalSystem;
+use std::ops::{Deref, DerefMut};
 use wgpu::TextureDescriptor;
-use crate::ecs::plugins::rendering::voxel_pipeline::bind_groups::TextureHandle;
 
 pub mod inventory_cache;
 pub mod node;
@@ -66,7 +65,7 @@ impl Plugin for InventoryRendererPlugin {
     app.init_resource::<ExtractedItems>();
     app.add_system_to_stage(CoreStage::First, clear_rerender);
     app.add_system_to_stage(CoreStage::Last, update_extracted_items);
-    
+
     let mut images = app.world.resource_mut::<Assets<Image>>();
     let mut image = Image {
       texture_descriptor: TextureDescriptor {
@@ -85,7 +84,11 @@ impl Plugin for InventoryRendererPlugin {
       ..default()
     };
 
-    image.resize(Extent3d { width: 1024, height: 1024, depth_or_array_layers: 1, });
+    image.resize(Extent3d {
+      width: 1024,
+      height: 1024,
+      depth_or_array_layers: 1,
+    });
     let handle = images.add(image).clone();
 
     let mut egui = app.world.resource_mut::<EguiContext>();

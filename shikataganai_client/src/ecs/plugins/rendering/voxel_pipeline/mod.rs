@@ -1,5 +1,7 @@
 use crate::ecs::plugins::game::{in_game, in_game_extract};
-use crate::ecs::plugins::rendering::voxel_pipeline::bind_groups::{ArrayTextureHandle, ItemTextureHandle, LightTextureHandle, TextureHandle};
+use crate::ecs::plugins::rendering::voxel_pipeline::bind_groups::{
+  ArrayTextureHandle, ItemTextureHandle, LightTextureHandle, TextureHandle,
+};
 use crate::ecs::plugins::rendering::voxel_pipeline::draw_command::DrawVoxelsFull;
 use crate::ecs::plugins::rendering::voxel_pipeline::meshing::RemeshEvent;
 use crate::ecs::plugins::rendering::voxel_pipeline::pipeline::VoxelPipeline;
@@ -11,10 +13,9 @@ use bevy::render::extract_resource::ExtractResourcePlugin;
 use bevy::render::render_phase::AddRenderCommand;
 use bevy::render::render_resource::SpecializedRenderPipelines;
 use bevy::render::{Extract, RenderApp, RenderStage};
-use iyes_loopless::condition::ConditionSystemSet;
 use iyes_loopless::prelude::{ConditionSet, IntoConditionalSystem};
-use wgpu::Extent3d;
 use shikataganai_common::ecs::resources::light::RelightEvent;
+use wgpu::Extent3d;
 
 pub mod bind_groups;
 pub mod consts;
@@ -65,7 +66,13 @@ impl Plugin for VoxelRendererPlugin {
       .init_resource::<LightTextureHandle>();
 
     let create_texture_array = ConditionSet::new()
-      .run_if(move |array_texture_handle: Option<Res<ArrayTextureHandle>>, item_handle : Option<Res<ItemTextureHandle>>, texture_handle : Option<Res<TextureHandle>>|{ item_handle.is_some() && texture_handle.is_some() && array_texture_handle.is_none() })
+      .run_if(
+        move |array_texture_handle: Option<Res<ArrayTextureHandle>>,
+              item_handle: Option<Res<ItemTextureHandle>>,
+              texture_handle: Option<Res<TextureHandle>>| {
+          item_handle.is_some() && texture_handle.is_some() && array_texture_handle.is_none()
+        },
+      )
       .with_system(create_texture_array_system)
       .into();
 
@@ -82,11 +89,14 @@ impl Plugin for VoxelRendererPlugin {
       .init_resource::<VoxelPipeline>()
       .init_resource::<SpecializedRenderPipelines<VoxelPipeline>>()
       .add_system_to_stage(RenderStage::Extract, extract_chunks.run_if(in_game_extract))
-      .add_system_to_stage(RenderStage::Extract, |mut commands: Commands, array_texture_handle: Extract<Option<Res<ArrayTextureHandle>>>| {
-        if let Some(handle) = array_texture_handle.as_ref() {
-          commands.insert_resource(ArrayTextureHandle(handle.0.clone()));
-        }
-      })
+      .add_system_to_stage(
+        RenderStage::Extract,
+        |mut commands: Commands, array_texture_handle: Extract<Option<Res<ArrayTextureHandle>>>| {
+          if let Some(handle) = array_texture_handle.as_ref() {
+            commands.insert_resource(ArrayTextureHandle(handle.0.clone()));
+          }
+        },
+      )
       .add_system_to_stage(RenderStage::Queue, queue_chunks.run_if(in_game))
       .add_render_command::<Opaque3d, DrawVoxelsFull>();
   }

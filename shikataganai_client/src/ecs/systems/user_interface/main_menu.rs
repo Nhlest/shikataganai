@@ -4,12 +4,12 @@ use crate::ecs::plugins::game::ShikataganaiGameState;
 use crate::ecs::plugins::settings::{AmbientOcclusion, FullScreen, MouseSensitivity, Resolution, VSync};
 use bevy::app::AppExit;
 use bevy::prelude::*;
+use bevy_egui::*;
+use egui::Widget;
 use iyes_loopless::state::NextState;
 use shikataganai_server::ecs::plugins::server::ShikataganaiServerAddress;
 use shikataganai_server::spawn_server;
 use std::ops::{DerefMut, RangeInclusive};
-use bevy_egui::*;
-use egui::Widget;
 
 #[derive(Default)]
 pub struct LocalString<const T: &'static str>(pub String);
@@ -30,8 +30,7 @@ pub fn main_menu(
   player_entity: Query<Entity, With<Player>>,
 ) {
   let player_entity = player_entity.single();
-  let active_window = window.get_primary_mut().unwrap();
-  egui::Window::new("Main Menu").show(egui.ctx_mut(), |ui|{
+  egui::Window::new("Main Menu").show(egui.ctx_mut(), |ui| {
     let address = if address_string.0.is_empty() {
       "127.0.0.1:8181".to_string()
     } else {
@@ -47,8 +46,12 @@ pub fn main_menu(
       spawn_client(commands, player_entity, address.clone(), nickname);
     }
 
-    egui::TextEdit::singleline(&mut address_string.deref_mut().0).hint_text("127.0.0.1:8181").show(ui);
-    egui::TextEdit::singleline(&mut nickname_string.deref_mut().0).hint_text("Player").show(ui);
+    egui::TextEdit::singleline(&mut address_string.deref_mut().0)
+      .hint_text("127.0.0.1:8181")
+      .show(ui);
+    egui::TextEdit::singleline(&mut nickname_string.deref_mut().0)
+      .hint_text("Player")
+      .show(ui);
 
     if ui.button("Start Server").clicked() {
       std::thread::spawn(|| {
@@ -65,23 +68,29 @@ pub fn main_menu(
   if !*settings_menu_opened {
     return;
   }
-  egui::Window::new("Settings Menu").show(egui.ctx_mut(), |ui|{
+  egui::Window::new("Settings Menu").show(egui.ctx_mut(), |ui| {
     egui::Slider::new(&mut mouse_sensetivity.as_mut().0, RangeInclusive::new(0.0, 2.0)).ui(ui);
     let selected = format!("{}x{}", resolution.width as i32, resolution.height as i32);
     let mut selection = (resolution.width as i32, resolution.height as i32);
-    if egui::ComboBox::from_label("Resolution").selected_text(selected).show_ui(ui, |ui| {
-      for s in [
-        (320, 180),
-        (640, 360),
-        (853, 480),
-        (1280, 720),
-        (1920, 1080),
-        (2560, 1444),
-        (3840, 2160),
-      ] {
-        ui.selectable_value(&mut selection, s, format!("{:?}", s));
-      }
-    }).response.clicked() { //TODO: doesnt really work
+    if egui::ComboBox::from_label("Resolution")
+      .selected_text(selected)
+      .show_ui(ui, |ui| {
+        for s in [
+          (320, 180),
+          (640, 360),
+          (853, 480),
+          (1280, 720),
+          (1920, 1080),
+          (2560, 1444),
+          (3840, 2160),
+        ] {
+          ui.selectable_value(&mut selection, s, format!("{:?}", s));
+        }
+      })
+      .response
+      .clicked()
+    {
+      //TODO: doesnt really work
       resolution.width = selection.0 as f32;
       resolution.height = selection.1 as f32;
       window

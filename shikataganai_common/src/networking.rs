@@ -1,6 +1,7 @@
 use crate::ecs::components::blocks::animation::Animation;
 use crate::ecs::components::blocks::block_id::BlockId;
 use crate::ecs::components::blocks::BlockMeta;
+use crate::ecs::components::item::ItemId;
 use crate::ecs::resources::light::LightLevel;
 use crate::util::array::{DD, DDD};
 use bevy::prelude::*;
@@ -8,7 +9,6 @@ use bevy_renet::renet::{ChannelConfig, ReliableChannelConfig, RenetConnectionCon
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::time::Duration;
-use crate::ecs::components::item::ItemId;
 
 // -------------------------------------------------------------------------------------------
 // -- ###  #    #   ###   ####   #####  #     #  #####  #    #  #####        #     #  ##### --
@@ -104,8 +104,8 @@ pub enum ServerMessage {
   },
   ItemAdd {
     item: ItemId,
-    quant: u32
-  }
+    quant: u32,
+  },
 }
 
 impl Display for ServerMessage {
@@ -212,6 +212,6 @@ pub enum PlayerCommand {
     animation: Animation,
   },
   InitiateInWorldCraft {
-    location: DDD
-  }
+    location: DDD,
+  },
 }

@@ -1,9 +1,7 @@
 use bevy::prelude::Entity;
 
 use crate::ecs::plugins::client::Requested;
-use crate::ecs::plugins::rendering::inventory_pipeline::inventory_cache::ExtractedItems;
 use bevy::prelude::*;
-use bevy_egui::EguiContext;
 use bevy_renet::renet::RenetClient;
 use bincode::serialize;
 use shikataganai_common::ecs::components::blocks::ReverseLocation;
@@ -22,11 +20,7 @@ pub struct InventoryOpened(pub Entity);
 //
 pub fn chest_inventory(
   mut commands: Commands,
-  egui: ResMut<EguiContext>,
-  // window: Res<Windows>,
   inventory_opened: Option<ResMut<InventoryOpened>>,
-  // texture: Res<GUITextureAtlas>,
-  mut extracted_items: ResMut<ExtractedItems>,
   inventory_query: Query<&mut InternalInventory>,
   requested_query: Query<&Requested>,
   location_query: Query<&ReverseLocation>,
@@ -34,7 +28,7 @@ pub fn chest_inventory(
 ) {
   if let Some(inventory_entity) = inventory_opened.map(|e| e.0) {
     match inventory_query.get(inventory_entity) {
-      Ok(internal_inventory) => {
+      Ok(_internal_inventory) => {
         // let ui = imgui.get_current_frame();
         // imgui::Window::new("Chest inventory")
         //   .position([20.0, 20.0], Condition::Appearing)

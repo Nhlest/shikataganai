@@ -28,7 +28,7 @@ impl Default for PlayerInventory {
         None,
         Some(QuantifiedBlockOrItem {
           block_or_item: BlockOrItem::Item(ItemId::Coal),
-          quant: 2
+          quant: 2,
         }),
         None,
         None,

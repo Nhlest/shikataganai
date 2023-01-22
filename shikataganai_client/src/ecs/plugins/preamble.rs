@@ -11,9 +11,6 @@ pub struct Preamble;
 
 impl Plugin for Preamble {
   fn build(&self, app: &mut App) {
-    let resolution = app.world.resource::<Resolution>();
-    let vsync = app.world.resource::<VSync>();
-    let fullscreen = app.world.resource::<FullScreen>();
     app
       .insert_resource(Msaa { samples: 1 })
       .insert_resource(RapierConfiguration {

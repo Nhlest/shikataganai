@@ -1,13 +1,11 @@
-use bevy::ecs::schedule::IntoRunCriteria;
-use bevy::prelude::*;
-use bevy_egui::EguiContext;
-use egui::{Align, Color32, emath, Layout, Sense, TextStyle, Widget, Id};
-use itertools::Itertools;
-use shikataganai_common::ecs::components::blocks::{BlockOrItem, QuantifiedBlockOrItem};
-use shikataganai_common::ecs::components::blocks::block_id::BlockId;
 use crate::ecs::plugins::rendering::inventory_pipeline::inventory_cache::ExtractedItems;
 use crate::ecs::plugins::rendering::inventory_pipeline::InventoryTextureOutputHandle;
 use crate::ecs::resources::player::PlayerInventory;
+use bevy::prelude::*;
+use bevy_egui::EguiContext;
+use egui::{emath, Align, Color32, Id, Layout, TextStyle, Widget};
+use itertools::Itertools;
+use shikataganai_common::ecs::components::blocks::QuantifiedBlockOrItem;
 
 #[derive(Resource)]
 pub struct PlayerInventoryOpened;
@@ -20,7 +18,6 @@ pub enum ItemMove {
 }
 
 pub fn player_inventory(
-  mut commands: Commands,
   mut egui: ResMut<EguiContext>,
   window: Res<Windows>,
   inventory_opened: Option<ResMut<PlayerInventoryOpened>>,
@@ -28,14 +25,11 @@ pub fn player_inventory(
   // texture: Res<GUITextureAtlas>,
   mut extracted_items: ResMut<ExtractedItems>,
   inventory_texture: Res<InventoryTextureOutputHandle>,
-  mut item_move: ResMut<ItemMove>
+  mut item_move: ResMut<ItemMove>,
 ) {
   if let Some(_) = inventory_opened {
-    let ui = egui.ctx_mut();
     let active_window = window.get_primary().unwrap();
     let ui = egui.ctx_mut();
-    let x1 = active_window.width() / 2.0 - 2.0;
-    let y1 = active_window.height() / 2.0 - 2.0;
     egui::Window::new("Inventory")
       .title_bar(false)
       .resizable(false)
@@ -58,7 +52,6 @@ pub fn player_inventory(
         let mut swap = None;
         egui::Grid::new("Inventory Grid").show(ui, |ui| {
           for (i, item) in player_inventory.items.iter().enumerate().dropping(player_inventory.hot_bar_width) {
-            let color = Color32::DARK_BLUE;
             if let ItemMove::FromSlot(from_slot) = *item_move && from_slot == i {
               egui::ImageButton::new(inventory_texture.1, [95.0, 95.0]).uv([[1.0, 1.1].into(), [1.0, 1.0].into()]).ui(ui);
             } else {
@@ -97,7 +90,6 @@ pub fn player_inventory(
         ui.separator();
         ui.with_layout(Layout::left_to_right(Align::Min), |ui| {
           for (i, item) in player_inventory.items.iter().enumerate().take(player_inventory.hot_bar_width) {
-            let color = Color32::DARK_BLUE;
             if let ItemMove::FromSlot(from_slot) = *item_move && from_slot == i {
               egui::ImageButton::new(inventory_texture.1, [95.0, 95.0]).uv([[1.0, 1.1].into(), [1.0, 1.0].into()]).ui(ui);
             } else {

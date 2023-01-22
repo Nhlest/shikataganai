@@ -4,7 +4,7 @@ use bevy::app::Plugin;
 use bevy::prelude::*;
 use bevy::window::CursorGrabMode;
 use bevy_egui::EguiContext;
-use egui::{Align, Color32, FontSelection, Frame};
+use egui::{Color32, Frame};
 use iyes_loopless::prelude::ConditionSet;
 use tracing::Level;
 
@@ -63,12 +63,10 @@ pub fn open_close_console(
 
 pub fn debug_console(
   mut egui: ResMut<EguiContext>,
-  mut window: ResMut<Windows>,
-  debug_console_opened: ResMut<ConsoleMenuOpened>,
-  mut items: ResMut<ConsoleTextVec>,
+  window: ResMut<Windows>,
+  items: ResMut<ConsoleTextVec>,
   tick: Res<LocalTick>,
 ) {
-
   let ui = egui.ctx_mut();
   let active_window = window.get_primary().unwrap();
   // if !debug_console_opened.0 {
@@ -76,9 +74,7 @@ pub fn debug_console(
     .frame(Frame::none())
     .title_bar(false)
     .resizable(false)
-    .fixed_pos(
-      [ 0.0, 0.0 ],
-    )
+    .fixed_pos([0.0, 0.0])
     .fixed_size([active_window.width(), 100.0])
     .show(ui, |ui| {
       for item in items.iter().filter(|item| item.age + 400 > tick.0) {

@@ -4,11 +4,12 @@ pub mod regular_items;
 
 const ITEM_SPRITE_SHEET_WIDTH: usize = 8;
 
+#[allow(dead_code)]
 pub enum ItemSprite {
   Nothing,
   Coal,
   Wand,
-  Iron
+  Iron,
 }
 
 impl ItemSprite {
@@ -37,11 +38,8 @@ pub trait ItemDerefExt {
   fn deref_ext(&self) -> &dyn ItemTraitExt;
 }
 
-static ITEM_TRAITS_EXT: [&(dyn ItemTraitExt + Sync); 3] = [
-  &regular_items::Coal,
-  &regular_items::Wand,
-  &regular_items::Iron,
-];
+static ITEM_TRAITS_EXT: [&(dyn ItemTraitExt + Sync); 3] =
+  [&regular_items::Coal, &regular_items::Wand, &regular_items::Iron];
 
 impl ItemDerefExt for ItemId {
   #[inline]

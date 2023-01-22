@@ -17,13 +17,13 @@ use iyes_loopless::prelude::NextState;
 use num_traits::FloatConst;
 use shikataganai_common::ecs::components::blocks::block_id::BlockId;
 use shikataganai_common::ecs::components::blocks::{Block, BlockOrItem, BlockRotation, QuantifiedBlockOrItem};
+use shikataganai_common::ecs::components::item::ItemId;
 use shikataganai_common::ecs::resources::light::{LightLevel, RelightEvent};
 use shikataganai_common::ecs::resources::world::GameWorld;
 use shikataganai_common::networking::{ClientChannel, PlayerCommand};
 use shikataganai_common::util::array::DDD;
 use std::cmp::Ordering;
 use std::ops::Deref;
-use shikataganai_common::ecs::components::item::ItemId;
 
 fn place_item_from_inventory(
   player_inventory: &mut PlayerInventory,
@@ -87,11 +87,7 @@ fn place_item_from_inventory(
   }
 }
 
-pub fn add_item_inventory(
-  player_inventory: &mut PlayerInventory,
-  item_id: ItemId,
-  quant: u32
-) -> Option<()> {
+pub fn add_item_inventory(player_inventory: &mut PlayerInventory, item_id: ItemId, quant: u32) -> Option<()> {
   match player_inventory
     .items
     .iter_mut()
@@ -128,8 +124,7 @@ pub fn add_item_inventory(
     None => {
       return None;
     }
-    Some(true) => {
-    }
+    Some(true) => {}
     _ => {}
   }
 
@@ -206,7 +201,7 @@ pub fn keyboard_input(
   player_inventory_opened: Option<Res<PlayerInventoryOpened>>,
 ) {
   for KeyboardInput {
-    scan_code,
+    scan_code: _scan_code,
     key_code,
     state,
   } in keyboard.iter()
@@ -284,11 +279,7 @@ pub fn action_input(
           // Do the crafting
           client.send_message(
             ClientChannel::ClientCommand.id(),
-            serialize(
-              &PlayerCommand::InitiateInWorldCraft {
-                location: source
-              }
-            ).unwrap()
+            serialize(&PlayerCommand::InitiateInWorldCraft { location: source }).unwrap(),
           );
         }
 

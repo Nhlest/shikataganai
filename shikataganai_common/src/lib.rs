@@ -1,5 +1,5 @@
 #![feature(let_chains)]
 pub mod ecs;
 pub mod networking;
-pub mod util;
 pub mod recipes;
+pub mod util;

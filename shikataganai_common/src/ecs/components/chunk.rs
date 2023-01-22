@@ -40,14 +40,12 @@ impl Chunk {
   }
 
   pub async fn generate(coord: DD) -> Chunk {
-    let resource_noise = Perlin::new(110);
     let perlin = Perlin::new(11);
     let from = (coord.0 * 16, 0, coord.1 * 16);
     let to = (coord.0 * 16 + 15, CHUNK_MAX_HEIGHT, coord.1 * 16 + 15);
     let perlin_top = Perlin::new(12);
     let v = Array2d::new_init(((from.0, from.2), (to.0, to.2)), |(x, z)| noise(&perlin, (x, 0, z)));
     let vtop = Array2d::new_init(((from.0, from.2), (to.0, to.2)), |(x, z)| noise(&perlin_top, (x, 0, z)));
-    let resource = Array3d::new_init(((from.0, from.1, from.2), (to.0, to.1, to.2)), |(x, y,  z)| noise(&resource_noise, (x, y, z)));
 
     Chunk::new((from, to), |(x, y, z)| {
       let bottom = v[(x, z)];
