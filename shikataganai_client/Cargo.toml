@@ -14,22 +14,22 @@ winit = "0.27.*"
 serde = "1.0.*"
 noise = "0.8.*"
 strum = "0.24.*"
-base64 = "0.20.*"
+base64 = "0.21.*"
 anyhow = "1.0.*"
 flate2 = "1.0.*"
 tracing = "0.1.*"
 bincode = "1.3.*"
-bytemuck = "1.12.*"
+bytemuck = "1.13.*"
 itertools = "0.10.*"
 bevy_renet = "0.0.6"
-bevy_egui = "0.18.*"
+bevy_egui = "0.19.*"
 num-traits = "0.2.*"
 strum_macros = "0.24.*"
 futures-lite = "1.12.*"
 iyes_loopless = "0.9.*"
-bevy_framepace = "0.9.*"
+bevy_framepace = "0.11.*"
 bevy_atmosphere = "0.5.*"
-bytemuck_derive = "1.3.*"
+bytemuck_derive = "1.4.*"
 percent-encoding = "2.2.*"
 shikataganai_common = { path = "../shikataganai_common" }
 shikataganai_server = { path = "../shikataganai_server" }
@@ -43,7 +43,7 @@ features = ["simd-stable", "dim3"]
 [dependencies.bevy]
 version = "0.9.*"
 default-features = false
-features = ["x11", "bevy_winit", "png", "bevy_core_pipeline"]
+features = ["bevy_winit", "png", "bevy_core_pipeline"]
 
 [build-dependencies]
 glsl-to-spirv = "0.1.*"

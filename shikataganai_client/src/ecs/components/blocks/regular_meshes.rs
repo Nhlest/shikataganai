@@ -3,7 +3,7 @@ use crate::ecs::components::blocks::{
 };
 use crate::ecs::plugins::game::ShikataganaiGameState;
 use crate::ecs::plugins::rendering::mesh_pipeline::loader::Meshes;
-use crate::ecs::systems::user_interface::chest_inventory::InventoryOpened;
+use crate::ecs::systems::user_interface::chest_inventory::{InventoryItemMovementStatus, InventoryOpened};
 use bevy::prelude::{Commands, Entity};
 use bevy_renet::renet::RenetClient;
 use bincode::serialize;
@@ -32,6 +32,7 @@ impl BlockTraitExt for Chest {
     client: &mut RenetClient,
   ) -> Option<()> {
     commands.insert_resource(InventoryOpened(entity));
+    commands.insert_resource(InventoryItemMovementStatus::Nothing);
     commands.insert_resource(NextState(ShikataganaiGameState::InterfaceOpened));
 
     animate(commands, entity, ChestAnimations::Open.get_animation());

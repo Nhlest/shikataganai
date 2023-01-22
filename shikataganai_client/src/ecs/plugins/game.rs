@@ -5,12 +5,14 @@ use crate::ecs::resources::world::ClientGameWorld;
 use crate::ecs::systems::input::{action_input, hot_bar_scroll_input, keyboard_input};
 use crate::ecs::systems::light::religh_system;
 use crate::ecs::systems::remesh::remesh_system_auxiliary;
-use crate::ecs::systems::user_interface::chest_inventory::{chest_inventory, InventoryOpened};
+use crate::ecs::systems::user_interface::chest_inventory::{
+  chest_inventory, InventoryItemMovementStatus, InventoryOpened,
+};
 use crate::ecs::systems::user_interface::connecting::connecting_window;
 use crate::ecs::systems::user_interface::game_menu::game_menu;
 use crate::ecs::systems::user_interface::hot_bar::hot_bar;
 use crate::ecs::systems::user_interface::main_menu::main_menu;
-use crate::ecs::systems::user_interface::player_inventory::{player_inventory, ItemMove, PlayerInventoryOpened};
+use crate::ecs::systems::user_interface::player_inventory::{player_inventory, PlayerInventoryOpened};
 use bevy::prelude::*;
 use bevy::render::{Extract, RenderApp, RenderStage};
 use bevy::window::CursorGrabMode;
@@ -70,7 +72,7 @@ pub fn in_game_input_enabled(current_state: Res<CurrentState<ShikataganaiGameSta
 pub fn init_game(mut commands: Commands) {
   commands.init_resource::<SelectedHotBar>();
   commands.init_resource::<PlayerInventory>();
-  commands.init_resource::<ItemMove>();
+  commands.init_resource::<InventoryItemMovementStatus>();
   commands.init_resource::<GameWorld>();
   commands.init_resource::<SelectionRes>();
 }
@@ -107,7 +109,7 @@ pub fn transition_to_simulation(
 pub fn cleanup_game(mut commands: Commands) {
   commands.remove_resource::<SelectedHotBar>();
   commands.remove_resource::<PlayerInventory>();
-  commands.remove_resource::<ItemMove>();
+  commands.remove_resource::<InventoryItemMovementStatus>();
   commands.remove_resource::<GameWorld>();
   commands.remove_resource::<SelectionRes>();
 }
@@ -237,7 +239,9 @@ impl Plugin for GamePlugin {
     let on_enter_simulation = SystemStage::parallel().with_system(enter_simulation);
     let on_exit_simulation = SystemStage::parallel().with_system(exit_simulation);
     let on_exit_interface_opened =
-      SystemStage::parallel().with_system(|mut item_move: ResMut<ItemMove>| *item_move = ItemMove::Nothing);
+      SystemStage::parallel().with_system(|mut item_move: ResMut<InventoryItemMovementStatus>| {
+        *item_move = InventoryItemMovementStatus::Nothing
+      });
 
     app.world.spawn(Player);
 

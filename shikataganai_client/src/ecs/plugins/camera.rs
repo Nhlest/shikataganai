@@ -126,7 +126,7 @@ fn spawn_camera(mut commands: Commands, player_entity: Query<Entity, With<Player
         SolverGroups::new(Group::GROUP_1, Group::GROUP_2),
         CollisionGroups::new(Group::GROUP_1, Group::GROUP_2),
       ));
-      c.spawn((FPSCamera::default(), camera, AtmosphereCamera { render_layers: None }));
+      c.spawn((FPSCamera::default(), camera, AtmosphereCamera::default()));
     });
 }
 

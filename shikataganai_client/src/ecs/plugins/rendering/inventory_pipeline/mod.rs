@@ -29,9 +29,6 @@ pub struct InventoryRendererPlugin;
 #[derive(Resource, ExtractResource, Clone)]
 pub struct InventoryTextureOutputHandle(pub Handle<Image>, pub TextureId);
 
-#[derive(Resource)]
-pub struct GUITextureAtlas(pub TextureId);
-
 pub const INVENTORY_SHADER_VERTEX_HANDLE: HandleUntyped =
   HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 2763343953151595899);
 pub const INVENTORY_SHADER_FRAGMENT_HANDLE: HandleUntyped =
@@ -109,16 +106,6 @@ impl Plugin for InventoryRendererPlugin {
 
       let mut render_graph = render_app.world.get_resource_mut::<RenderGraph>().unwrap();
       render_graph.add_node(INVENTORY_PASS, inventory_node);
-
-      // render_graph.add_node_edge(INVENTORY_PASS, IMGUI_PASS).unwrap();
-      // render_graph
-      //   .add_slot_edge(
-      //     INVENTORY_PASS,
-      //     TEXTURE_NODE_OUTPUT_SLOT,
-      //     IMGUI_PASS,
-      //     TEXTURE_NODE_INPUT_SLOT,
-      //   )
-      //   .unwrap();
     }
   }
 }
