@@ -3,7 +3,7 @@ use crate::ecs::resources::player::{PlayerInventory, SelectedHotBar};
 use bevy::prelude::*;
 use bevy::render::camera::RenderTarget;
 use bevy_egui::EguiContext;
-use egui::{Align, Color32, Layout, TextureId, Widget};
+use egui::{Align, Color32, Layout, TextStyle, TextureId, Widget};
 use shikataganai_common::ecs::components::blocks::{BlockOrItem, QuantifiedBlockOrItem};
 use shikataganai_common::ecs::components::blocks::block_id::BlockId;
 use crate::ecs::plugins::rendering::inventory_pipeline::{GUITextureAtlas, InventoryTextureOutputHandle};
@@ -44,9 +44,13 @@ pub fn hot_bar(
               egui::Image::new(inventory_texture.1, [95.0, 95.0]).uv([[1.0, 1.0].into(), [1.0, 1.0].into()]).bg_fill(color).ui(ui);
             }
             Some(QuantifiedBlockOrItem { block_or_item, quant }) => {
-              let coords = extracted_items.request(*block_or_item).unwrap_or((0.0, 0.0));
-              egui::Image::new(inventory_texture.1, [95.0, 95.0]).uv([[coords.0, coords.1].into(), [coords.0 + 1.0 / 8.0, coords.1 + 1.0 / 8.0].into()]).bg_fill(color).ui(ui);
-              ui.label(format!("{}", quant));
+              ui.allocate_ui([95.0, 95.0].into(), |ui| {
+                let text = egui::WidgetText::RichText(egui::RichText::new(format!("{}", quant))).into_galley(ui, None, 50.0, TextStyle::Button);
+                let coords = extracted_items.request(*block_or_item).unwrap_or((0.0, 0.0));
+                let pos = ui.next_widget_position();
+                egui::Image::new(inventory_texture.1, [95.0, 95.0]).uv([[coords.0, coords.1].into(), [coords.0 + 1.0 / 8.0, coords.1 + 1.0 / 8.0].into()]).bg_fill(color).ui(ui);
+                text.paint_with_fallback_color(ui.painter(), pos, Color32::WHITE);
+              });
             }
           }
         }

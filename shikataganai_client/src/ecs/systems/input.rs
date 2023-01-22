@@ -161,7 +161,7 @@ pub fn keyboard_input(
     state,
   } in keyboard.iter()
   {
-    if key_code == &Some(KeyCode::E) && state == &ButtonState::Released {
+    if key_code == &Some(KeyCode::E) && state == &ButtonState::Pressed {
       if player_inventory_opened.is_some() {
         commands.remove_resource::<PlayerInventoryOpened>();
         commands.insert_resource(NextState(ShikataganaiGameState::Simulation));
@@ -229,6 +229,16 @@ pub fn action_input(
               block_transfer: block.into(),
             })
             .unwrap(),
+          );
+        } else {
+          // Do the crafting
+          client.send_message(
+            ClientChannel::ClientCommand.id(),
+            serialize(
+              &PlayerCommand::InitiateInWorldCraft {
+                location: source
+              }
+            ).unwrap()
           );
         }
 

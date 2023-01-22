@@ -21,8 +21,8 @@ impl Default for Settings {
   fn default() -> Self {
     Self {
       sensitivity: 1.0,
-      height: 1080.0,
-      width: 1920.0,
+      height: 1440.0,
+      width: 2560.0,
       vsync: true,
       fullscreen: false,
       ambient_occlusion: true,

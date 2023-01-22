@@ -205,4 +205,7 @@ pub enum PlayerCommand {
     location: DDD,
     animation: Animation,
   },
+  InitiateInWorldCraft {
+    location: DDD
+  }
 }

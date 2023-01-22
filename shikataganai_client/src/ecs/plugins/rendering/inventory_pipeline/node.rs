@@ -3,7 +3,7 @@ use crate::ecs::plugins::rendering::inventory_pipeline::inventory_cache::{ItemRe
 use crate::ecs::plugins::rendering::inventory_pipeline::pipeline::InventoryNode;
 use crate::ecs::plugins::rendering::inventory_pipeline::{INVENTORY_OUTPUT_TEXTURE_WIDTH, InventoryTextureOutputHandle, TEXTURE_NODE_OUTPUT_SLOT};
 use crate::ecs::plugins::rendering::mesh_pipeline::loader::{GltfMeshStorage, GltfMeshStorageHandle};
-use crate::ecs::plugins::rendering::voxel_pipeline::bind_groups::TextureHandle;
+use crate::ecs::plugins::rendering::voxel_pipeline::bind_groups::{ArrayTextureHandle, TextureHandle};
 use crate::ecs::resources::block::BlockSprite;
 use bevy::prelude::*;
 use bevy::render::mesh::GpuBufferInfo;
@@ -19,6 +19,7 @@ use std::collections::HashMap;
 use bevy::render::camera::RenderTarget;
 use wgpu::util::BufferInitDescriptor;
 use wgpu::IndexFormat;
+use crate::ecs::components::items::ItemDerefExt;
 
 const HEX_CC: [f32; 2] = [0.000000, -0.000000];
 const HEX_NN: [f32; 2] = [0.000000, -1.000000];
@@ -99,8 +100,9 @@ impl Node for InventoryNode {
     world: &World,
   ) -> Result<(), NodeRunError> {
     let handle = world.resource::<TextureHandle>();
+    let item_handle = world.get_resource::<ArrayTextureHandle>();
     let gpu_images = world.resource::<RenderAssets<Image>>();
-    if let Some(mesh_render_pipeline) = &self.mesh_render_pipeline.render_pipeline && let Some(direct_render_pipeline) = &self.direct_render_pipeline.render_pipeline && self.to_render && let Some(gpu_image) = gpu_images.get(&handle.0) {
+    if let Some(item_handle) = item_handle && let Some(item_image) = gpu_images.get(&item_handle.0) && let Some(mesh_render_pipeline) = &self.mesh_render_pipeline.render_pipeline && let Some(direct_render_pipeline) = &self.direct_render_pipeline.render_pipeline && self.to_render && let Some(gpu_image) = gpu_images.get(&handle.0) {
       let meshes = world.resource::<RenderAssets<Mesh>>();
       let mesh_storage_assets = world.resource::<RenderAssets<GltfMeshStorage>>();
       let mesh_storage = world.resource::<GltfMeshStorageHandle>();
@@ -113,7 +115,7 @@ impl Node for InventoryNode {
       let mut vertex_buffer = vec![];
       let mut rendered_item_icons = HashMap::new();
 
-      let mut add_block_to_vertices = |block_sprite: [BlockSprite; 6], x, y| {
+      let mut add_block_to_vertices = |vertex_buffer: &mut Vec<f32>, block_sprite: [BlockSprite; 6], x, y| {
         let top_tex   = block_sprite[4].into_uv();
         let left_tex  = block_sprite[0].into_uv();
         let right_tex = block_sprite[1].into_uv();
@@ -146,7 +148,7 @@ impl Node for InventoryNode {
           BlockOrItem::Block(blockid) => {
             match blockid.deref_ext().render_info() {
               BlockRenderInfo::AsBlock(block_sprite) => {
-                add_block_to_vertices(block_sprite, x, y);
+                add_block_to_vertices(&mut vertex_buffer, block_sprite, x, y);
               }
               BlockRenderInfo::AsMesh(mesh_handle) => {
                 let mesh_handle = mesh_storage[&mesh_handle].render.as_ref().unwrap();
@@ -161,7 +163,15 @@ impl Node for InventoryNode {
               }
             }
           }
-          BlockOrItem::Item(_) => {}
+          BlockOrItem::Item(item) => {
+            let sprite = item.deref_ext().render_info().into_uv();
+            vertex_buffer.extend_from_slice(&[x * INVENTORY_OUTPUT_TEXTURE_WIDTH - 0.0, y * INVENTORY_OUTPUT_TEXTURE_WIDTH - 0.0, sprite.0[0], sprite.0[1], -1.0]);
+            vertex_buffer.extend_from_slice(&[x * INVENTORY_OUTPUT_TEXTURE_WIDTH - 0.0, y * INVENTORY_OUTPUT_TEXTURE_WIDTH + 1.0, sprite.0[0], sprite.1[1], -1.0]);
+            vertex_buffer.extend_from_slice(&[x * INVENTORY_OUTPUT_TEXTURE_WIDTH + 1.0, y * INVENTORY_OUTPUT_TEXTURE_WIDTH - 0.0, sprite.1[0], sprite.0[1], -1.0]);
+            vertex_buffer.extend_from_slice(&[x * INVENTORY_OUTPUT_TEXTURE_WIDTH - 0.0, y * INVENTORY_OUTPUT_TEXTURE_WIDTH + 1.0, sprite.0[0], sprite.1[1], -1.0]);
+            vertex_buffer.extend_from_slice(&[x * INVENTORY_OUTPUT_TEXTURE_WIDTH + 1.0, y * INVENTORY_OUTPUT_TEXTURE_WIDTH - 0.0, sprite.1[0], sprite.0[1], -1.0]);
+            vertex_buffer.extend_from_slice(&[x * INVENTORY_OUTPUT_TEXTURE_WIDTH + 1.0, y * INVENTORY_OUTPUT_TEXTURE_WIDTH + 1.0, sprite.1[0], sprite.1[1], -1.0]);
+          }
         }
         rendered_item_icons.insert(*item, [x, y]);
       }
@@ -185,7 +195,7 @@ impl Node for InventoryNode {
       // TODO: this code is ass. Someone please fix it :(
 
       let direct_view_bind_group = self.direct_render_pipeline.create_view_bind_group(&render_context.render_device, &view_buffer);
-      let direct_texture_bind_group = self.direct_render_pipeline.create_texture_bind_group(&render_context.render_device, gpu_image);
+      let direct_texture_bind_group = self.direct_render_pipeline.create_texture_bind_group(&render_context.render_device, item_image);
 
       let contents = Mat4::orthographic_lh(0.0, INVENTORY_OUTPUT_TEXTURE_WIDTH as f32, INVENTORY_OUTPUT_TEXTURE_WIDTH as f32, 0.0, 0.001, 4.0);
       let view_buffer = render_context

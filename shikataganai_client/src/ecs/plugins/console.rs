@@ -3,6 +3,8 @@ use crate::App;
 use bevy::app::Plugin;
 use bevy::prelude::*;
 use bevy::window::CursorGrabMode;
+use bevy_egui::EguiContext;
+use egui::{Align, Color32, FontSelection, Frame};
 use iyes_loopless::prelude::ConditionSet;
 use tracing::Level;
 
@@ -60,14 +62,41 @@ pub fn open_close_console(
 }
 
 pub fn debug_console(
+  mut egui: ResMut<EguiContext>,
   mut window: ResMut<Windows>,
   debug_console_opened: ResMut<ConsoleMenuOpened>,
   mut items: ResMut<ConsoleTextVec>,
   tick: Res<LocalTick>,
 ) {
-  // let active_window = window.get_primary_mut().unwrap();
-  // let ui = imgui.get_current_frame();
+
+  let ui = egui.ctx_mut();
+  let active_window = window.get_primary().unwrap();
   // if !debug_console_opened.0 {
+  egui::Window::new("Console")
+    .frame(Frame::none())
+    .title_bar(false)
+    .resizable(false)
+    .fixed_pos(
+      [ 0.0, 0.0 ],
+    )
+    .fixed_size([active_window.width(), 100.0])
+    .show(ui, |ui| {
+      for item in items.iter().filter(|item| item.age + 400 > tick.0) {
+        const RED: [f32; 4] = [1.0, 0.0, 0.0, 1.0];
+        const GREEN: [f32; 4] = [0.0, 1.0, 0.0, 1.0];
+        const YELLOW: [f32; 4] = [1.0, 1.0, 0.0, 1.0];
+
+        let color = match item.level {
+          Level::ERROR => Color32::RED,
+          Level::INFO => Color32::GRAY,
+          Level::WARN => Color32::YELLOW,
+          Level::TRACE => Color32::YELLOW,
+          Level::DEBUG => Color32::YELLOW,
+        };
+        ui.label(egui::WidgetText::RichText(egui::RichText::new(&item.text).color(color)));
+      }
+    });
+  // }
   //   imgui::Window::new("Debug Console Messages")
   //     .position([0.0, 0.0], Condition::Always)
   //     .size([active_window.width(), active_window.height()], Condition::Always)

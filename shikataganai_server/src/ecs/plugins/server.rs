@@ -261,6 +261,9 @@ pub fn handle_events(
             }
             server.send_message(*other_client, ServerChannel::GameEvent.id(), serialize(&ServerMessage::AnimationStart { location, animation: animation.clone() }).unwrap())
           }
+        },
+        PlayerCommand::InitiateInWorldCraft { location } => {
+
         }
       }
     }

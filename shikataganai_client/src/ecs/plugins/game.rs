@@ -5,12 +5,12 @@ use crate::ecs::resources::world::ClientGameWorld;
 use crate::ecs::systems::input::{action_input, hot_bar_scroll_input, keyboard_input};
 use crate::ecs::systems::light::religh_system;
 use crate::ecs::systems::remesh::remesh_system_auxiliary;
-use crate::ecs::systems::user_interface::chest_inventory::InventoryOpened;
+use crate::ecs::systems::user_interface::chest_inventory::{chest_inventory, InventoryOpened};
 use crate::ecs::systems::user_interface::connecting::connecting_window;
 use crate::ecs::systems::user_interface::game_menu::game_menu;
 use crate::ecs::systems::user_interface::hot_bar::hot_bar;
 use crate::ecs::systems::user_interface::main_menu::main_menu;
-use crate::ecs::systems::user_interface::player_inventory::PlayerInventoryOpened;
+use crate::ecs::systems::user_interface::player_inventory::{ItemMove, player_inventory, PlayerInventoryOpened};
 use bevy::prelude::*;
 use bevy::render::{Extract, RenderApp, RenderStage};
 use bevy::window::CursorGrabMode;
@@ -70,6 +70,7 @@ pub fn in_game_input_enabled(current_state: Res<CurrentState<ShikataganaiGameSta
 pub fn init_game(mut commands: Commands) {
   commands.init_resource::<SelectedHotBar>();
   commands.init_resource::<PlayerInventory>();
+  commands.init_resource::<ItemMove>();
   commands.init_resource::<GameWorld>();
   commands.init_resource::<SelectionRes>();
 }
@@ -106,6 +107,7 @@ pub fn transition_to_simulation(
 pub fn cleanup_game(mut commands: Commands) {
   commands.remove_resource::<SelectedHotBar>();
   commands.remove_resource::<PlayerInventory>();
+  commands.remove_resource::<ItemMove>();
   commands.remove_resource::<GameWorld>();
   commands.remove_resource::<SelectionRes>();
 }
@@ -151,13 +153,7 @@ pub fn interface_input(
 ) {
   let window = windows.get_primary_mut().unwrap();
 
-  if key.just_pressed(KeyCode::E) {
-    if player_inventory_opened.is_some() {
-      commands.remove_resource::<PlayerInventoryOpened>();
-      commands.insert_resource(NextState(ShikataganaiGameState::Simulation));
-    }
-  }
-  if key.just_pressed(KeyCode::Escape) {
+  if key.just_pressed(KeyCode::Escape) | key.just_pressed(KeyCode::E) {
     if let Some(inventory_opened) = inventory_opened {
       commands.remove_resource::<InventoryOpened>();
       animate(
@@ -222,8 +218,8 @@ impl Plugin for GamePlugin {
       .into();
     let on_in_game_interface_opened = ConditionSet::new()
       .run_in_state(ShikataganaiGameState::InterfaceOpened)
-      // .with_system(player_inventory)
-      // .with_system(chest_inventory)
+      .with_system(player_inventory)
+      .with_system(chest_inventory)
       .with_system(interface_input)
       .into();
     let on_game_simulation_continuous_post_update = ConditionSet::new()
@@ -243,6 +239,7 @@ impl Plugin for GamePlugin {
     let on_post_update_simulation = ConditionSet::new().run_if(in_game).with_system(religh_system).into();
     let on_enter_simulation = SystemStage::parallel().with_system(enter_simulation);
     let on_exit_simulation = SystemStage::parallel().with_system(exit_simulation);
+    let on_exit_interface_opened = SystemStage::parallel().with_system(|mut item_move: ResMut<ItemMove>| { *item_move = ItemMove::Nothing });
 
     app.world.spawn(Player);
 
@@ -269,7 +266,8 @@ impl Plugin for GamePlugin {
       .set_enter_stage(ShikataganaiGameState::MainMenu, on_game_exit)
       .set_enter_stage(ShikataganaiGameState::PreSimulation, on_game_enter)
       .set_enter_stage(ShikataganaiGameState::Simulation, on_enter_simulation)
-      .set_exit_stage(ShikataganaiGameState::Simulation, on_exit_simulation);
+      .set_exit_stage(ShikataganaiGameState::Simulation, on_exit_simulation)
+      .set_exit_stage(ShikataganaiGameState::InterfaceOpened, on_exit_interface_opened);
 
     let render_app = app.get_sub_app_mut(RenderApp).unwrap();
     render_app.add_system_to_stage(RenderStage::Extract, extract_loopless_state);
