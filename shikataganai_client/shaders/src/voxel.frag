@@ -15,9 +15,13 @@ void main() {
   out_color = texture(sampler2D(t_diffuse, s_diffuse), uv);
 //  out_color = vec4(occlusion, occlusion, occlusion, 1.0);
   out_color = vec4(occlusion * vec3(out_color.r * brightness.r, out_color.g * brightness.g, out_color.b * brightness.b), out_color.a);
-  if (face_selected == 1 && cube_selected == 1) {
-    out_color.r += 0.2;
-  } else if (cube_selected == 1) {
-    out_color.g += 0.2;
+  if (out_color.a <= 0.01) {
+    discard;
+  } else {
+    if (face_selected == 1 && cube_selected == 1) {
+      out_color.r += 0.2;
+    } else if (cube_selected == 1) {
+      out_color.g += 0.2;
+    }
   }
 }

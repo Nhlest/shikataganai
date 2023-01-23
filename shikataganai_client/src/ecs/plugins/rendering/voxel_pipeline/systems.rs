@@ -1,4 +1,4 @@
-use crate::ecs::components::blocks::{BlockRenderInfo, DerefExt};
+use crate::ecs::components::blocks::{BlockRenderInfo, BlockSprite, DerefExt};
 use crate::ecs::plugins::camera::{Selection, SelectionRes};
 use crate::ecs::plugins::rendering::voxel_pipeline::bind_groups::{
   LightTextureBindGroup, LightTextureHandle, SelectionBindGroup, TextureHandle, VoxelTextureBindGroup,
@@ -18,16 +18,22 @@ use bevy::render::view::ViewUniforms;
 use bevy::render::Extract;
 use bevy::utils::hashbrown::HashMap;
 use itertools::Itertools;
-use shikataganai_common::ecs::components::blocks::Block;
+use shikataganai_common::ecs::components::blocks::{Block, ReverseLocation};
 use shikataganai_common::ecs::resources::world::GameWorld;
 use shikataganai_common::util::array::{sub_ddd, ArrayIndex, ImmediateNeighbours, DD};
 use std::ops::Deref;
 use wgpu::util::BufferInitDescriptor;
 use wgpu::{BindGroupDescriptor, BindGroupEntry, BindingResource};
+use crate::ecs::components::AnimatedThingamabob;
 
 #[derive(Resource)]
 pub struct ExtractedBlocks {
   pub blocks: HashMap<DD, BufferVec<SingleSide>>,
+}
+
+#[derive(Resource)]
+pub struct OverlayBuffer {
+  pub blocks: BufferVec<SingleSide>,
 }
 
 impl Default for ExtractedBlocks {
@@ -43,9 +49,29 @@ pub fn extract_chunks(
   mut remesh_events: Extract<EventReader<RemeshEvent>>,
   ambient_occlusion: Extract<Res<AmbientOcclusion>>,
   mut extracted_blocks: ResMut<ExtractedBlocks>,
+  mut overlay_buffer: ResMut<OverlayBuffer>,
+  mut overlay_query: Extract<Query<(&ReverseLocation, &AnimatedThingamabob)>>
 ) {
   commands.insert_resource(selection.clone());
   let mut updated: UpdatedVec = UpdatedVec(vec![]);
+
+  overlay_buffer.blocks.clear();
+  for (location, thingamabob) in overlay_query.iter() {
+    overlay_buffer.blocks.push(SingleSide::new(
+      (location.0.0 as f32, location.0.1 as f32, location.0.2 as f32),
+      (1, 0, 0),
+      [match thingamabob.state / 10 {
+        0 => BlockSprite::Progress1,
+        1 => BlockSprite::Progress2,
+        2 => BlockSprite::Progress3,
+        3 => BlockSprite::Progress4,
+        _ => BlockSprite::Progress5,
+      }; 6],
+      (16, 16),
+      &game_world,
+      ambient_occlusion.0,
+    ));
+  }
 
   for ch in remesh_events
     .iter()
@@ -117,6 +143,7 @@ pub fn queue_chunks(
   (handle, light_texture_handle): (Res<TextureHandle>, Res<LightTextureHandle>),
   selection: Res<SelectionRes>,
   updated: Res<UpdatedVec>,
+  mut overlay_buffer: ResMut<OverlayBuffer>
 ) {
   if let Some(gpu_image) = gpu_images.get(&handle.0) {
     commands.insert_resource(VoxelTextureBindGroup {
@@ -198,6 +225,18 @@ pub fn queue_chunks(
   for i in updated.iter() {
     let buf = buf.get_mut(i).unwrap();
     buf.write_buffer(&render_device, &render_queue);
+  }
+  overlay_buffer.blocks.write_buffer(&render_device, &render_queue);
+  let entity = commands
+    .spawn(ChunkMeshBuffer(overlay_buffer.blocks.buffer().unwrap().clone(), overlay_buffer.blocks.len()))
+    .id();
+  for mut view in views.iter_mut() {
+    view.add(Opaque3d {
+      distance: 1.5,
+      draw_function,
+      pipeline,
+      entity,
+    });
   }
   for (_, buf) in buf.iter_mut() {
     if !buf.is_empty() {

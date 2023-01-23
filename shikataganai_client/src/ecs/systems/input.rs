@@ -16,7 +16,7 @@ use itertools::Itertools;
 use iyes_loopless::prelude::NextState;
 use num_traits::FloatConst;
 use shikataganai_common::ecs::components::blocks::block_id::BlockId;
-use shikataganai_common::ecs::components::blocks::{Block, BlockOrItem, BlockRotation, QuantifiedBlockOrItem};
+use shikataganai_common::ecs::components::blocks::{Block, BlockOrItem, BlockRotation, QuantifiedBlockOrItem, ReverseLocation};
 use shikataganai_common::ecs::components::item::ItemId;
 use shikataganai_common::ecs::resources::light::{LightLevel, RelightEvent};
 use shikataganai_common::ecs::resources::world::GameWorld;
@@ -24,6 +24,7 @@ use shikataganai_common::networking::{ClientChannel, PlayerCommand};
 use shikataganai_common::util::array::DDD;
 use std::cmp::Ordering;
 use std::ops::Deref;
+use crate::ecs::components::AnimatedThingamabob;
 
 fn place_item_from_inventory(
   player_inventory: &mut PlayerInventory,
@@ -276,6 +277,9 @@ pub fn action_input(
             .unwrap(),
           );
         } else {
+          let block = game_world.get_mut(source).unwrap();
+          let e = commands.spawn((ReverseLocation(source), AnimatedThingamabob { state: 0 })).id();
+          block.entity = e;
           // Do the crafting
           client.send_message(
             ClientChannel::ClientCommand.id(),

@@ -35,6 +35,11 @@ pub enum BlockSprite {
   FurnaceFront,
   FurnaceSide,
   FurnaceTop,
+  Progress1,
+  Progress2,
+  Progress3,
+  Progress4,
+  Progress5,
 }
 
 impl BlockSprite {
