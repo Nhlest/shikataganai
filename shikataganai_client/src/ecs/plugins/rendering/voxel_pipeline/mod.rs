@@ -5,15 +5,17 @@ use crate::ecs::plugins::rendering::voxel_pipeline::bind_groups::{
 use crate::ecs::plugins::rendering::voxel_pipeline::draw_command::DrawVoxelsFull;
 use crate::ecs::plugins::rendering::voxel_pipeline::meshing::RemeshEvent;
 use crate::ecs::plugins::rendering::voxel_pipeline::pipeline::VoxelPipeline;
-use crate::ecs::plugins::rendering::voxel_pipeline::systems::{extract_chunks, queue_chunks, ExtractedBlocks, OverlayBuffer};
+use crate::ecs::plugins::rendering::voxel_pipeline::systems::{
+  extract_chunks, queue_chunks, ExtractedBlocks, OverlayBuffer,
+};
 use bevy::core_pipeline::core_3d::Opaque3d;
 use bevy::prelude::*;
 use bevy::reflect::TypeUuid;
 use bevy::render::extract_resource::ExtractResourcePlugin;
 use bevy::render::render_phase::AddRenderCommand;
 use bevy::render::render_resource::{BufferVec, SpecializedRenderPipelines};
-use bevy::render::{Extract, RenderApp, RenderStage};
 use bevy::render::renderer::RenderDevice;
+use bevy::render::{Extract, RenderApp, RenderStage};
 use iyes_loopless::prelude::{ConditionSet, IntoConditionalSystem};
 use shikataganai_common::ecs::resources::light::RelightEvent;
 use wgpu::{BufferUsages, Extent3d};
@@ -86,7 +88,9 @@ impl Plugin for VoxelRendererPlugin {
 
     let render_app = app.get_sub_app_mut(RenderApp).unwrap();
 
-    let mut buf = OverlayBuffer { blocks: BufferVec::new(BufferUsages::VERTEX) };
+    let mut buf = OverlayBuffer {
+      blocks: BufferVec::new(BufferUsages::VERTEX),
+    };
     let render_device = render_app.world.resource::<RenderDevice>();
     buf.blocks.reserve(1, render_device);
     render_app.insert_resource(buf);

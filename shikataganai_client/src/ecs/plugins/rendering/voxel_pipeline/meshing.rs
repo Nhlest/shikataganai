@@ -59,6 +59,26 @@ fn occluded(neighbours: &GameWorld, c: DDD, vx: f32, vy: f32, vz: f32, sx: i32, 
   }
 }
 
+pub fn delta_to_side((ix, iy, iz): DDD) -> usize {
+  if ix != 0 {
+    if ix == 1 {
+      0
+    } else {
+      1
+    }
+  } else if iz != 0 {
+    if iz == 1 {
+      2
+    } else {
+      3
+    }
+  } else if iy == 1 {
+    4
+  } else {
+    5
+  }
+}
+
 impl SingleSide {
   pub fn new(
     (x, y, z): (f32, f32, f32),
@@ -71,23 +91,7 @@ impl SingleSide {
     let fx = x;
     let fy = y;
     let fz = z;
-    let side = if ix != 0 {
-      if ix == 1 {
-        0
-      } else {
-        1
-      }
-    } else if iz != 0 {
-      if iz == 1 {
-        2
-      } else {
-        3
-      }
-    } else if iy == 1 {
-      4
-    } else {
-      5
-    };
+    let side = delta_to_side((ix, iy, iz));
     let mut triangles = VERTEX[side];
     let make_face = |triangles: [Vertex; 6]| {
       SingleSide(triangles.map(

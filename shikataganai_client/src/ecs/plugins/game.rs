@@ -26,7 +26,6 @@ use shikataganai_common::ecs::resources::player::PlayerNickname;
 use shikataganai_common::ecs::resources::world::GameWorld;
 use shikataganai_common::networking::{ClientChannel, PlayerCommand};
 use std::time::Duration;
-use crate::ecs::components::AnimatedThingamabob;
 
 pub struct GamePlugin;
 
@@ -191,17 +190,6 @@ pub fn exit_simulation(mut windows: ResMut<Windows>) {
   window.set_cursor_visibility(true);
 }
 
-pub fn thingamabob(
-  mut query: Query<&mut AnimatedThingamabob>
-) {
-  for mut i in query.iter_mut() {
-    i.state += 1;
-    if i.state > 40 {
-      i.state = 0;
-    }
-  }
-}
-
 impl Plugin for GamePlugin {
   fn build(&self, app: &mut App) {
     let on_main_menu = ConditionSet::new()
@@ -245,7 +233,6 @@ impl Plugin for GamePlugin {
     let on_fixed_step_simulation: SystemSet = ConditionSet::new()
       .run_in_state(ShikataganaiGameState::Simulation)
       .with_system(increment_tick)
-      .with_system(thingamabob)
       .into();
     let on_fixed_step_simulation_stage = SystemStage::parallel().with_system_set(on_fixed_step_simulation);
     let on_post_update_simulation = ConditionSet::new().run_if(in_game).with_system(religh_system).into();

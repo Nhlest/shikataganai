@@ -1,6 +1,8 @@
-use crate::ecs::components::blocks::DerefExt;
+use crate::ecs::components::blocks::{BlockSprite, DerefExt};
+use crate::ecs::components::OverlayRender;
 use crate::ecs::plugins::camera::{FPSCamera, Recollide, Selection, SelectionRes};
 use crate::ecs::plugins::game::ShikataganaiGameState;
+use crate::ecs::plugins::rendering::voxel_pipeline::meshing::delta_to_side;
 use crate::ecs::resources::player::{PlayerInventory, SelectedHotBar};
 use crate::ecs::systems::user_interface::player_inventory::PlayerInventoryOpened;
 use bevy::input::keyboard::KeyboardInput;
@@ -16,15 +18,16 @@ use itertools::Itertools;
 use iyes_loopless::prelude::NextState;
 use num_traits::FloatConst;
 use shikataganai_common::ecs::components::blocks::block_id::BlockId;
-use shikataganai_common::ecs::components::blocks::{Block, BlockOrItem, BlockRotation, QuantifiedBlockOrItem, ReverseLocation};
+use shikataganai_common::ecs::components::blocks::{
+  Block, BlockOrItem, BlockRotation, QuantifiedBlockOrItem, ReverseLocation,
+};
 use shikataganai_common::ecs::components::item::ItemId;
 use shikataganai_common::ecs::resources::light::{LightLevel, RelightEvent};
 use shikataganai_common::ecs::resources::world::GameWorld;
 use shikataganai_common::networking::{ClientChannel, PlayerCommand};
-use shikataganai_common::util::array::DDD;
+use shikataganai_common::util::array::{sub_ddd, DDD};
 use std::cmp::Ordering;
 use std::ops::Deref;
-use crate::ecs::components::AnimatedThingamabob;
 
 fn place_item_from_inventory(
   player_inventory: &mut PlayerInventory,
@@ -231,6 +234,7 @@ pub fn action_input(
   rapier_context: Res<RapierContext>,
   mut recollide: ResMut<Recollide>,
   mut client: ResMut<RenetClient>,
+  mut overlay_query: Query<&mut OverlayRender>,
 ) {
   match selection.into_inner().deref() {
     None => {}
@@ -278,8 +282,18 @@ pub fn action_input(
           );
         } else {
           let block = game_world.get_mut(source).unwrap();
-          let e = commands.spawn((ReverseLocation(source), AnimatedThingamabob { state: 0 })).id();
-          block.entity = e;
+
+          let mut overlays = [BlockSprite::Empty; 6];
+          if block.entity == Entity::from_bits(0) || overlay_query.get(block.entity).is_err() {
+            overlays[delta_to_side(sub_ddd(target_negative, source))] = BlockSprite::Progress1;
+            let e = commands
+              .spawn((ReverseLocation(source), OverlayRender { overlays }))
+              .id();
+            block.entity = e;
+          } else {
+            let mut overlays = overlay_query.get_mut(block.entity).unwrap();
+            overlays.overlays[delta_to_side(sub_ddd(target_negative, source))] = BlockSprite::Progress1;
+          }
           // Do the crafting
           client.send_message(
             ClientChannel::ClientCommand.id(),

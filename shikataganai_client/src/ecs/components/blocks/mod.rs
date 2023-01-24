@@ -14,7 +14,7 @@ pub mod regular_meshes;
 const BLOCK_SPRITE_SHEET_WIDTH: usize = 8;
 
 #[allow(dead_code)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq)]
 pub enum BlockSprite {
   Empty,
   Dirt,
