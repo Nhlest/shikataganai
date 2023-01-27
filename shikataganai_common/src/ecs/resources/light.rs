@@ -68,7 +68,7 @@ pub fn do_relight(coord: DDD, game_world: &mut GameWorld, remesh: &mut HashSet<D
             .get_light_level((coord.0, coord.1+1, coord.2))
             .map(|light_level|light_level.heaven)
             .unwrap_or(0);
-          if above == 16 {
+          if above == 16 && coord.1 >= 29 {
             &17u8
           } else {
             &0u8

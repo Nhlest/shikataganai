@@ -21,6 +21,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .extension()
         .and_then(|ext| match ext.to_string_lossy().as_ref() {
           "vert" => Some(ShaderType::Vertex),
+          "geom" => Some(ShaderType::Geometry),
           "frag" => Some(ShaderType::Fragment),
           _ => None,
         });

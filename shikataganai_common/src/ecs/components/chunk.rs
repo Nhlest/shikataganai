@@ -24,15 +24,27 @@ impl Chunk {
   pub fn new<F: Fn(DDD) -> BlockId>(bounds: Bounds<DDD>, block_f: F) -> Self {
     let mut chunk = Self {
       grid: Array::new_init(bounds, |c| Block::new(block_f(c))),
-      light_map: Array::new_init(bounds, |_| LightLevel::new(0, 0, 0)),
+      // light_map: Array::new_init(bounds, |_| LightLevel::new(0, 0, 0)),
+      light_map: Array::new_zeroed(bounds), // TODO: UB ? ? ?
     };
     for ix in bounds.0 .0..=bounds.1 .0 {
       for iz in bounds.0 .2..=bounds.1 .2 {
+        let mut heaven = 16;
         for iy in (0..=CHUNK_MAX_HEIGHT).rev() {
           if chunk.grid[(ix, iy, iz)].visible() {
-            break;
+            heaven -= 1;
+            if heaven > 16 {
+              heaven = 0;
+            }
+            continue;
           }
-          chunk.light_map[(ix, iy, iz)] = LightLevel::new(16, 0, 0);
+          chunk.light_map[(ix, iy, iz)] = LightLevel::new(heaven, 0, 0);
+          if heaven < 16 || iy < 30 {
+            heaven -= 1;
+            if heaven > 16 {
+              heaven = 0;
+            }
+          }
         }
       }
     }
