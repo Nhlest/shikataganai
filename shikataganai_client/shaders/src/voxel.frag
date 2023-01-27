@@ -18,10 +18,24 @@ void main() {
   if (out_color.a <= 0.01) {
     discard;
   } else {
-    if (face_selected == 1 && cube_selected == 1) {
-      out_color.r += 0.2;
-    } else if (cube_selected == 1) {
-      out_color.g += 0.2;
+    if (
+      cube_selected == 1 &&
+      (
+        (mod(uv.x * 8.0, 1.0) < 0.02 || mod(uv.x * 8.0, 1.0) > 0.98) ||
+        (mod(uv.y * 8.0, 1.0) < 0.02 || mod(uv.y * 8.0, 1.0) > 0.98)
+      )
+    ) {
+      out_color.rgb = vec3(0.0);
+    }
+    if (
+      cube_selected == 1 &&
+      face_selected == 1 &&
+      (
+        (mod(uv.x * 8.0, 1.0) < 0.05 || mod(uv.x * 8.0, 1.0) > 0.95) &&
+        (mod(uv.y * 8.0, 1.0) < 0.05 || mod(uv.y * 8.0, 1.0) > 0.95)
+      )
+    ) {
+      out_color.rgb = vec3(0.0);
     }
   }
 }
