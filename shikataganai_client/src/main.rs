@@ -6,6 +6,7 @@
 #![feature(adt_const_params)]
 #![allow(irrefutable_let_patterns)]
 
+use bevy::app::AppLabel;
 #[allow(unused_imports)]
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::prelude::{default, App, ImagePlugin, PluginGroup, WindowDescriptor};

@@ -1,8 +1,11 @@
 use crate::ecs::plugins::rendering::inventory_pipeline::inventory_cache::ExtractedItems;
 use crate::ecs::plugins::rendering::inventory_pipeline::InventoryTextureOutputHandle;
-use egui::{Color32, Response, Sense, TextStyle, Ui, Widget};
+use egui::{Color32, emath, LayerId, Pos2, Response, Sense, TextStyle, Ui, Widget};
 use shikataganai_common::ecs::components::blocks::QuantifiedBlockOrItem;
 use std::ops::Range;
+use bevy::math::Rect;
+use bevy::prelude::{Res, ResMut, Windows};
+use bevy_egui::EguiContext;
 
 pub mod chest_inventory;
 pub mod connecting;
@@ -76,4 +79,14 @@ where
     }
   });
   clicked
+}
+
+pub fn cursor_marker(
+  mut egui: ResMut<EguiContext>,
+  window: Res<Windows>
+) {
+  let h = window.primary().height() / 2.0;
+  let w = window.primary().width() / 2.0;
+  egui.ctx_mut().layer_painter(LayerId::background()).hline(w-4.0..=w+4.0, h, (2.0, Color32::DARK_GRAY));
+  egui.ctx_mut().layer_painter(LayerId::background()).vline(w, h-4.0..=h+4.0, (2.0, Color32::DARK_GRAY));
 }

@@ -26,6 +26,7 @@ use shikataganai_common::ecs::resources::player::PlayerNickname;
 use shikataganai_common::ecs::resources::world::GameWorld;
 use shikataganai_common::networking::{ClientChannel, PlayerCommand};
 use std::time::Duration;
+use crate::ecs::systems::user_interface::cursor_marker;
 
 pub struct GamePlugin;
 
@@ -206,6 +207,7 @@ impl Plugin for GamePlugin {
     let on_game_simulation_continuous = ConditionSet::new()
       .run_in_state(ShikataganaiGameState::Simulation)
       // .with_system(action_input)
+      .with_system(cursor_marker)
       .with_system(hot_bar)
       .with_system(keyboard_input)
       // .with_system(recalculate_light_map)
