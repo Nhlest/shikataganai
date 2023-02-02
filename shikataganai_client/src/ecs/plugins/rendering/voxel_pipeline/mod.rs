@@ -1,7 +1,5 @@
 use crate::ecs::plugins::game::{in_game, in_game_extract};
-use crate::ecs::plugins::rendering::voxel_pipeline::bind_groups::{
-  ArrayTextureHandle, ItemTextureHandle, LightTextureHandle, TextureHandle,
-};
+use crate::ecs::plugins::rendering::voxel_pipeline::bind_groups::{ArrayTextureHandle, ItemTextureHandle, LightTextureHandle, ParticleTextureHandle, TextureHandle};
 use crate::ecs::plugins::rendering::voxel_pipeline::draw_command::DrawVoxelsFull;
 use crate::ecs::plugins::rendering::voxel_pipeline::meshing::RemeshEvent;
 use crate::ecs::plugins::rendering::voxel_pipeline::pipeline::VoxelPipeline;
@@ -36,16 +34,17 @@ pub struct VoxelRendererPlugin;
 
 fn create_texture_array_system(
   mut commands: Commands,
+  particle_handle: Res<ParticleTextureHandle>,
   item_handle: Res<ItemTextureHandle>,
   texture_handle: Res<TextureHandle>,
   mut assets: ResMut<Assets<Image>>,
 ) {
-  if let Some(item_texture) = assets.get(&item_handle.0) && let Some(block_texture) = assets.get(&texture_handle.0) {
-    let data = block_texture.data.iter().chain(item_texture.data.iter()).cloned().collect();
+  if let Some(item_texture) = assets.get(&item_handle.0) && let Some(block_texture) = assets.get(&texture_handle.0) && let Some(particle_texture) = assets.get(&particle_handle.0) {
+    let data = block_texture.data.iter().chain(item_texture.data.iter()).chain(particle_texture.data.iter()).cloned().collect();
     let array_texture = Image::new(Extent3d {
       width: item_texture.texture_descriptor.size.width,
       height: item_texture.texture_descriptor.size.height,
-      depth_or_array_layers: 2,
+      depth_or_array_layers: 3,
     }, item_texture.texture_descriptor.dimension, data, item_texture.texture_descriptor.format);
     let handle = assets.add(array_texture);
     commands.insert_resource(ArrayTextureHandle(handle));

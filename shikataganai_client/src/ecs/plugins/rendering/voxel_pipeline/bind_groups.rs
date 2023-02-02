@@ -11,6 +11,9 @@ pub struct ArrayTextureHandle(pub Handle<Image>);
 #[derive(Resource, Clone, ExtractResource)]
 pub struct ItemTextureHandle(pub Handle<Image>);
 
+#[derive(Resource, Clone, ExtractResource)]
+pub struct ParticleTextureHandle(pub Handle<Image>);
+
 #[derive(Clone, ExtractResource, Resource)]
 pub struct LightTextureHandle(pub Handle<Image>);
 
@@ -28,6 +31,13 @@ impl FromWorld for ItemTextureHandle {
   }
 }
 
+impl FromWorld for ParticleTextureHandle {
+  fn from_world(world: &mut World) -> Self {
+    let asset_server = world.resource_mut::<AssetServer>();
+    ParticleTextureHandle(asset_server.load("particle.png"))
+  }
+}
+
 impl FromWorld for LightTextureHandle {
   fn from_world(world: &mut World) -> Self {
     let asset_server = world.resource_mut::<AssetServer>();
@@ -36,12 +46,12 @@ impl FromWorld for LightTextureHandle {
 }
 
 #[derive(Deref, Resource)]
-pub struct VoxelViewBindGroup {
+pub struct ViewBindGroup {
   pub bind_group: BindGroup,
 }
 
 #[derive(Deref, Resource)]
-pub struct VoxelTextureBindGroup {
+pub struct TextureBindGroup {
   pub bind_group: BindGroup,
 }
 

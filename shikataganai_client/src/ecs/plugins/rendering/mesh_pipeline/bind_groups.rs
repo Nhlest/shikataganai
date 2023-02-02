@@ -7,11 +7,6 @@ pub struct MeshViewBindGroup {
 }
 
 #[derive(Deref, Resource)]
-pub struct MeshTextureBindGroup {
-  pub bind_group: BindGroup,
-}
-
-#[derive(Deref, Resource)]
 pub struct MeshPositionBindGroup {
   pub bind_group: BindGroup,
 }

@@ -109,7 +109,7 @@ impl FromWorld for VoxelPipeline {
             ty: BindingType::Texture {
               multisampled: false,
               sample_type: TextureSampleType::Float { filterable: true },
-              view_dimension: TextureViewDimension::D2,
+              view_dimension: TextureViewDimension::D2Array,
             },
             count: None,
           },

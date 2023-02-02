@@ -1,36 +1,37 @@
+use std::ops::Deref;
 use crate::ecs::plugins::rendering::draw_command::{SetBindGroup, SetViewBindGroup};
 use crate::ecs::plugins::rendering::voxel_pipeline::bind_groups::{
-  LightTextureBindGroup, SelectionBindGroup, VoxelTextureBindGroup, VoxelViewBindGroup,
+  LightTextureBindGroup, SelectionBindGroup, TextureBindGroup, ViewBindGroup,
 };
 use crate::ecs::plugins::rendering::voxel_pipeline::meshing::ChunkMeshBuffer;
-use bevy::ecs::system::lifetimeless::{Read, SQuery};
+use bevy::ecs::system::lifetimeless::{Read, SQuery, SRes};
 use bevy::ecs::system::SystemParamItem;
 use bevy::prelude::*;
 use bevy::render::render_phase::{EntityRenderCommand, RenderCommandResult, SetItemPipeline, TrackedRenderPass};
+use crate::ecs::plugins::rendering::particle_pipeline::{ParticleBuffer, ParticleVertex};
+use crate::ecs::plugins::rendering::particle_pipeline::bind_groups::AspectRatioBindGroup;
 
 pub type DrawParticlesFull = (
   SetItemPipeline,
-  // SetViewBindGroup<0, VoxelViewBindGroup>,
-  // SetBindGroup<1, VoxelTextureBindGroup>,
-  // SetBindGroup<2, SelectionBindGroup>,
-  // SetBindGroup<3, LightTextureBindGroup>,
+  SetViewBindGroup<0, ViewBindGroup>,
+  SetBindGroup<1, TextureBindGroup>,
+  SetBindGroup<2, AspectRatioBindGroup>,
   DrawParticles,
 );
 
 pub struct DrawParticles;
 impl EntityRenderCommand for DrawParticles {
-  // type Param = SQuery<Read<ChunkMeshBuffer>>;
-  type Param = ();
+  type Param = SRes<ParticleBuffer>;
 
   fn render<'w>(
     _view: Entity,
-    item: Entity,
+    _item: Entity,
     param: SystemParamItem<'w, '_, Self::Param>,
     pass: &mut TrackedRenderPass<'w>,
   ) -> RenderCommandResult {
-    // let ChunkMeshBuffer(buf, verticies) = param.get_inner(item).unwrap();
-    // pass.set_vertex_buffer(0, buf.slice(..));
-    // pass.draw(0..*verticies as u32 * 6, 0..1_u32);
+    let ParticleBuffer { particles, count } = param.into_inner();
+    pass.set_vertex_buffer(0, particles.buffer().unwrap().slice(..));
+    pass.draw(0..4, 0..*count as u32);
     RenderCommandResult::Success
   }
 }

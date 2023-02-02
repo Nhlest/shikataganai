@@ -1,10 +1,7 @@
 use crate::ecs::components::blocks::{BlockRenderInfo, BlockSprite, DerefExt};
 use crate::ecs::components::OverlayRender;
 use crate::ecs::plugins::camera::{Selection, SelectionRes};
-use crate::ecs::plugins::rendering::voxel_pipeline::bind_groups::{
-  LightTextureBindGroup, LightTextureHandle, SelectionBindGroup, TextureHandle, VoxelTextureBindGroup,
-  VoxelViewBindGroup,
-};
+use crate::ecs::plugins::rendering::voxel_pipeline::bind_groups::{LightTextureBindGroup, LightTextureHandle, SelectionBindGroup, TextureHandle, TextureBindGroup, ViewBindGroup, ArrayTextureHandle};
 use crate::ecs::plugins::rendering::voxel_pipeline::draw_command::DrawVoxelsFull;
 use crate::ecs::plugins::rendering::voxel_pipeline::meshing::{
   delta_to_side, ChunkMeshBuffer, RemeshEvent, SingleSide,
@@ -141,13 +138,13 @@ pub fn queue_chunks(
   (render_device, render_queue): (Res<RenderDevice>, Res<RenderQueue>),
   view_uniforms: Res<ViewUniforms>,
   gpu_images: Res<RenderAssets<Image>>,
-  (handle, light_texture_handle): (Res<TextureHandle>, Res<LightTextureHandle>),
+  (handle, light_texture_handle): (Res<ArrayTextureHandle>, Res<LightTextureHandle>),
   selection: Res<SelectionRes>,
   updated: Res<UpdatedVec>,
   mut overlay_buffer: ResMut<OverlayBuffer>,
 ) {
   if let Some(gpu_image) = gpu_images.get(&handle.0) {
-    commands.insert_resource(VoxelTextureBindGroup {
+    commands.insert_resource(TextureBindGroup {
       bind_group: render_device.create_bind_group(&BindGroupDescriptor {
         entries: &[
           BindGroupEntry {
@@ -185,7 +182,7 @@ pub fn queue_chunks(
   }
 
   if let Some(view_binding) = view_uniforms.uniforms.binding() {
-    commands.insert_resource(VoxelViewBindGroup {
+    commands.insert_resource(ViewBindGroup {
       bind_group: render_device.create_bind_group(&BindGroupDescriptor {
         entries: &[BindGroupEntry {
           binding: 0,

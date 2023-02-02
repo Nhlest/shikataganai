@@ -1,6 +1,6 @@
 use crate::ecs::plugins::rendering::draw_command::{SetBindGroup, SetViewBindGroup};
 use crate::ecs::plugins::rendering::voxel_pipeline::bind_groups::{
-  LightTextureBindGroup, SelectionBindGroup, VoxelTextureBindGroup, VoxelViewBindGroup,
+  LightTextureBindGroup, SelectionBindGroup, TextureBindGroup, ViewBindGroup,
 };
 use crate::ecs::plugins::rendering::voxel_pipeline::meshing::ChunkMeshBuffer;
 use bevy::ecs::system::lifetimeless::{Read, SQuery};
@@ -10,8 +10,8 @@ use bevy::render::render_phase::{EntityRenderCommand, RenderCommandResult, SetIt
 
 pub type DrawVoxelsFull = (
   SetItemPipeline,
-  SetViewBindGroup<0, VoxelViewBindGroup>,
-  SetBindGroup<1, VoxelTextureBindGroup>,
+  SetViewBindGroup<0, ViewBindGroup>,
+  SetBindGroup<1, TextureBindGroup>,
   SetBindGroup<2, SelectionBindGroup>,
   SetBindGroup<3, LightTextureBindGroup>,
   DrawVoxels,
