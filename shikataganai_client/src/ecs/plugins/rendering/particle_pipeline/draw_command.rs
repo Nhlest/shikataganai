@@ -16,6 +16,7 @@ pub type DrawParticlesFull = (
   SetViewBindGroup<0, ViewBindGroup>,
   SetBindGroup<1, TextureBindGroup>,
   SetBindGroup<2, AspectRatioBindGroup>,
+  SetBindGroup<3, LightTextureBindGroup>,
   DrawParticles,
 );
 

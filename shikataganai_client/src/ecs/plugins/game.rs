@@ -233,7 +233,7 @@ impl Plugin for GamePlugin {
       .with_system(game_menu)
       .into();
     let on_fixed_step_simulation: SystemSet = ConditionSet::new()
-      .run_in_state(ShikataganaiGameState::Simulation)
+      .run_if(in_game)
       .with_system(increment_tick)
       .into();
     let on_fixed_step_simulation_stage = SystemStage::parallel().with_system_set(on_fixed_step_simulation);

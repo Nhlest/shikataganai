@@ -55,10 +55,12 @@ pub struct ParticleEmitter {
   pub lifetime: u64,
 }
 
-#[derive(Pod, Zeroable, Copy, Clone)]
+#[derive(Pod, Zeroable, Copy, Clone, Component)]
 #[repr(C)]
 pub struct ParticleVertex {
   pub location: Vec3,
+  pub heaven: i32,
+  pub hearth: i32,
   pub tile: u32,
 }
 
@@ -85,6 +87,11 @@ impl Plugin for ParticleRendererPlugin {
       .with_system(particle_system)
       .into();
 
+    let on_game_simulation_extract = ConditionSet::new()
+      .run_if(in_game_extract)
+      .with_system(extract_particles)
+      .into();
+
     app
       .init_resource::<ParticleTextureHandle>()
       .add_system_set(on_game_simulation_continuous);
@@ -102,7 +109,7 @@ impl Plugin for ParticleRendererPlugin {
     render_app
       .init_resource::<ParticlePipeline>()
       .init_resource::<SpecializedRenderPipelines<ParticlePipeline>>()
-      .add_system_to_stage(RenderStage::Extract, extract_particles)
+      .add_system_set_to_stage(RenderStage::Extract, on_game_simulation_extract)
       .add_system_to_stage(RenderStage::Extract, extract_aspect_ratio)
       .add_system_to_stage(RenderStage::Queue, queue_particles)
       .add_render_command::<Opaque3d, DrawParticlesFull>();

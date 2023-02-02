@@ -19,6 +19,7 @@ pub struct ParticlePipeline {
   pub view_layout: BindGroupLayout,
   pub texture_layout: BindGroupLayout,
   pub aspect_ratio_layout: BindGroupLayout,
+  pub light_texture_layout: BindGroupLayout,
 }
 
 impl SpecializedRenderPipeline for ParticlePipeline {
@@ -28,6 +29,8 @@ impl SpecializedRenderPipeline for ParticlePipeline {
     let shader_defs = Vec::new();
     let vertex_formats = vec![
       VertexFormat::Float32x3,
+      VertexFormat::Sint32,
+      VertexFormat::Sint32,
       VertexFormat::Uint32,
     ];
 
@@ -54,6 +57,7 @@ impl SpecializedRenderPipeline for ParticlePipeline {
         self.view_layout.clone(),
         self.texture_layout.clone(),
         self.aspect_ratio_layout.clone(),
+        self.light_texture_layout.clone(),
       ]),
       primitive: PrimitiveState {
         front_face: FrontFace::Ccw,
@@ -133,6 +137,27 @@ impl FromWorld for ParticlePipeline {
             count: None,
           },
         ]
+      }),
+      light_texture_layout: render_device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+        entries: &[
+          BindGroupLayoutEntry {
+            binding: 0,
+            visibility: ShaderStages::VERTEX,
+            ty: BindingType::Texture {
+              multisampled: false,
+              sample_type: TextureSampleType::Float { filterable: true },
+              view_dimension: TextureViewDimension::D2,
+            },
+            count: None,
+          },
+          BindGroupLayoutEntry {
+            binding: 1,
+            visibility: ShaderStages::VERTEX,
+            ty: BindingType::Sampler(SamplerBindingType::Filtering),
+            count: None,
+          },
+        ],
+        label: Some("light_texture_layout"),
       }),
     }
   }

@@ -1,10 +1,7 @@
 #version 460
 
 layout(location = 0) in vec2 uv;
-//layout(location = 1) flat in int cube_selected;
-//layout(location = 2) flat in int face_selected;
-//layout(location = 3) in vec3 brightness;
-//layout(location = 4) in float occlusion;
+layout(location = 1) in vec3 brightness;
 
 layout(location = 0) out vec4 out_color;
 
@@ -16,15 +13,5 @@ void main() {
   if (out_color.a < 0.4) {
     discard;
   }
-//  out_color = vec4(occlusion, occlusion, occlusion, 1.0);
-//  out_color = vec4(occlusion * vec3(out_color.r * brightness.r, out_color.g * brightness.g, out_color.b * brightness.b), out_color.a);
-//  if (out_color.a <= 0.01) {
-//    discard;
-//  } else {
-//    if (face_selected == 1 && cube_selected == 1) {
-//      out_color.r += 0.2;
-//    } else if (cube_selected == 1) {
-//      out_color.g += 0.2;
-//    }
-//  }
+  out_color = vec4(out_color.r * brightness.r, out_color.g * brightness.g, out_color.b * brightness.b, out_color.a);
 }

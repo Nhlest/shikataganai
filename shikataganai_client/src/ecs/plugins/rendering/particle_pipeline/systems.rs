@@ -13,6 +13,8 @@ use crate::ecs::plugins::rendering::particle_pipeline::draw_command::DrawParticl
 use crate::ecs::plugins::rendering::particle_pipeline::pipeline::ParticlePipeline;
 use crate::ecs::plugins::rendering::voxel_pipeline::bind_groups::{TextureBindGroup, ViewBindGroup};
 use rand::prelude::*;
+use shikataganai_common::ecs::resources::light::LightLevel;
+use shikataganai_common::ecs::resources::world::GameWorld;
 
 pub fn particle_system(
   mut commands: Commands,
@@ -42,10 +44,17 @@ pub fn particle_system(
 
 pub fn extract_particles(
   mut commands: Commands,
+  world: Extract<Res<GameWorld>>,
   particles: Extract<Query<&Particle>>
 ) {
   for particle in particles.iter() {
-    commands.spawn(particle.clone());
+    let light = world.get_light_level((particle.location.x.floor() as i32, particle.location.y.floor() as i32, particle.location.z.floor() as i32)).unwrap_or(LightLevel::dark());
+    commands.spawn(ParticleVertex {
+      location: particle.location,
+      heaven: light.heaven as i32,
+      hearth: light.hearth as i32,
+      tile: particle.tile as u32,
+    });
   }
 }
 
@@ -63,7 +72,7 @@ pub fn extract_aspect_ratio(
 pub fn queue_particles(
   mut commands: Commands,
   mut particle_buf: ResMut<ParticleBuffer>,
-  particles: Query<&Particle>,
+  particles: Query<&ParticleVertex>,
   device: Res<RenderDevice>,
   queue: Res<RenderQueue>,
   ratio: Res<Ratio>,
@@ -80,10 +89,7 @@ pub fn queue_particles(
   particle_buf.count = 0;
   particle_buf.particles.clear();
   for particle in particles.iter() {
-    particle_buf.particles.push(ParticleVertex {
-      location: particle.location,
-      tile: particle.tile as u32,
-    });
+    particle_buf.particles.push(particle.clone());
     particle_buf.count+=1;
   }
   particle_buf.particles.write_buffer(device.as_ref(), queue.as_ref());
