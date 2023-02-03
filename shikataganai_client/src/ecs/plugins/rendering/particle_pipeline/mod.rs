@@ -59,9 +59,9 @@ pub struct ParticleEmitter {
 #[repr(C)]
 pub struct ParticleVertex {
   pub location: Vec3,
-  pub heaven: i32,
-  pub hearth: i32,
   pub tile: u32,
+  pub heaven: u16,
+  pub hearth: u16,
 }
 
 #[derive(Resource)]

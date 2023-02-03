@@ -1,9 +1,8 @@
 #version 460
 
 layout(set = 0, location = 0) in vec3 position;
-layout(set = 0, location = 1) in int heaven;
-layout(set = 0, location = 2) in int hearth;
-layout(set = 0, location = 3) in uint tile;
+layout(set = 0, location = 1) in uint tile;
+layout(set = 0, location = 2) in uvec2 lighting;
 
 layout(location = 0) out vec2 uv;
 layout(location = 1) out vec3 brightness;
@@ -28,5 +27,5 @@ void main() {
   float girth = distance(p1, p2);
   gl_Position = p1 + vec4(girth * x - girth / 2, (girth * y - girth / 2) * aspect_ratio.aspect_ratio, 0.0, 0.0);
   uv = vec2(x / 8.0, y / 8.0);
-  brightness = texture(sampler2D(light_texture, light_sampler), vec2(heaven / 16.0 + 0.5 / 16.0, hearth / 16.0 + 0.5 / 16.0)).rgb;
+  brightness = texture(sampler2D(light_texture, light_sampler), vec2(lighting.x / 16.0 + 0.5 / 16.0, lighting.y / 16.0 + 0.5 / 16.0)).rgb;
 }

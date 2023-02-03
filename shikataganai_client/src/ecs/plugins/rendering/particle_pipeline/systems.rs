@@ -51,9 +51,9 @@ pub fn extract_particles(
     let light = world.get_light_level((particle.location.x.floor() as i32, particle.location.y.floor() as i32, particle.location.z.floor() as i32)).unwrap_or(LightLevel::dark());
     commands.spawn(ParticleVertex {
       location: particle.location,
-      heaven: light.heaven as i32,
-      hearth: light.hearth as i32,
       tile: particle.tile as u32,
+      heaven: light.heaven as u16,
+      hearth: light.hearth as u16,
     });
   }
 }

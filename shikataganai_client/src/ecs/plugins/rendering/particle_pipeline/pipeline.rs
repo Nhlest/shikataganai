@@ -29,9 +29,8 @@ impl SpecializedRenderPipeline for ParticlePipeline {
     let shader_defs = Vec::new();
     let vertex_formats = vec![
       VertexFormat::Float32x3,
-      VertexFormat::Sint32,
-      VertexFormat::Sint32,
       VertexFormat::Uint32,
+      VertexFormat::Uint16x2,
     ];
 
     let vertex_layout = VertexBufferLayout::from_vertex_formats(VertexStepMode::Instance, vertex_formats);
