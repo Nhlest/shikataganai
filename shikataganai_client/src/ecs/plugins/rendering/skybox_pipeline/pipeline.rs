@@ -33,7 +33,7 @@ impl SpecializedRenderPipeline for SkyboxPipeline {
       vertex: VertexState {
         shader: MESH_SHADER_HANDLE.typed::<Shader>(),
         entry_point: "vertex".into(),
-        shader_defs: vec![],
+        shader_defs: vec!["VERTEX_POSITIONS".to_owned(), "VERTEX_NORMALS".to_owned()],
         buffers: vec![vertex_layout],
       },
       fragment: Some(FragmentState {
