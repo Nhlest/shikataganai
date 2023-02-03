@@ -1,7 +1,9 @@
 use crate::ecs::components::blocks::{BlockRenderInfo, BlockSprite, DerefExt};
 use crate::ecs::components::OverlayRender;
 use crate::ecs::plugins::camera::{Selection, SelectionRes};
-use crate::ecs::plugins::rendering::voxel_pipeline::bind_groups::{LightTextureBindGroup, LightTextureHandle, SelectionBindGroup, TextureHandle, TextureBindGroup, ViewBindGroup, ArrayTextureHandle};
+use crate::ecs::plugins::rendering::voxel_pipeline::bind_groups::{
+  ArrayTextureHandle, LightTextureBindGroup, LightTextureHandle, SelectionBindGroup, TextureBindGroup, ViewBindGroup,
+};
 use crate::ecs::plugins::rendering::voxel_pipeline::draw_command::DrawVoxelsFull;
 use crate::ecs::plugins::rendering::voxel_pipeline::meshing::{
   delta_to_side, ChunkMeshBuffer, RemeshEvent, SingleSide,

@@ -11,9 +11,9 @@ pub mod draw_command;
 
 pub mod inventory_pipeline;
 pub mod mesh_pipeline;
+pub mod particle_pipeline;
 pub mod skybox_pipeline;
 pub mod voxel_pipeline;
-pub mod particle_pipeline;
 
 pub struct ShikataganaiRendererPlugins;
 

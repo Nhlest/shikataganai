@@ -1,10 +1,12 @@
-use crate::ecs::plugins::rendering::voxel_pipeline::{VOXEL_SHADER_FRAGMENT_HANDLE, VOXEL_SHADER_VERTEX_HANDLE};
+use crate::ecs::plugins::rendering::particle_pipeline::{
+  PARTICLE_SHADER_FRAGMENT_HANDLE, PARTICLE_SHADER_VERTEX_HANDLE,
+};
 use bevy::prelude::*;
 use bevy::render::mesh::PrimitiveTopology;
 use bevy::render::render_resource::ShaderType;
 use bevy::render::render_resource::{
   BindGroupLayout, BindGroupLayoutEntry, BindingType, BlendState, BufferBindingType, ColorTargetState, ColorWrites,
-  CompareFunction, DepthStencilState, Face, FragmentState, FrontFace, MultisampleState, PolygonMode, PrimitiveState,
+  CompareFunction, DepthStencilState, FragmentState, FrontFace, MultisampleState, PolygonMode, PrimitiveState,
   RenderPipelineDescriptor, SamplerBindingType, ShaderStages, SpecializedRenderPipeline, TextureFormat,
   TextureSampleType, TextureViewDimension, VertexBufferLayout, VertexFormat, VertexState, VertexStepMode,
 };
@@ -12,7 +14,6 @@ use bevy::render::renderer::RenderDevice;
 use bevy::render::texture::BevyDefault;
 use bevy::render::view::ViewUniform;
 use wgpu::BindGroupLayoutDescriptor;
-use crate::ecs::plugins::rendering::particle_pipeline::{PARTICLE_SHADER_FRAGMENT_HANDLE, PARTICLE_SHADER_VERTEX_HANDLE};
 
 #[derive(Resource)]
 pub struct ParticlePipeline {
@@ -27,11 +28,7 @@ impl SpecializedRenderPipeline for ParticlePipeline {
 
   fn specialize(&self, _key: Self::Key) -> RenderPipelineDescriptor {
     let shader_defs = Vec::new();
-    let vertex_formats = vec![
-      VertexFormat::Float32x3,
-      VertexFormat::Uint32,
-      VertexFormat::Uint16x2,
-    ];
+    let vertex_formats = vec![VertexFormat::Float32x3, VertexFormat::Uint32, VertexFormat::Uint16x2];
 
     let vertex_layout = VertexBufferLayout::from_vertex_formats(VertexStepMode::Instance, vertex_formats);
 
@@ -120,22 +117,20 @@ impl FromWorld for ParticlePipeline {
             ty: BindingType::Sampler(SamplerBindingType::Filtering),
             count: None,
           },
-        ]
+        ],
       }),
       aspect_ratio_layout: render_device.create_bind_group_layout(&BindGroupLayoutDescriptor {
         label: None,
-        entries: &[
-          BindGroupLayoutEntry {
-            binding: 0,
-            visibility: ShaderStages::VERTEX,
-            ty: BindingType::Buffer {
-              ty: BufferBindingType::Uniform,
-              has_dynamic_offset: false,
-              min_binding_size: None,
-            },
-            count: None,
+        entries: &[BindGroupLayoutEntry {
+          binding: 0,
+          visibility: ShaderStages::VERTEX,
+          ty: BindingType::Buffer {
+            ty: BufferBindingType::Uniform,
+            has_dynamic_offset: false,
+            min_binding_size: None,
           },
-        ]
+          count: None,
+        }],
       }),
       light_texture_layout: render_device.create_bind_group_layout(&BindGroupLayoutDescriptor {
         entries: &[

@@ -1,27 +1,27 @@
-use bevy::core_pipeline::core_3d::Opaque3d;
-use bevy::prelude::*;
-use bevy::render::Extract;
-use bevy::render::render_phase::{DrawFunctions, RenderPhase};
-use bevy::render::render_resource::{BufferUsages, PipelineCache, SpecializedRenderPipelines};
-use bevy::render::renderer::{RenderDevice, RenderQueue};
-use wgpu::{BindGroupDescriptor, BindGroupEntry, BindingResource};
-use wgpu::util::BufferInitDescriptor;
 use crate::ecs::plugins::game::LocalTick;
-use crate::ecs::plugins::rendering::particle_pipeline::{Particle, ParticleBuffer, ParticleEmitter, ParticleVertex};
 use crate::ecs::plugins::rendering::particle_pipeline::bind_groups::AspectRatioBindGroup;
 use crate::ecs::plugins::rendering::particle_pipeline::draw_command::DrawParticlesFull;
 use crate::ecs::plugins::rendering::particle_pipeline::pipeline::ParticlePipeline;
+use crate::ecs::plugins::rendering::particle_pipeline::{Particle, ParticleBuffer, ParticleEmitter, ParticleVertex};
 use crate::ecs::plugins::rendering::voxel_pipeline::bind_groups::{TextureBindGroup, ViewBindGroup};
+use bevy::core_pipeline::core_3d::Opaque3d;
+use bevy::prelude::*;
+use bevy::render::render_phase::{DrawFunctions, RenderPhase};
+use bevy::render::render_resource::{BufferUsages, PipelineCache, SpecializedRenderPipelines};
+use bevy::render::renderer::{RenderDevice, RenderQueue};
+use bevy::render::Extract;
 use rand::prelude::*;
 use shikataganai_common::ecs::resources::light::LightLevel;
 use shikataganai_common::ecs::resources::world::GameWorld;
+use wgpu::util::BufferInitDescriptor;
+use wgpu::{BindGroupDescriptor, BindGroupEntry, BindingResource};
 
 pub fn particle_system(
   mut commands: Commands,
   particle_emitters: Query<&ParticleEmitter>,
   mut particles: Query<(Entity, &mut Particle)>,
   tick: Res<LocalTick>,
-  delta: Res<Time>
+  delta: Res<Time>,
 ) {
   let mut rng = thread_rng();
   for emitter in particle_emitters.iter() {
@@ -29,7 +29,11 @@ pub fn particle_system(
       location: emitter.location,
       tile: emitter.tile,
       lifetime: tick.0 + emitter.lifetime,
-      velocity: Vec3::new(rng.gen_range(-1.0..=1.0), rng.gen_range(-1.0..=1.0), rng.gen_range(-1.0..=1.0))
+      velocity: Vec3::new(
+        rng.gen_range(-1.0..=1.0),
+        rng.gen_range(-1.0..=1.0),
+        rng.gen_range(-1.0..=1.0),
+      ),
     });
   }
   for (entity, mut particle) in particles.iter_mut() {
@@ -42,13 +46,15 @@ pub fn particle_system(
   }
 }
 
-pub fn extract_particles(
-  mut commands: Commands,
-  world: Extract<Res<GameWorld>>,
-  particles: Extract<Query<&Particle>>
-) {
+pub fn extract_particles(mut commands: Commands, world: Extract<Res<GameWorld>>, particles: Extract<Query<&Particle>>) {
   for particle in particles.iter() {
-    let light = world.get_light_level((particle.location.x.floor() as i32, particle.location.y.floor() as i32, particle.location.z.floor() as i32)).unwrap_or(LightLevel::dark());
+    let light = world
+      .get_light_level((
+        particle.location.x.floor() as i32,
+        particle.location.y.floor() as i32,
+        particle.location.z.floor() as i32,
+      ))
+      .unwrap_or(LightLevel::dark());
     commands.spawn(ParticleVertex {
       location: particle.location,
       tile: particle.tile as u32,
@@ -61,10 +67,7 @@ pub fn extract_particles(
 #[derive(Resource)]
 pub struct Ratio(pub f32);
 
-pub fn extract_aspect_ratio(
-  mut commands: Commands,
-  window: Extract<Res<Windows>>,
-) {
+pub fn extract_aspect_ratio(mut commands: Commands, window: Extract<Res<Windows>>) {
   let ratio = window.primary().width() / window.primary().height();
   commands.insert_resource(Ratio(ratio));
 }
@@ -90,7 +93,7 @@ pub fn queue_particles(
   particle_buf.particles.clear();
   for particle in particles.iter() {
     particle_buf.particles.push(particle.clone());
-    particle_buf.count+=1;
+    particle_buf.count += 1;
   }
   particle_buf.particles.write_buffer(device.as_ref(), queue.as_ref());
 
@@ -106,12 +109,10 @@ pub fn queue_particles(
 
   commands.insert_resource(AspectRatioBindGroup {
     bind_group: device.create_bind_group(&BindGroupDescriptor {
-      entries: &[
-        BindGroupEntry {
-          binding: 0,
-          resource: BindingResource::Buffer(buffer.as_entire_buffer_binding()),
-        },
-      ],
+      entries: &[BindGroupEntry {
+        binding: 0,
+        resource: BindingResource::Buffer(buffer.as_entire_buffer_binding()),
+      }],
       label: Some("aspect_ratio_bind_group"),
       layout: &particle_pipeline.aspect_ratio_layout,
     }),

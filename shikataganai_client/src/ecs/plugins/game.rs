@@ -9,6 +9,7 @@ use crate::ecs::systems::user_interface::chest_inventory::{
   chest_inventory, InventoryItemMovementStatus, InventoryOpened,
 };
 use crate::ecs::systems::user_interface::connecting::connecting_window;
+use crate::ecs::systems::user_interface::cursor_marker;
 use crate::ecs::systems::user_interface::game_menu::game_menu;
 use crate::ecs::systems::user_interface::hot_bar::hot_bar;
 use crate::ecs::systems::user_interface::main_menu::main_menu;
@@ -26,7 +27,6 @@ use shikataganai_common::ecs::resources::player::PlayerNickname;
 use shikataganai_common::ecs::resources::world::GameWorld;
 use shikataganai_common::networking::{ClientChannel, PlayerCommand};
 use std::time::Duration;
-use crate::ecs::systems::user_interface::cursor_marker;
 
 pub struct GamePlugin;
 
@@ -232,10 +232,7 @@ impl Plugin for GamePlugin {
       .run_in_state(ShikataganaiGameState::Paused)
       .with_system(game_menu)
       .into();
-    let on_fixed_step_simulation: SystemSet = ConditionSet::new()
-      .run_if(in_game)
-      .with_system(increment_tick)
-      .into();
+    let on_fixed_step_simulation: SystemSet = ConditionSet::new().run_if(in_game).with_system(increment_tick).into();
     let on_fixed_step_simulation_stage = SystemStage::parallel().with_system_set(on_fixed_step_simulation);
     let on_post_update_simulation = ConditionSet::new().run_if(in_game).with_system(religh_system).into();
     let on_enter_simulation = SystemStage::parallel().with_system(enter_simulation);

@@ -32,7 +32,7 @@ pub fn chest_inventory(
   requested_query: Query<&Requested>,
   location_query: Query<&ReverseLocation>,
   mut client: ResMut<RenetClient>,
-  mut inventory_movement: ResMut<InventoryItemMovementStatus>,
+  inventory_movement: ResMut<InventoryItemMovementStatus>,
   mut extracted_items: ResMut<ExtractedItems>,
   inventory_texture: Res<InventoryTextureOutputHandle>,
   player_inventory: Res<PlayerInventory>,

@@ -1,15 +1,13 @@
-use std::ops::Deref;
 use crate::ecs::plugins::rendering::draw_command::{SetBindGroup, SetViewBindGroup};
+use crate::ecs::plugins::rendering::particle_pipeline::bind_groups::AspectRatioBindGroup;
+use crate::ecs::plugins::rendering::particle_pipeline::ParticleBuffer;
 use crate::ecs::plugins::rendering::voxel_pipeline::bind_groups::{
-  LightTextureBindGroup, SelectionBindGroup, TextureBindGroup, ViewBindGroup,
+  LightTextureBindGroup, TextureBindGroup, ViewBindGroup,
 };
-use crate::ecs::plugins::rendering::voxel_pipeline::meshing::ChunkMeshBuffer;
-use bevy::ecs::system::lifetimeless::{Read, SQuery, SRes};
+use bevy::ecs::system::lifetimeless::SRes;
 use bevy::ecs::system::SystemParamItem;
 use bevy::prelude::*;
 use bevy::render::render_phase::{EntityRenderCommand, RenderCommandResult, SetItemPipeline, TrackedRenderPass};
-use crate::ecs::plugins::rendering::particle_pipeline::{ParticleBuffer, ParticleVertex};
-use crate::ecs::plugins::rendering::particle_pipeline::bind_groups::AspectRatioBindGroup;
 
 pub type DrawParticlesFull = (
   SetItemPipeline,

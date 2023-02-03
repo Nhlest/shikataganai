@@ -2,6 +2,7 @@ use crate::ecs::components::blocks::{BlockSprite, DerefExt};
 use crate::ecs::components::OverlayRender;
 use crate::ecs::plugins::camera::{FPSCamera, Player, Recollide, Selection, SelectionRes};
 use crate::ecs::plugins::game::ShikataganaiGameState;
+use crate::ecs::plugins::rendering::particle_pipeline::{EffectSprite, ParticleEmitter};
 use crate::ecs::plugins::rendering::voxel_pipeline::meshing::delta_to_side;
 use crate::ecs::resources::player::{PlayerInventory, SelectedHotBar};
 use crate::ecs::systems::user_interface::player_inventory::PlayerInventoryOpened;
@@ -28,7 +29,6 @@ use shikataganai_common::networking::{ClientChannel, PlayerCommand};
 use shikataganai_common::util::array::{sub_ddd, DDD};
 use std::cmp::Ordering;
 use std::ops::Deref;
-use crate::ecs::plugins::rendering::particle_pipeline::{EffectSprite, Particle, ParticleEmitter};
 
 fn place_item_from_inventory(
   player_inventory: &mut PlayerInventory,
@@ -222,7 +222,11 @@ pub fn keyboard_input(
       }
     }
     if key_code == &Some(KeyCode::B) && state == &ButtonState::Pressed {
-      commands.spawn(ParticleEmitter { location: player_position.single().translation, tile: EffectSprite::Smoke, lifetime: 100 });
+      commands.spawn(ParticleEmitter {
+        location: player_position.single().translation,
+        tile: EffectSprite::Smoke,
+        lifetime: 100,
+      });
     }
   }
 }

@@ -1,5 +1,7 @@
 use crate::ecs::plugins::game::{in_game, in_game_extract};
-use crate::ecs::plugins::rendering::voxel_pipeline::bind_groups::{ArrayTextureHandle, ItemTextureHandle, LightTextureHandle, ParticleTextureHandle, TextureHandle};
+use crate::ecs::plugins::rendering::voxel_pipeline::bind_groups::{
+  ArrayTextureHandle, ItemTextureHandle, LightTextureHandle, ParticleTextureHandle, TextureHandle,
+};
 use crate::ecs::plugins::rendering::voxel_pipeline::draw_command::DrawVoxelsFull;
 use crate::ecs::plugins::rendering::voxel_pipeline::meshing::RemeshEvent;
 use crate::ecs::plugins::rendering::voxel_pipeline::pipeline::VoxelPipeline;
