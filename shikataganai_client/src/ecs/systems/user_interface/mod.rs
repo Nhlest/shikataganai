@@ -1,6 +1,6 @@
 use crate::ecs::plugins::rendering::inventory_pipeline::inventory_cache::ExtractedItems;
 use crate::ecs::plugins::rendering::inventory_pipeline::InventoryTextureOutputHandle;
-use bevy::prelude::{Res, ResMut, Windows};
+use bevy::prelude::{Res, ResMut, Windows, Resource, Entity};
 use bevy_egui::EguiContext;
 use egui::{Color32, LayerId, Response, Sense, TextStyle, Ui, Widget};
 use shikataganai_common::ecs::components::blocks::QuantifiedBlockOrItem;
@@ -12,6 +12,16 @@ pub mod game_menu;
 pub mod hot_bar;
 pub mod main_menu;
 pub mod player_inventory;
+
+#[derive(Resource)]
+pub struct InventoryOpened(pub Entity);
+
+#[derive(Default, Resource)]
+pub enum InventoryItemMovementStatus {
+  #[default]
+  Nothing,
+  HoldingItemFrom(usize),
+}
 
 pub fn item_button(
   ui: &mut Ui,

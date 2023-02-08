@@ -1,9 +1,6 @@
-use crate::ecs::components::blocks::{BlockSprite, DerefExt};
-use crate::ecs::components::OverlayRender;
-use crate::ecs::plugins::camera::{FPSCamera, Player, Recollide, Selection, SelectionRes};
+use crate::ecs::components::blocks::DerefExt;
+use crate::ecs::plugins::camera::{FPSCamera, Recollide, Selection, SelectionRes};
 use crate::ecs::plugins::game::ShikataganaiGameState;
-use crate::ecs::plugins::rendering::particle_pipeline::{EffectSprite, ParticleEmitter};
-use crate::ecs::plugins::rendering::voxel_pipeline::meshing::delta_to_side;
 use crate::ecs::resources::player::{PlayerInventory, SelectedHotBar};
 use crate::ecs::systems::user_interface::player_inventory::PlayerInventoryOpened;
 use bevy::input::keyboard::KeyboardInput;
@@ -19,14 +16,12 @@ use itertools::Itertools;
 use iyes_loopless::prelude::NextState;
 use num_traits::FloatConst;
 use shikataganai_common::ecs::components::blocks::block_id::BlockId;
-use shikataganai_common::ecs::components::blocks::{
-  Block, BlockOrItem, BlockRotation, QuantifiedBlockOrItem, ReverseLocation,
-};
+use shikataganai_common::ecs::components::blocks::{Block, BlockOrItem, BlockRotation, QuantifiedBlockOrItem};
 use shikataganai_common::ecs::components::item::ItemId;
 use shikataganai_common::ecs::resources::light::{LightLevel, RelightEvent};
 use shikataganai_common::ecs::resources::world::GameWorld;
 use shikataganai_common::networking::{ClientChannel, PlayerCommand};
-use shikataganai_common::util::array::{sub_ddd, DDD};
+use shikataganai_common::util::array::DDD;
 use std::cmp::Ordering;
 use std::ops::Deref;
 
@@ -204,7 +199,6 @@ pub fn keyboard_input(
   mut commands: Commands,
   mut keyboard: EventReader<KeyboardInput>,
   player_inventory_opened: Option<Res<PlayerInventoryOpened>>,
-  player_position: Query<&Transform, With<Player>>,
 ) {
   for KeyboardInput {
     scan_code: _scan_code,
@@ -221,13 +215,6 @@ pub fn keyboard_input(
         commands.insert_resource(NextState(ShikataganaiGameState::InterfaceOpened));
       }
     }
-    if key_code == &Some(KeyCode::B) && state == &ButtonState::Pressed {
-      commands.spawn(ParticleEmitter {
-        location: player_position.single().translation,
-        tile: EffectSprite::Smoke,
-        lifetime: 100,
-      });
-    }
   }
 }
 
@@ -243,7 +230,6 @@ pub fn action_input(
   rapier_context: Res<RapierContext>,
   mut recollide: ResMut<Recollide>,
   mut client: ResMut<RenetClient>,
-  mut overlay_query: Query<&mut OverlayRender>,
 ) {
   match selection.into_inner().deref() {
     None => {}
@@ -290,19 +276,6 @@ pub fn action_input(
             .unwrap(),
           );
         } else {
-          let block = game_world.get_mut(source).unwrap();
-
-          let mut overlays = [BlockSprite::Empty; 6];
-          if block.entity == Entity::from_bits(0) || overlay_query.get(block.entity).is_err() {
-            overlays[delta_to_side(sub_ddd(target_negative, source))] = BlockSprite::Progress1;
-            let e = commands
-              .spawn((ReverseLocation(source), OverlayRender { overlays }))
-              .id();
-            block.entity = e;
-          } else {
-            let mut overlays = overlay_query.get_mut(block.entity).unwrap();
-            overlays.overlays[delta_to_side(sub_ddd(target_negative, source))] = BlockSprite::Progress1;
-          }
           // Do the crafting
           client.send_message(
             ClientChannel::ClientCommand.id(),

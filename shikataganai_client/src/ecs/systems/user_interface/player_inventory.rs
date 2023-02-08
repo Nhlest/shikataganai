@@ -1,15 +1,51 @@
 use crate::ecs::plugins::rendering::inventory_pipeline::inventory_cache::ExtractedItems;
 use crate::ecs::plugins::rendering::inventory_pipeline::InventoryTextureOutputHandle;
 use crate::ecs::resources::player::PlayerInventory;
-use crate::ecs::systems::user_interface::chest_inventory::InventoryItemMovementStatus;
-use crate::ecs::systems::user_interface::item_button_grid;
+use crate::ecs::systems::user_interface::{InventoryItemMovementStatus, item_button_grid};
 use bevy::prelude::*;
 use bevy_egui::EguiContext;
-use egui::{emath, Id, Widget};
+use egui::{emath, Context, Id, Ui, Widget};
 use shikataganai_common::ecs::components::blocks::QuantifiedBlockOrItem;
 
 #[derive(Resource)]
 pub struct PlayerInventoryOpened;
+
+pub fn render_player_inventory(
+  ui: &mut Ui,
+  player_inventory: &PlayerInventory,
+  extracted_items: &mut ExtractedItems,
+  inventory_texture: &InventoryTextureOutputHandle,
+  item_move: &InventoryItemMovementStatus,
+  range_start: usize
+) -> Option<usize> {
+  let content_fetch = |x| {
+    if let InventoryItemMovementStatus::HoldingItemFrom(from_slot) = *item_move && from_slot == x {
+      None
+    } else {
+      (player_inventory.items.get(x-range_start).unwrap() as &Option<QuantifiedBlockOrItem>).as_ref()
+    }
+  };
+  let mut clicked = item_button_grid(
+    "Top Grid",
+    ui,
+    content_fetch,
+    range_start+player_inventory.hot_bar_width..range_start+player_inventory.items.len(),
+    player_inventory.hot_bar_width,
+    extracted_items,
+    inventory_texture,
+  );
+  ui.separator();
+  clicked = clicked.or(item_button_grid(
+    "Bottom Grid",
+    ui,
+    content_fetch,
+    range_start..range_start+player_inventory.hot_bar_width,
+    player_inventory.hot_bar_width,
+    extracted_items,
+    inventory_texture,
+  ));
+  clicked
+}
 
 pub fn player_inventory(
   mut egui: ResMut<EguiContext>,
@@ -52,36 +88,18 @@ pub fn player_inventory(
         }
         ui.style_mut().spacing.button_padding = emath::Vec2::ZERO;
         let mut swap = None;
-        let content_fetch = |x| {
-          if let InventoryItemMovementStatus::HoldingItemFrom(from_slot) = *item_move && from_slot == x {
-            None
-          } else {
-            (player_inventory.items.get(x).unwrap() as &Option<QuantifiedBlockOrItem>).as_ref()
-          }
-        };
-        let mut clicked = item_button_grid(
-          "Top Grid",
+        let clicked = render_player_inventory(
           ui,
-          content_fetch,
-          player_inventory.hot_bar_width..player_inventory.items.len(),
-          player_inventory.hot_bar_width,
+          player_inventory.as_ref(),
           extracted_items.as_mut(),
           inventory_texture.as_ref(),
+          item_move.as_ref(),
+          0
         );
-        ui.separator();
-        clicked = clicked.or(item_button_grid(
-          "Bottom Grid",
-          ui,
-          content_fetch,
-          0..player_inventory.hot_bar_width,
-          player_inventory.hot_bar_width,
-          extracted_items.as_mut(),
-          inventory_texture.as_ref(),
-        ));
         if let Some(clicked) = clicked {
           match *item_move {
             InventoryItemMovementStatus::Nothing => {
-              if player_inventory.items.get(clicked).is_some() {
+              if player_inventory.items.get(clicked).unwrap().is_some() {
                 *item_move = InventoryItemMovementStatus::HoldingItemFrom(clicked);
               }
             }

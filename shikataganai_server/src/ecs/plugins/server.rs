@@ -216,7 +216,7 @@ pub fn handle_events(
                    PlayerNickname(nickname)
                 ))
                 .id();
-              Some((player_entity, Vec3::new(10.1, 45.0, 10.0), PolarRotation { phi: 0.0, theta: f32::FRAC_PI_2() }))
+              Some((player_entity, Vec3::new(10.1, 37.0, 10.0), PolarRotation { phi: 0.0, theta: f32::FRAC_PI_2() }))
             }).unwrap();
 
             if player_entities.players.iter().any(|(_, entity)| *entity == player_entity) {
@@ -297,6 +297,9 @@ pub fn handle_events(
               }
             }
           }
+        }
+        PlayerCommand::FunctorAction { location, functor } => {
+          todo!();
         }
       }
     }

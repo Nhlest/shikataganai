@@ -3,13 +3,13 @@ use crate::ecs::components::blocks::{
 };
 use crate::ecs::plugins::game::ShikataganaiGameState;
 use crate::ecs::plugins::rendering::mesh_pipeline::loader::Meshes;
-use crate::ecs::systems::user_interface::chest_inventory::{InventoryItemMovementStatus, InventoryOpened};
 use bevy::prelude::{Commands, Entity};
 use bevy_renet::renet::RenetClient;
 use bincode::serialize;
 use iyes_loopless::prelude::NextState;
 use shikataganai_common::networking::{ClientChannel, PlayerCommand};
 use shikataganai_common::util::array::DDD;
+use crate::ecs::systems::user_interface::{InventoryItemMovementStatus, InventoryOpened};
 
 pub struct Stair;
 pub struct Chest;

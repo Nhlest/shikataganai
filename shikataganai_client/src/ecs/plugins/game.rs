@@ -6,10 +6,10 @@ use crate::ecs::systems::input::{action_input, hot_bar_scroll_input, keyboard_in
 use crate::ecs::systems::light::religh_system;
 use crate::ecs::systems::remesh::remesh_system_auxiliary;
 use crate::ecs::systems::user_interface::chest_inventory::{
-  chest_inventory, InventoryItemMovementStatus, InventoryOpened,
+  chest_inventory
 };
 use crate::ecs::systems::user_interface::connecting::connecting_window;
-use crate::ecs::systems::user_interface::cursor_marker;
+use crate::ecs::systems::user_interface::{cursor_marker, InventoryItemMovementStatus, InventoryOpened};
 use crate::ecs::systems::user_interface::game_menu::game_menu;
 use crate::ecs::systems::user_interface::hot_bar::hot_bar;
 use crate::ecs::systems::user_interface::main_menu::main_menu;
