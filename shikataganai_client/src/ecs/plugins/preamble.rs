@@ -1,4 +1,4 @@
-use crate::ecs::plugins::settings::{AmbientOcclusion, FullScreen, MouseSensitivity, Resolution, Settings, VSync};
+use crate::ecs::plugins::settings::{AmbientOcclusion, FullScreen, MouseSensitivity, RecentConnections, Resolution, Settings, VSync};
 use bevy::app::AppExit;
 use bevy::prelude::*;
 use bevy::winit::WinitWindows;
@@ -29,6 +29,7 @@ fn exit(
   vsync: Res<VSync>,
   fullscreen: Res<FullScreen>,
   ambient_occlusion: Res<AmbientOcclusion>,
+  recent_connections: Res<RecentConnections>,
   client: Option<ResMut<RenetClient>>,
 ) {
   if events.iter().next().is_some() || w.windows.is_empty() {
@@ -47,6 +48,7 @@ fn exit(
       vsync: vsync.0,
       fullscreen: fullscreen.0,
       ambient_occlusion: ambient_occlusion.0,
+      recent_connections: recent_connections.0.clone()
     })
     .unwrap();
 

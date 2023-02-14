@@ -14,10 +14,7 @@ use shikataganai_common::ecs::components::functors::InternalInventory;
 use shikataganai_common::ecs::resources::light::{LightLevel, RelightEvent};
 use shikataganai_common::ecs::resources::player::PlayerNickname;
 use shikataganai_common::ecs::resources::world::GameWorld;
-use shikataganai_common::networking::{
-  server_connection_config, BlockTransfer, FunctorType, NetworkFrame, NetworkedEntities, PlayerCommand, PolarRotation,
-  ServerChannel, ServerMessage, PROTOCOL_ID,
-};
+use shikataganai_common::networking::{server_connection_config, BlockTransfer, FunctorType, NetworkFrame, NetworkedEntities, PlayerCommand, PolarRotation, ServerChannel, ServerMessage, PROTOCOL_ID};
 use shikataganai_common::recipes::Recipes;
 use shikataganai_common::util::array::{add_ddd, sub_ddd, DD, DDD};
 use std::net::UdpSocket;
@@ -297,9 +294,6 @@ pub fn handle_events(
               }
             }
           }
-        }
-        PlayerCommand::FunctorAction { location, functor } => {
-          todo!();
         }
       }
     }

@@ -7,6 +7,9 @@ use std::io::Read;
 
 pub struct SettingsPlugin;
 
+#[derive(Resource)]
+pub struct RecentConnections(pub Vec<(String, String)>);
+
 #[derive(Deserialize, Serialize)]
 pub struct Settings {
   pub sensitivity: f32,
@@ -15,6 +18,7 @@ pub struct Settings {
   pub vsync: bool,
   pub fullscreen: bool,
   pub ambient_occlusion: bool,
+  pub recent_connections: Vec<(String, String)>
 }
 
 impl Default for Settings {
@@ -26,6 +30,7 @@ impl Default for Settings {
       vsync: true,
       fullscreen: false,
       ambient_occlusion: true,
+      recent_connections: vec![]
     }
   }
 }
@@ -84,5 +89,6 @@ impl Plugin for SettingsPlugin {
     app.insert_resource(VSync(toml.vsync));
     app.insert_resource(FullScreen(toml.fullscreen));
     app.insert_resource(AmbientOcclusion(toml.ambient_occlusion));
+    app.insert_resource(RecentConnections(toml.recent_connections));
   }
 }

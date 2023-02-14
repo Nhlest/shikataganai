@@ -186,45 +186,6 @@ pub enum FunctorType {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub enum TransactionType {
-  Swap
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub enum InventoryIndex {
-  Local(usize),
-  Foreign(usize)
-}
-
-impl Into<usize> for InventoryIndex {
-  fn into(self) -> usize {
-    match self {
-      InventoryIndex::Foreign(x) => x + 1000,
-      InventoryIndex::Local(x) => x
-    }
-  }
-}
-
-impl From<usize> for InventoryIndex {
-  fn from(value: usize) -> Self {
-    if value >= 1000 {
-      Self::Foreign(value - 1000)
-    } else {
-      Self::Local(value)
-    }
-  }
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub enum FunctorAction {
-  InventoryTransaction {
-    _type: TransactionType,
-    from: InventoryIndex,
-    to: InventoryIndex
-  }
-}
-
-#[derive(Debug, Serialize, Deserialize)]
 pub enum PlayerCommand {
   PlayerAuth {
     nickname: String,
@@ -253,8 +214,4 @@ pub enum PlayerCommand {
   InitiateInWorldCraft {
     location: DDD,
   },
-  FunctorAction {
-    location: DDD,
-    functor: FunctorAction,
-  }
 }

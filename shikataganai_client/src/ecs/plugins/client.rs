@@ -397,7 +397,7 @@ fn send_system(
   }
 }
 
-pub fn spawn_client(mut commands: Commands, _player_entity: Entity, address: String, nickname: String) {
+pub fn spawn_client(commands: &mut Commands, _player_entity: Entity, address: String, nickname: String) {
   let server_addr = address.parse().unwrap();
   let socket = UdpSocket::bind("0.0.0.0:0").unwrap();
   let current_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap();
